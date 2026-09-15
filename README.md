@@ -1,37 +1,67 @@
-# Condominium Energy Management System (CEMS) 
+# Condominium Energy Management System (CEMS) ⚡🏢
 
-## Overview
-Energy consumption in condominium units continues to rise, yet most tenants and unit owners lack the tools to properly monitor and manage their electricity usage. This often results in energy waste, unnecessarily high electricity bills, and a lack of awareness about consumption habits. 
+![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=java&logoColor=white)
+![Build](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)
 
-**CEMS** is a structured, software-based solution built in **Java** to track, manage, and optimize energy use. It provides a dual-interface system for both tenants (to prevent bill shock) and property managers (to prevent localized grid overloads).
+An offline-first Android mobile application designed to manage condominium unit electricity usage, estimate projected costs, and prevent localized building power overloads using internal File I/O persistence.
 
-## 💡 The Solution
-Built purely on **Object-Oriented Programming (OOP)** principles, CEMS is designed to be modular, scalable, and adaptable. Instead of relying on a heavyweight backend database, the system demonstrates strong foundational computer science concepts by utilizing **Java File I/O (CSV)**, data structures (`ArrayList`), and memory management to simulate a localized smart grid.
+---
 
-## 🔑 Core Features
+## 📌 Table of Contents
+- [Overview](#-overview)
+- [Core Features](#-core-features)
+- [System Architecture](#-system-architecture)
+- [Data Storage](#-data-storage)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+- [Contributors](#-contributors)
 
-### Role-Based Access
-* **Tenant Level:** Users can log in to view their specific unit object, track daily power usage, and project upcoming electricity costs based on current rates.
-* **Admin Level:** Property managers have full access to macro-level building data, unit CRUD operations, and infrastructure load management.
+---
 
-### System Modules
-* **User Authentication:** Secures the platform by verifying credentials (with hashed passwords) against a local text file, routing users to either the Tenant or Admin interface.
-* **Unit Management:** An OOP-driven CRUD module where every condo unit is instantiated as an object in memory and serialized to a CSV file upon saving.
-* **Energy Dashboard:** Iterates through the stored unit objects to aggregate the building's total power draw in real-time.
-* **Cost Estimation:** Instantly calculates projected electricity bills based on user inputs and standard utility rates.
-* **Grid Overload Warning:** A hardcoded safety limit logic that intercepts any user or admin update pushing the building over maximum electrical capacity. It blocks the file write and throws an error, requiring load balancing before data persistence is allowed.
+## 📖 Overview
+High-density residential buildings often face the risk of localized power outages due to unmanaged, peak-hour energy consumption. **CEMS** provides a dual-interface Android solution that tracks power usage at the unit level. By aggregating this data locally on the device, the system acts as a software-level failsafe—intercepting data updates that exceed a building's maximum electrical capacity to prevent tripped breakers.
 
-## 🏗️ Technical Architecture & Class Structure
+## ⚙️ Core Features
+* **Role-Based Access Control:** Secure authentication routing users to either a localized Tenant UI or a macro-level Building Admin UI.
+* **Unit CRUD Operations:** Full management of individual condo units treated as encapsulated objects in memory.
+* **Real-Time Load Aggregation:** Iterates through active unit objects to calculate total building power draw against hardcoded grid limits.
+* **Cost Estimation Engine:** Converts active unit kilowatt-hours (kWh) into projected financial costs based on current utility rates.
+* **Active Overload Prevention:** Core system logic that blocks local file write operations if an update exceeds the maximum grid capacity, triggering an Android Toast/Dialog warning to force load balancing.
 
-The system handles data persistence entirely through Java File I/O. When an update occurs, the specific object is modified in memory, and the CSV file is immediately overwritten to maintain state.
+---
+
+## 🏗️ System Architecture
+
+The system utilizes strict Object-Oriented Programming principles and relies on memory management (via `ArrayLists`) mapped to local app storage for persistence, completely bypassing the need for a cloud backend or SQL database.
 
 | CLASS | ATTRIBUTES | METHODS |
 | :--- | :--- | :--- |
-| **Admin/Tenant** | `username`, `passwordHash`, `userID`, `roleType` | `register()`, `login()`, `logOut()`, `verifyCredentials()` |
+| **User** | `username`, `passwordHash`, `userID`, `roleType` | `register()`, `login()`, `logOut()`, `verifyCredentials()` |
 | **Unit** | `unitID`, `floorLevel`, `kilowattHours` | `registerUnit()`, `updateUsage()`, `removeUnit()`, `getUsage()` |
-| **BuildingGrid** | `unitList` (ArrayList), `totalBuildingLoad`, `maxBuildingCapacity`, `ratePerKWh` | `displayDashboard()`, `calculateTotalLoad()`, `estimateCosts()`, `checkOverloadWarning()` |
-| **FileHandler** | `csvFilePath` | `readData()`, `writeData()`, `updateRecord()` |
+| **BuildingGrid** | `unitList` (ArrayList), `totalLoad`, `maxCapacity`, `rate` | `displayDashboard()`, `calculateTotalLoad()`, `estimateCosts()`, `checkOverload()` |
+| **FileHandler** | `internalFilePath` | `readData()`, `writeData()`, `updateRecord()` |
 
-## 🌍 Impact
-1. **For Tenants:** Eliminates bill shocks by providing full visibility over unit energy use, helping residents identify peak hours and adjust consumption habits.
-2. **For Infrastructure:** Stops peak-hour overloads and tripped breakers. By intercepting updates that exceed capacity, the system acts as a software-level failsafe for the building's physical electrical panels.
+---
+
+## 🗄️ Data Storage
+This project utilizes **Android Internal Storage (Context.openFileOutput)** for offline state management, ensuring data is kept secure and local to the device.
+* `credentials.txt` - Stores hashed user credentials and role definitions.
+* `building_data.csv` - Stores serialized `Unit` object states (Unit ID, Floor, kWh).
+
+---
+
+## 📂 Project Structure
+
+```text
+CEMS-Android/
+├── app/src/main/
+│   ├── java/com/cems/app/
+│   │   ├── activities/       # UI Controllers (Login, Dashboard)
+│   │   ├── models/           # OOP Classes (User, Unit, BuildingGrid)
+│   │   └── utils/            # FileHandler logic
+│   ├── res/
+│   │   ├── layout/           # XML UI designs
+│   │   └── values/           # Colors, Strings, Themes
+│   └── AndroidManifest.xml   # App configuration
+└── README.md
