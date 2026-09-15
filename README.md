@@ -1,4 +1,4 @@
-# Condominium Energy Management System (CEMS) ⚡🏢
+# Condominium Energy Management System (CEMS) 
 
 ## Overview
 Energy consumption in condominium units continues to rise, yet most tenants and unit owners lack the tools to properly monitor and manage their electricity usage. This often results in energy waste, unnecessarily high electricity bills, and a lack of awareness about consumption habits. 
