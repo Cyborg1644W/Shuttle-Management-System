@@ -1,10 +1,10 @@
-# Condominium Energy Management System (CEMS) ⚡🏢
+# Shuttle Management System (SMS) 🚌🛣️
 
 ![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=java&logoColor=white)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)
 
-An offline-first Android mobile application designed to manage condominium unit electricity usage, estimate projected costs, and prevent localized building power overloads using internal File I/O persistence.
+An offline-first Android mobile application designed to manage campus/company shuttle routes, track passenger loads, estimate fares, and prevent shuttle overcapacity using internal File I/O persistence.
 
 ---
 
@@ -20,14 +20,14 @@ An offline-first Android mobile application designed to manage condominium unit 
 ---
 
 ## 📖 Overview
-High-density residential buildings often face the risk of localized power outages due to unmanaged, peak-hour energy consumption. **CEMS** provides a dual-interface Android solution that tracks power usage at the unit level. By aggregating this data locally on the device, the system acts as a software-level failsafe—intercepting data updates that exceed a building's maximum electrical capacity to prevent tripped breakers.
+Shuttle services on campuses and corporate compounds often face the risk of overcrowded or overbooked trips due to unmanaged, peak-hour boarding. **SMS** provides a dual-interface Android solution that tracks passenger load at the shuttle level. By aggregating this data locally on the device, the system acts as a software-level failsafe—intercepting boarding updates that exceed a shuttle's maximum seating capacity to prevent unsafe overcrowding.
 
 ## ⚙️ Core Features
-* **Role-Based Access Control:** Secure authentication routing users to either a localized Tenant UI or a macro-level Building Admin UI.
-* **Unit CRUD Operations:** Full management of individual condo units treated as encapsulated objects in memory.
-* **Real-Time Load Aggregation:** Iterates through active unit objects to calculate total building power draw against hardcoded grid limits.
-* **Cost Estimation Engine:** Converts active unit kilowatt-hours (kWh) into projected financial costs based on current utility rates.
-* **Active Overload Prevention:** Core system logic that blocks local file write operations if an update exceeds the maximum grid capacity, triggering an Android Toast/Dialog warning to force load balancing.
+* **Role-Based Access Control:** Secure authentication routing users to either a localized Passenger/Booking UI or a macro-level Dispatcher/Admin UI.
+* **Shuttle CRUD Operations:** Full management of individual shuttle units treated as encapsulated objects in memory.
+* **Real-Time Load Aggregation:** Iterates through active shuttle objects to calculate total fleet passenger load against hardcoded seating limits.
+* **Fare Estimation Engine:** Converts route distance and passenger count into projected fare costs based on current fare rates.
+* **Active Overcapacity Prevention:** Core system logic that blocks local file write operations if a boarding update exceeds a shuttle's maximum seat capacity, triggering an Android Toast/Dialog warning to force rerouting or the next available shuttle.
 
 ---
 
@@ -38,8 +38,8 @@ The system utilizes strict Object-Oriented Programming principles and relies on 
 | CLASS | ATTRIBUTES | METHODS |
 | :--- | :--- | :--- |
 | **User** | `username`, `passwordHash`, `userID`, `roleType` | `register()`, `login()`, `logOut()`, `verifyCredentials()` |
-| **Unit** | `unitID`, `floorLevel`, `kilowattHours` | `registerUnit()`, `updateUsage()`, `removeUnit()`, `getUsage()` |
-| **BuildingGrid** | `unitList` (ArrayList), `totalLoad`, `maxCapacity`, `rate` | `displayDashboard()`, `calculateTotalLoad()`, `estimateCosts()`, `checkOverload()` |
+| **Shuttle** | `shuttleID`, `routeName`, `seatCapacity`, `currentPassengers` | `registerShuttle()`, `updatePassengerCount()`, `removeShuttle()`, `getLoad()` |
+| **FleetManager** | `shuttleList` (ArrayList), `totalPassengers`, `maxFleetCapacity`, `fareRate` | `displayDashboard()`, `calculateTotalLoad()`, `estimateFares()`, `checkOvercapacity()` |
 | **FileHandler** | `internalFilePath` | `readData()`, `writeData()`, `updateRecord()` |
 
 ---
@@ -47,21 +47,22 @@ The system utilizes strict Object-Oriented Programming principles and relies on 
 ## 🗄️ Data Storage
 This project utilizes **Android Internal Storage (Context.openFileOutput)** for offline state management, ensuring data is kept secure and local to the device.
 * `credentials.txt` - Stores hashed user credentials and role definitions.
-* `building_data.csv` - Stores serialized `Unit` object states (Unit ID, Floor, kWh).
+* `shuttle_data.csv` - Stores serialized `Shuttle` object states (Shuttle ID, Route, Passenger Count).
 
 ---
 
 ## 📂 Project Structure
 
 ```text
-CEMS-Android/
+SMS-Android/
 ├── app/src/main/
-│   ├── java/com/cems/app/
+│   ├── java/com/sms/app/
 │   │   ├── activities/       # UI Controllers (Login, Dashboard)
-│   │   ├── models/           # OOP Classes (User, Unit, BuildingGrid)
+│   │   ├── models/           # OOP Classes (User, Shuttle, FleetManager)
 │   │   └── utils/            # FileHandler logic
 │   ├── res/
 │   │   ├── layout/           # XML UI designs
 │   │   └── values/           # Colors, Strings, Themes
 │   └── AndroidManifest.xml   # App configuration
 └── README.md
+```  
