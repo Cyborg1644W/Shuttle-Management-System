@@ -31,38 +31,94 @@ The project is divided into three isolated Gradle modules (using Groovy, zero Ko
 * **Secure Invites & Auth:** Native cryptographic salted password hashing (PBKDF2-SHA256). Admin registration invites feature strict 48-hour expirations and single-use validation.
 * **Immutable Audit Logging:** Secure transaction logs append every data creation, modification, and administrative action with timestamps.
 
-## 📂 Project Structure
+## 📂 Detailed Project Structure
 
     shuttle-management-system/
-    |-- build.gradle                 # Root Gradle build (Groovy)
+    |-- build.gradle                 # Root Gradle build (Groovy, zero Kotlin)
     |-- settings.gradle              # Defines: include ':common', ':server-backend', ':app'
     |
-    |-- common/                      # 1. SHARED MODELS
+    |-- common/                      # 1. SHARED MODULE
+    |   |-- build.gradle
     |   `-- src/main/java/com/shuttle/common/
-    |       |-- Worker.java, Role.java, ShiftRecord.java, GpsCoordinate.java
-    |       `-- CsvUtil.java, ValidationUtil.java, DurationFormatter.java
+    |       |-- Worker.java          # Shared domain models (Driver, Admin, Dispatcher)
+    |       |-- Role.java
+    |       |-- ShiftRecord.java
+    |       |-- ShuttleUnit.java
+    |       |-- GpsCoordinate.java
+    |       |-- CsvUtil.java         # CSV formatting and parsing tools
+    |       |-- ValidationUtil.java
+    |       `-- DurationFormatter.java
     |
-    |-- server-backend/              # 2. PURE JDK SERVER (Imports :common)
+    |-- server-backend/              # 2. SERVER MODULE
+    |   |-- build.gradle             # Imports project(':common')
     |   `-- src/main/java/com/shuttle/server/
-    |       |-- ServerMain.java      # Bootstraps the com.sun HTTP server
-    |       |-- Auth.java, Crypto.java, RateLimiter.java, Log.java, ApiException.java
-    |       |-- handler/             # API routing (Shift, Location, Live, Invite)
+    |       |-- ServerMain.java      # Bootstraps the pure JDK com.sun HTTP server
+    |       |-- ShuttleServer.java   # Core HTTP server wrapper and thread manager
+    |       |-- ServerConfig.java
+    |       |-- Auth.java            # RBAC and session token validation
+    |       |-- Crypto.java          # PBKDF2 / SHA-256 password hashing
+    |       |-- RateLimiter.java     # Brute-force prevention
+    |       |-- Log.java             # Immutable audit logging
+    |       |-- ApiException.java    # Standardized API error responses
+    |       |
+    |       |-- handler/             # API routing endpoints
+    |       |   |-- ApiHandler.java, AuthHandler.java, ShiftHandler.java
+    |       |   `-- LocationHandler.java, LiveHandler.java, InviteHandler.java
+    |       |
     |       |-- service/             # Business logic & Heartbeat threads
+    |       |   |-- ShiftService.java, TrackingService.java
+    |       |   `-- InviteService.java, RegistrationService.java
+    |       |
     |       |-- repository/          # In-memory caches + CSV syncing
-    |       `-- io/                  # CsvTable, AtomicFileWriter
+    |       |   |-- WorkerRepository.java, ShiftRepository.java
+    |       |   `-- InviteRepository.java, ShuttleRepository.java
+    |       |
+    |       `-- io/                  # File operations
+    |           |-- CsvTable.java
+    |           |-- AtomicFileWriter.java # Thread-safe OS-level file locking
+    |           `-- ImportService.java, ExportService.java
     |
-    `-- app/                         # 3. ANDROID CLIENT (Imports :common)
-        `-- src/main/
-            |-- AndroidManifest.xml
-            |-- java/com/shuttle/mobile/
-            |   |-- client/          # ApiClient, OfflineQueueManager
-            |   |-- gps/             # GpsTrackerService, SimulatedGpsSource
-            |   `-- ui/              # MainActivity, PureJavaMapCanvas, DriverActivity, etc.
-            `-- res/layout/          # Native Android XML UI files
+    |-- app/                         # 3. ANDROID CLIENT MODULE
+    |   |-- build.gradle             # Imports project(':common')
+    |   `-- src/main/
+    |       |-- AndroidManifest.xml  # GPS, Internet, and Foreground Service permissions
+    |       |-- java/com/shuttle/mobile/
+    |       |   |-- client/          # Networking & Syncing
+    |       |   |   |-- ApiClient.java
+    |       |   |   `-- OfflineQueueManager.java # Offline-first local GPS caching
+    |       |   |
+    |       |   |-- gps/             # Hardware Location
+    |       |   |   |-- GpsTrackerService.java   # Android Foreground Service
+    |       |   |   `-- SimulatedGpsSource.java
+    |       |   |
+    |       |   `-- ui/              # Screen Controllers (Pure Java UI logic)
+    |       |       |-- MainActivity.java
+    |       |       |-- LoginActivity.java
+    |       |       |-- RegisterActivity.java
+    |       |       |-- DriverActivity.java
+    |       |       |-- DispatcherActivity.java
+    |       |       |-- AdminActivity.java
+    |       |       |-- PureJavaMapCanvas.java   # Custom Canvas rendering
+    |       |       `-- ShiftSummaryActivity.java
+    |       |
+    |       `-- res/
+    |           |-- layout/          # Standard XML Layout files
+    |           `-- values/          # Strings, colors, styles
+    |
+    |-- sample-data/import/          # Seed data for testing
+    |   |-- workers.csv
+    |   `-- shuttles.csv
+    `-- docs/                        # API and Schema Documentation
+        |-- FILE_FORMATS.md
+        `-- API.md
 
 ## ⚡ Quick Start
 
-You need **JDK 17+** and the **Android SDK**. 
+You need **JDK 17+**, the **Android SDK**, and **Git** installed on your system.
+
+**0. Clone the Repository**
+    git clone https://github.com/your-username/shuttle-management-system.git
+    cd shuttle-management-system
 
 **1. Build the Project**
     ./gradlew build
@@ -72,7 +128,7 @@ You need **JDK 17+** and the **Android SDK**.
 *(The server binds to `0.0.0.0:8443` by default. It will print a one-time admin invite code to the console.)*
 
 **3. Install the Android App**
-Connect your Android device (or emulator) and run:
+Connect your Android device (or emulator) via USB and run:
     ./gradlew :app:installDebug
 
 **4. First Login Workflow**
