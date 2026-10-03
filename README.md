@@ -12,94 +12,88 @@ The project is divided into three isolated Gradle modules (using Groovy, zero Ko
 2. **`:server-backend`**: A pure JDK 17 HTTP server utilizing `com.sun.net.httpserver`. Data is stored purely in local CSV files using thread-safe atomic file-swapping.
 3. **`:app`**: A native Android client (Java/XML) featuring background GPS tracking, programmatic canvas map rendering, and an offline-first queue manager for cellular dead zones.
 
-```text
-Driver Phone (Android) -------\
-                               +--HTTP(S)--> Shuttle Server --reads---> import/  <-- Company DB
-Dispatcher Phone (Android) ---/              (Java, files)  --writes--> export/  --> Company DB
-✨ Key Features
-Mobile Client (Android)
-Offline-First Resilience (OfflineQueueManager): Safely caches GPS coordinates locally during cellular dead spots and automatically flushes them to the server when 4G/5G connectivity returns.
+    Driver Phone (Android) -------\
+                                   +--HTTP(S)--> Shuttle Server --reads---> import/  <-- Company DB
+    Dispatcher Phone (Android) ---/              (Java, files)  --writes--> export/  --> Company DB
 
-Automated Background Tracking: Uses an Android Foreground Service to continuously pull real hardware GPS coordinates without being killed by the OS.
+## ✨ Key Features
 
-Custom Map Rendering: Bypasses paid third-party APIs (like Google Maps) by mathematically plotting live fleet telemetry onto a pure Java Canvas.
+### Mobile Client (Android)
+* **Offline-First Resilience (`OfflineQueueManager`):** Safely caches GPS coordinates locally during cellular dead spots and automatically flushes them to the server when 4G/5G connectivity returns.
+* **Automated Background Tracking:** Uses an Android Foreground Service to continuously pull real hardware GPS coordinates without being killed by the OS.
+* **Custom Map Rendering:** Bypasses paid third-party APIs (like Google Maps) by mathematically plotting live fleet telemetry onto a pure Java `Canvas`.
+* **Role-Based Routing:** Dedicated mobile interfaces for Drivers, Dispatchers, and Administrators using standard Android XML layouts controlled by pure Java activities.
 
-Role-Based Routing: Dedicated mobile interfaces for Drivers, Dispatchers, and Administrators using standard Android XML layouts controlled by pure Java activities.
+### Server Backend (Pure JDK)
+* **Thread-Safe CSV Persistence:** Zero external database requirement. Data is persisted across structured CSV files using OS-level file-locking and atomic file-swapping (`AtomicFileWriter.java`) to prevent concurrent race conditions.
+* **Smart Shift Management:** Automated server daemon threads track active shifts and safely time out/close shifts if a driver's mobile connection permanently drops.
+* **GPS Anti-Spoofing:** Server-side distance-time vector calculations instantly reject impossible teleportation jumps or faked location pings.
+* **Secure Invites & Auth:** Native cryptographic salted password hashing (PBKDF2-SHA256). Admin registration invites feature strict 48-hour expirations and single-use validation.
+* **Immutable Audit Logging:** Secure transaction logs append every data creation, modification, and administrative action with timestamps.
 
-Server Backend (Pure JDK)
-Thread-Safe CSV Persistence: Zero external database requirement. Data is persisted across structured CSV files using OS-level file-locking and atomic file-swapping (AtomicFileWriter.java) to prevent concurrent race conditions.
+## 📂 Project Structure
 
-Smart Shift Management: Automated server daemon threads track active shifts and safely time out/close shifts if a driver's mobile connection permanently drops.
+    shuttle-management-system/
+    |-- build.gradle                 # Root Gradle build (Groovy)
+    |-- settings.gradle              # Defines: include ':common', ':server-backend', ':app'
+    |
+    |-- common/                      # 1. SHARED MODELS
+    |   `-- src/main/java/com/shuttle/common/
+    |       |-- Worker.java, Role.java, ShiftRecord.java, GpsCoordinate.java
+    |       `-- CsvUtil.java, ValidationUtil.java, DurationFormatter.java
+    |
+    |-- server-backend/              # 2. PURE JDK SERVER (Imports :common)
+    |   `-- src/main/java/com/shuttle/server/
+    |       |-- ServerMain.java      # Bootstraps the com.sun HTTP server
+    |       |-- Auth.java, Crypto.java, RateLimiter.java, Log.java, ApiException.java
+    |       |-- handler/             # API routing (Shift, Location, Live, Invite)
+    |       |-- service/             # Business logic & Heartbeat threads
+    |       |-- repository/          # In-memory caches + CSV syncing
+    |       `-- io/                  # CsvTable, AtomicFileWriter
+    |
+    `-- app/                         # 3. ANDROID CLIENT (Imports :common)
+        `-- src/main/
+            |-- AndroidManifest.xml
+            |-- java/com/shuttle/mobile/
+            |   |-- client/          # ApiClient, OfflineQueueManager
+            |   |-- gps/             # GpsTrackerService, SimulatedGpsSource
+            |   `-- ui/              # MainActivity, PureJavaMapCanvas, DriverActivity, etc.
+            `-- res/layout/          # Native Android XML UI files
 
-GPS Anti-Spoofing: Server-side distance-time vector calculations instantly reject impossible teleportation jumps or faked location pings.
+## ⚡ Quick Start
 
-Secure Invites & Auth: Native cryptographic salted password hashing (PBKDF2-SHA256). Admin registration invites feature strict 48-hour expirations and single-use validation.
+You need **JDK 17+** and the **Android SDK**. 
 
-Immutable Audit Logging: Secure transaction logs append every data creation, modification, and administrative action with timestamps.
+**1. Build the Project**
+    ./gradlew build
 
-📂 Project Structure
-Plaintext
-shuttle-management-system/
-|-- build.gradle                 # Root Gradle build (Groovy)
-|-- settings.gradle              # Defines: include ':common', ':server-backend', ':app'
-|
-|-- common/                      # 1. SHARED MODELS
-|   `-- src/main/java/com/shuttle/common/
-|       |-- Worker.java, Role.java, ShiftRecord.java, GpsCoordinate.java
-|       `-- CsvUtil.java, ValidationUtil.java, DurationFormatter.java
-|
-|-- server-backend/              # 2. PURE JDK SERVER (Imports :common)
-|   `-- src/main/java/com/shuttle/server/
-|       |-- ServerMain.java      # Bootstraps the com.sun HTTP server
-|       |-- Auth.java, Crypto.java, RateLimiter.java, Log.java, ApiException.java
-|       |-- handler/             # API routing (Shift, Location, Live, Invite)
-|       |-- service/             # Business logic & Heartbeat threads
-|       |-- repository/          # In-memory caches + CSV syncing
-|       `-- io/                  # CsvTable, AtomicFileWriter
-|
-`-- app/                         # 3. ANDROID CLIENT (Imports :common)
-    `-- src/main/
-        |-- AndroidManifest.xml
-        |-- java/com/shuttle/mobile/
-        |   |-- client/          # ApiClient, OfflineQueueManager
-        |   |-- gps/             # GpsTrackerService, SimulatedGpsSource
-        |   `-- ui/              # MainActivity, PureJavaMapCanvas, DriverActivity, etc.
-        `-- res/layout/          # Native Android XML UI files
-⚡ Quick Start
-You need JDK 17+ and the Android SDK.
+**2. Start the Server**
+    ./gradlew :server-backend:run --args="--bootstrap-admin you@example.com"
+*(The server binds to `0.0.0.0:8443` by default. It will print a one-time admin invite code to the console.)*
 
-1. Build the Project
-
-Bash
-./gradlew build
-2. Start the Server
-
-Bash
-./gradlew :server-backend:run --args="--bootstrap-admin you@example.com"
-The server binds to 0.0.0.0:8443 by default. It will print a one-time admin invite code to the console.
-
-3. Install the Android App
+**3. Install the Android App**
 Connect your Android device (or emulator) and run:
+    ./gradlew :app:installDebug
 
-Bash
-./gradlew :app:installDebug
-4. First Login Workflow
-Open the Android app and tap Register with invite code.
-Enter your email and the invite code from the server console.
-Log in as an Admin/Dispatcher and use the dashboard to generate an invite code for a Driver.
-On a second phone, register the Driver, select a shuttle, and tap Start Shift.
-The Dispatcher's PureJavaMapCanvas will begin reflecting the Driver's real-time hardware GPS location.
+**4. First Login Workflow**
+1. Open the Android app and tap **Register with invite code**.
+2. Enter your email and the invite code from the server console.
+3. Log in as an Admin/Dispatcher and use the dashboard to generate an invite code for a Driver.
+4. On a second phone, register the Driver, select a shuttle, and tap **Start Shift**.
+5. The Dispatcher's `PureJavaMapCanvas` will begin reflecting the Driver's real-time hardware GPS location.
 
-🔒 Security & Production Readiness
+## 🔒 Security & Production Readiness
+
 Before real drivers use this system in production:
-Enable HTTPS: Passwords and session tokens currently travel over HTTP. You must provide a PKCS12 keystore to the server via JVM arguments (-Dshuttle.ssl.keystore=...).
-Data Privacy (RA 10173/GDPR): Drivers are being actively tracked. You must secure explicit consent and configure automated data-retention lifecycles for the GPS CSV files.
-Network Accessibility: To sync phones out on public roads, the server must be exposed to the internet via port-forwarding or a secure tunnel (e.g., Cloudflare Tunnel or Tailscale).
+1. **Enable HTTPS:** Passwords and session tokens currently travel over HTTP. You must provide a PKCS12 keystore to the server via JVM arguments (`-Dshuttle.ssl.keystore=...`).
+2. **Data Privacy (RA 10173/GDPR):** Drivers are being actively tracked. You must secure explicit consent and configure automated data-retention lifecycles for the GPS CSV files.
+3. **Network Accessibility:** To sync phones out on public roads, the server must be exposed to the internet via port-forwarding or a secure tunnel (e.g., Cloudflare Tunnel or Tailscale).
 
-🚧 Known Limitations
-Session Volatility: User sessions currently live in RAM. A server restart requires all active mobile clients to log in again.
-Storage Scale: The CSV backend performs brilliantly for dozens of drivers and thousands of shifts. If scaling to thousands of concurrent active drivers, the Repository interfaces must be backed by JDBC.
+## 🚧 Known Limitations
 
-Map Detail: PureJavaMapCanvas plots coordinates accurately but does not render street-level map tiles (to avoid Google Maps API fees). It acts as a radar-style telemetry display.
+* **Session Volatility:** User sessions currently live in RAM. A server restart requires all active mobile clients to log in again.
+* **Storage Scale:** The CSV backend performs brilliantly for dozens of drivers and thousands of shifts. If scaling to thousands of concurrent active drivers, the `Repository` interfaces must be backed by JDBC.
+* **Map Detail:** `PureJavaMapCanvas` plots coordinates accurately but does not render street-level map tiles (to avoid Google Maps API fees). It acts as a radar-style telemetry display.
 
-This software is open-source and free to use under the MIT License. See LICENSE for details.
+---
+*This software is open-source and free to use under the MIT License. See `LICENSE` for details.*
