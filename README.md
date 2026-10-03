@@ -1,242 +1,105 @@
 # Shuttle Management System
 
-Manage shuttle units, drivers and shifts, with live tracking.
+A highly resilient, offline-capable mobile tracking and shift management system built entirely in **Pure Java**. 
 
-**Pure Java 17, JDK only.** No Maven, no Gradle, no Spring, no third-party libraries. It is a **server** that
-owns the data and a **Swing desktop client** for drivers and dispatchers. A dispatcher is also the admin, so there are only two roles.
+This system tracks shuttle units, manages driver shifts, and provides live telemetry to dispatchers. It features a strict **3-module architecture**, pairing a native Android mobile client with an ultra-lightweight, database-free pure JDK backend. It strictly avoids heavy frameworks (no Spring, Hibernate, Retrofit, or Google Maps SDK) to ensure a minimal footprint, zero API costs, and absolute control over data flow.
 
-Storage is **files only** (CSV). The company's database exchanges data with the system through a shared folder,
-so the app never connects to a database. See [`docs/FILE_FORMATS.md`](docs/FILE_FORMATS.md).
+## 🏗️ System Architecture
 
-| Login screen | Driver | Dispatcher (admin) |
-|---|---|---|
-| ![login](docs/screenshots/login.png) | ![driver](docs/screenshots/driver.png) | ![dispatcher](docs/screenshots/admin.png) |
+The project is divided into three isolated Gradle modules (using Groovy, zero Kotlin):
 
-## Contents
+1. **`:common`**: Shared domain models (Workers, Shifts, GPS Coordinates) used by both the server and the app.
+2. **`:server-backend`**: A pure JDK 17 HTTP server utilizing `com.sun.net.httpserver`. Data is stored purely in local CSV files using thread-safe atomic file-swapping.
+3. **`:app`**: A native Android client (Java/XML) featuring background GPS tracking, programmatic canvas map rendering, and an offline-first queue manager for cellular dead zones.
 
-1. [How it fits together](#how-it-fits-together)
-2. [Roles](#roles)
-3. [Project structure](#project-structure)
-4. [Quick start](#quick-start-needs-jdk-17)
-5. [Configuration](#configuration)
-6. [Pure Java: what that means here](#pure-java-what-that-means-here)
-7. [Security built in](#security-built-in)
-8. [Before real drivers use it](#before-real-drivers-use-it-not-done-for-you)
-9. [Known limits](#known-limits-honest-list)
-10. [Tests](#tests)
-11. [Troubleshooting](#troubleshooting)
-12. [Roadmap](#roadmap)
-13. [Documentation and license](#documentation-and-license)
+```text
+Driver Phone (Android) -------\
+                               +--HTTP(S)--> Shuttle Server --reads---> import/  <-- Company DB
+Dispatcher Phone (Android) ---/              (Java, files)  --writes--> export/  --> Company DB
+✨ Key Features
+Mobile Client (Android)
+Offline-First Resilience (OfflineQueueManager): Safely caches GPS coordinates locally during cellular dead spots and automatically flushes them to the server when 4G/5G connectivity returns.
 
-## How it fits together
+Automated Background Tracking: Uses an Android Foreground Service to continuously pull real hardware GPS coordinates without being killed by the OS.
 
-```
-Driver app (Swing) -----\
-                         +--HTTP(S)--> Shuttle server --reads---> import/  <-- company database exports
-Dispatcher app (Swing) -/                (Java, files)  --writes--> export/ --> company database imports
-```
+Custom Map Rendering: Bypasses paid third-party APIs (like Google Maps) by mathematically plotting live fleet telemetry onto a pure Java Canvas.
 
-Every device talks to one server, so there is nothing to synchronise. The server is the only program that reads
-and writes the data files.
+Role-Based Routing: Dedicated mobile interfaces for Drivers, Dispatchers, and Administrators using standard Android XML layouts controlled by pure Java activities.
 
-## Roles
+Server Backend (Pure JDK)
+Thread-Safe CSV Persistence: Zero external database requirement. Data is persisted across structured CSV files using OS-level file-locking and atomic file-swapping (AtomicFileWriter.java) to prevent concurrent race conditions.
 
-| Role | What they do |
-|---|---|
-| **Dispatcher (admin)** | Invites workers and picks their role, watches live drivers, time on shift and positions on the map. |
-| **Driver** | Registers with an invite code, picks a shuttle, starts and ends a shift. |
+Smart Shift Management: Automated server daemon threads track active shifts and safely time out/close shifts if a driver's mobile connection permanently drops.
 
-There is no separate admin role: the dispatcher is the admin. The role is checked by the server on every
-request, never trusted from the client.
+GPS Anti-Spoofing: Server-side distance-time vector calculations instantly reject impossible teleportation jumps or faked location pings.
 
-## Project structure
+Secure Invites & Auth: Native cryptographic salted password hashing (PBKDF2-SHA256). Admin registration invites feature strict 48-hour expirations and single-use validation.
 
-```
+Immutable Audit Logging: Secure transaction logs append every data creation, modification, and administrative action with timestamps.
+
+📂 Project Structure
+Plaintext
 shuttle-management-system/
-|-- scripts/                        build / run-server / run-client / test / screenshots (.sh and .bat)
-|-- config/server.properties.example
-|-- sample-data/import/             example workers.csv and shuttles.csv from the "company database"
-|-- docs/                           FILE_FORMATS.md, API.md, screenshots/
-`-- src/
-    |-- main/java/com/shuttle/
-    |   |-- common/                 shared: Worker (abstract) > Driver, Dispatcher; ShiftRecord,
-    |   |                           ShuttleUnit, GpsCoordinate, Role, CsvUtil, ValidationUtil, DurationFormatter
-    |   |-- server/
-    |   |   |-- ServerMain, ShuttleServer, ServerConfig, Auth, Crypto, RateLimiter, Log, ApiException
-    |   |   |-- handler/            one class per feature: Auth, Shift, Location, Live, Invite (+ ApiHandler)
-    |   |   |-- service/            rules: Shift, Tracking, Invite, Registration
-    |   |   |-- repository/         file-backed: Worker, Shift, Invite, Shuttle
-    |   |   `-- io/                 CsvTable, AtomicFileWriter, ImportService, ExportService
-    |   `-- client/
-    |       |-- ClientMain, ApiClient
-    |       |-- gps/                GpsSource, SimulatedGpsSource
-    |       `-- view/               MainFrame, LoginPanel, RegisterDialog, DriverPanel, DispatcherPanel,
-    |                               MapPanel, ShiftSummaryDialog, Theme, Async
-    `-- test/java/com/shuttle/      UnitChecks, ApiChecks, UiPreview, Check (JDK only, no JUnit needed)
-```
+|-- build.gradle                 # Root Gradle build (Groovy)
+|-- settings.gradle              # Defines: include ':common', ':server-backend', ':app'
+|
+|-- common/                      # 1. SHARED MODELS
+|   `-- src/main/java/com/shuttle/common/
+|       |-- Worker.java, Role.java, ShiftRecord.java, GpsCoordinate.java
+|       `-- CsvUtil.java, ValidationUtil.java, DurationFormatter.java
+|
+|-- server-backend/              # 2. PURE JDK SERVER (Imports :common)
+|   `-- src/main/java/com/shuttle/server/
+|       |-- ServerMain.java      # Bootstraps the com.sun HTTP server
+|       |-- Auth.java, Crypto.java, RateLimiter.java, Log.java, ApiException.java
+|       |-- handler/             # API routing (Shift, Location, Live, Invite)
+|       |-- service/             # Business logic & Heartbeat threads
+|       |-- repository/          # In-memory caches + CSV syncing
+|       `-- io/                  # CsvTable, AtomicFileWriter
+|
+`-- app/                         # 3. ANDROID CLIENT (Imports :common)
+    `-- src/main/
+        |-- AndroidManifest.xml
+        |-- java/com/shuttle/mobile/
+        |   |-- client/          # ApiClient, OfflineQueueManager
+        |   |-- gps/             # GpsTrackerService, SimulatedGpsSource
+        |   `-- ui/              # MainActivity, PureJavaMapCanvas, DriverActivity, etc.
+        `-- res/layout/          # Native Android XML UI files
+⚡ Quick Start
+You need JDK 17+ and the Android SDK.
 
-Runtime folders created next to the project: `data/` (the server's CSV files), `import/` (files from the company
-database), `export/` (files for the company database), `out/` (compiled classes).
+1. Build the Project
 
-## Quick start (needs JDK 17+)
+Bash
+./gradlew build
+2. Start the Server
 
-You need a **JDK**, not just a JRE. Check with `java -version` and `javac -version`.
+Bash
+./gradlew :server-backend:run --args="--bootstrap-admin you@example.com"
+The server binds to 0.0.0.0:8443 by default. It will print a one-time admin invite code to the console.
 
-```
-scripts/build.sh                                   (Windows: scripts\build.bat)
-scripts/run-server.sh --bootstrap-admin you@example.com
-```
+3. Install the Android App
+Connect your Android device (or emulator) and run:
 
-The server prints a one-time invite code for the first dispatcher (the admin). Then, in a second terminal:
+Bash
+./gradlew :app:installDebug
+4. First Login Workflow
+Open the Android app and tap Register with invite code.
+Enter your email and the invite code from the server console.
+Log in as an Admin/Dispatcher and use the dashboard to generate an invite code for a Driver.
+On a second phone, register the Driver, select a shuttle, and tap Start Shift.
+The Dispatcher's PureJavaMapCanvas will begin reflecting the Driver's real-time hardware GPS location.
 
-```
-scripts/run-client.sh                              (Windows: scripts\run-client.bat)
-```
+🔒 Security & Production Readiness
+Before real drivers use this system in production:
+Enable HTTPS: Passwords and session tokens currently travel over HTTP. You must provide a PKCS12 keystore to the server via JVM arguments (-Dshuttle.ssl.keystore=...).
+Data Privacy (RA 10173/GDPR): Drivers are being actively tracked. You must secure explicit consent and configure automated data-retention lifecycles for the GPS CSV files.
+Network Accessibility: To sync phones out on public roads, the server must be exposed to the internet via port-forwarding or a secure tunnel (e.g., Cloudflare Tunnel or Tailscale).
 
-1. Click **Register with invite code**, enter your email, the code, your name and a password.
-2. Log in. As dispatcher, click **Invite worker...**, pick a role (dispatcher or driver) and give the code to that person.
-3. A driver registers the same way, picks a shuttle, and taps **Start shift**. The dispatcher sees the
-   driver, the time on shift and the position on the map within 5 seconds.
-4. **End shift** shows the summary (time, distance) and writes `export/shifts_<id>.csv` and `gps_<id>.csv`.
+🚧 Known Limitations
+Session Volatility: User sessions currently live in RAM. A server restart requires all active mobile clients to log in again.
+Storage Scale: The CSV backend performs brilliantly for dozens of drivers and thousands of shifts. If scaling to thousands of concurrent active drivers, the Repository interfaces must be backed by JDBC.
 
-To try the company-list check, copy `sample-data/import/*` into `import/` before starting the server. Without
-those files the server uses 3 demo shuttles and accepts any invited email.
+Map Detail: PureJavaMapCanvas plots coordinates accurately but does not render street-level map tiles (to avoid Google Maps API fees). It acts as a radar-style telemetry display.
 
-## Configuration
-
-Defaults are safe for a single-machine trial. Everything below is optional.
-
-| Setting | How | Purpose |
-|---|---|---|
-| `--bootstrap-admin <email>` | server flag | Creates the first dispatcher (admin) invite and prints the code. |
-| `--bind <address>` | server flag | Address to listen on. Default `127.0.0.1` (this machine only). |
-| `--port <number>` | server flag | Port to listen on. |
-| `-Dshuttle.ssl.keystore=<file>` | JVM property | Turns on HTTPS using this PKCS12 keystore. |
-| `SSL_PASSWORD` | environment variable | Keystore password (kept out of the command line and shell history). |
-| `config/server.properties.example` | file | Copy to `config/server.properties` for the full list of server options. |
-
-The client takes the server address as its first argument, for example
-`java -cp out com.shuttle.client.ClientMain https://your-server-name:8443`.
-
-## Pure Java: what that means here
-
-* **Language and runtime:** Java 17, compiled with plain `javac`. The build scripts need nothing but the JDK.
-* **Server:** the JDK's built-in HTTP(S) server (`com.sun.net.httpserver`), `java.security` / `javax.crypto` for
-  PBKDF2, SHA-256 and random tokens, and `java.nio.file` for atomic file writes.
-* **Client:** Swing (`java.desktop`) for the screens and `java.net.http.HttpClient` for calls to the server.
-* **Data:** hand-written CSV reading and writing (`CsvUtil`, `CsvTable`). JSON, if any, is also hand-written.
-* **Tests:** a tiny `Check` helper instead of JUnit.
-
-You can prove it yourself at any time. Any import outside the JDK would show up here:
-
-```
-# every import in main code must be JDK or this project
-grep -rhE "^import " src/main | sed 's/import static /import /' \
-  | grep -vE "^import (java|javax|com\.sun\.net\.httpserver|com\.shuttle)\." | sort -u
-# expected output: nothing
-
-# which JDK modules the program needs
-jdeps --print-module-deps --ignore-missing-deps out
-```
-
-If you only need the server on a machine, a headless JDK is enough; only the client needs `java.desktop`.
-
-## Security built in
-
-* **Passwords:** salted PBKDF2-SHA256 (210,000 rounds). Invite codes are random, single use, expire in 48 h,
-  are stored only as a SHA-256 hash, and are tied to one email. If the company's worker list is present, it must
-  contain the email and role.
-* **Login:** random 256-bit session tokens that expire (12 h). 5 wrong tries lock the email for 5 minutes. Unknown
-  email and wrong password give the same error with equal timing.
-* **The server decides everything:** role checked on every request, shift start and end times come from the
-  server clock, one active shift per driver and per shuttle, GPS points must be valid and inside the shift, and a
-  disabled worker is cut off on the next request.
-* **Inputs:** validated and size-limited. Imported files are never trusted (bad rows are skipped and logged).
-  Exports are written atomically and are safe to open in Excel (formula injection blocked).
-* **Network:** the server listens on `127.0.0.1` only unless you choose otherwise, and warns when traffic is not
-  encrypted.
-
-## Before real drivers use it (not done for you)
-
-1. **HTTPS.** Without it, passwords and tokens travel in clear text. For a first test with a self-signed
-   certificate:
-
-   ```
-   # 1. Server keystore (key + certificate)
-   keytool -genkeypair -alias shuttle -keyalg RSA -keysize 2048 -validity 365 -storetype PKCS12 \
-           -keystore shuttle.p12 -storepass CHANGE-ME -dname "CN=your-server-name" -ext SAN=dns:your-server-name
-
-   # 2. Client truststore (certificate only)
-   keytool -exportcert -alias shuttle -keystore shuttle.p12 -storepass CHANGE-ME -file shuttle.cer
-   keytool -importcert -alias shuttle -file shuttle.cer -keystore client-truststore.p12 \
-           -storetype PKCS12 -storepass CHANGE-ME -noprompt
-
-   # 3. Start the server (Windows: set SSL_PASSWORD=CHANGE-ME, then run the java line)
-   SSL_PASSWORD=CHANGE-ME java -Dshuttle.ssl.keystore=shuttle.p12 -cp out \
-       com.shuttle.server.ServerMain --bind 0.0.0.0 --port 8443
-
-   # 4. Start the client
-   java -Djavax.net.ssl.trustStore=client-truststore.p12 -Djavax.net.ssl.trustStorePassword=CHANGE-ME \
-        -cp out com.shuttle.client.ClientMain https://your-server-name:8443
-   ```
-
-   Change `CHANGE-ME` to your own password and give clients only the truststore, never `shuttle.p12`. For
-   production use a certificate from a real authority, and ask company IT before exposing any port.
-2. **Backups** of the `data/` folder, and a company-agreed schedule for the import/export jobs.
-3. **Privacy.** Drivers are being tracked: tell them, get consent, and set how long GPS files are kept
-   (Philippine Data Privacy Act of 2012, Republic Act 10173; ask a lawyer).
-4. Read the limits below.
-
-## Known limits (honest list)
-
-* **GPS is simulated** on desktop (`SimulatedGpsSource`). Real phone GPS needs a mobile client that calls the same
-  API; the server does not change.
-* **No Google sign-in yet:** login is email + password after an invite. Google sign-in needs an OAuth client and
-  server-side verification of Google's ID token.
-* Sessions live in memory, so everyone logs in again after a server restart. No two-factor login.
-* CSV files suit a few dozen drivers and a few thousand shifts for **one company**. `shifts.csv` is rewritten on
-  each start and end. If you sell this to several companies you need a real database.
-* One server is a single point of failure. There is no audit log file yet (events go to the console).
-* Not on Google Play: Play only distributes Android apps (it would need the Android app above plus the Play fee
-  and policy steps).
-
-## Tests
-
-```
-scripts/test.sh          (Windows: scripts\test.bat)
-```
-
-* `UnitChecks` (30 checks): CSV, GPS maths, validation, password hashing and shift logic.
-* `ApiChecks` (40 checks): starts a real server on a free port and checks registration, roles, shift rules, GPS
-  validation, exports, formula injection, lockout and restart persistence.
-* `scripts/screenshots.sh` redraws the screenshots in `docs/screenshots/`.
-
-## Troubleshooting
-
-| Problem | Likely cause and fix |
-|---|---|
-| `javac: command not found` | Only a JRE is installed. Install a JDK 17+ and reopen the terminal. |
-| Client says it cannot connect | Server is bound to `127.0.0.1` but the client is on another machine. Start the server with `--bind 0.0.0.0` (over HTTPS) and check the firewall. |
-| `PKIX path building failed` | The client does not trust the certificate. Use the truststore from the HTTPS steps and make the certificate name match the address you type. |
-| Port already in use | Another program has it. Pick another with `--port`. |
-| "Too many attempts" at login | 5 wrong passwords lock that email for 5 minutes. Wait, then try again. |
-| Everyone was logged out | The server restarted. Sessions are in memory by design; log in again. |
-| Registration refused | The invite code expired (48 h), was already used, was issued for a different email, or the email and role are missing from `import/workers.csv`. |
-| Some imported rows missing | Bad rows are skipped on purpose. The server log lists each one and why. |
-
-## Roadmap
-
-Everything stays plain Java.
-
-1. **Real GPS.** Add a driver app for phones that calls the existing API (an Android app is Java too, but it uses
-   the Android SDK, so it lives in its own module and does not change the JDK-only server and desktop client).
-2. **Google sign-in.** Verify Google's ID token on the server using `java.net.http` and the JDK's signature APIs.
-3. **Durability.** Persistent sessions, an audit log file, and scheduled backups.
-4. **Scale.** Keep the repository interfaces as they are and add a JDBC-backed implementation (JDBC is part of the
-   JDK; only the vendor driver would be extra) when the company outgrows CSV files.
-
-## Documentation and license
-
-* [`docs/API.md`](docs/API.md): every endpoint, its role requirement and its errors.
-* [`docs/FILE_FORMATS.md`](docs/FILE_FORMATS.md): columns of every import and export file.
-* **License:** add a `LICENSE` file before sharing the code, so others know what they may do with it.
+This software is open-source and free to use under the MIT License. See LICENSE for details.
