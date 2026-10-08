@@ -4,7 +4,54 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9d671059-d5a4-42c6-8013-4968884c9299" name="Changes" comment="" />
+    <list default="true" id="9d671059-d5a4-42c6-8013-4968884c9299" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/checksums/checksums.lock" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/executionHistory/executionHistory.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/executionHistory/executionHistory.lock" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/fileChanges/last-build.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/fileHashes/fileHashes.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/fileHashes/fileHashes.lock" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/gc.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/cache.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/outputFiles.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/config.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.gradle/vcs-1/gc.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/AndroidProjectSystem.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/migrations.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/runConfigurations.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.jar" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/gradlew" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/gradlew.bat" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/local.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/Shuttle-Management-System.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ApiException.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ApiException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Auth.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Auth.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Crypto.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Crypto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Log.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Log.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/RateLimiter.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/RateLimiter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerMain.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerMain.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ShuttleServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ShuttleServer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ApiHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ApiHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/AuthHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/AuthHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/InviteHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/InviteHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LiveHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LiveHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LocationHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LocationHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ShiftHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ShiftHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/InviteService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/InviteService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/RegistrationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/RegistrationService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/ShiftService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/ShiftService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/TrackingService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/TrackingService.java" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -13,43 +60,68 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <projects_view>
+          <tree_state>
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="Shuttle-Management-System" type="f1a62948:ProjectNode" />
+              </path>
+            </expand>
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "Cyborg1644W"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;Cyborg1644W&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/Cyborg1644W/Shuttle-Management-System.git",
-    "accountId": "787ccda9-79f1-4dba-89c0-91c09608f443"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Cyborg1644W/Shuttle-Management-System.git&quot;,
+    &quot;accountId&quot;: &quot;9a259a7f-8449-4725-9ede-2395a9b31fc7&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 7
-}]]></component>
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
   <component name="ProjectId" id="3KAu5tfhYJXDbwmrL9heLzBNFx8" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager": "true",
-    "RunOnceActivity.cidr.known.project.marker": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.readMode.enableVisualFormatting": "true",
-    "cf.first.check.clang-format": "false",
-    "cidr.known.project.marker": "true",
-    "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "backend-reindel",
-    "show.migrate.to.gradle.popup": "false"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;yuri-backend&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;show.migrate.to.gradle.popup&quot;: &quot;false&quot;
   }
-}]]></component>
+}</component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="9d671059-d5a4-42c6-8013-4968884c9299" name="Changes" comment="" />
