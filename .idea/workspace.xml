@@ -5,52 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9d671059-d5a4-42c6-8013-4968884c9299" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/checksums/checksums.lock" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/executionHistory/executionHistory.bin" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/executionHistory/executionHistory.lock" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/fileChanges/last-build.bin" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/fileHashes/fileHashes.bin" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/fileHashes/fileHashes.lock" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/9.3.0/gc.properties" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/cache.properties" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/outputFiles.bin" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/config.properties" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gradle/vcs-1/gc.properties" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/AndroidProjectSystem.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/migrations.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/runConfigurations.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.jar" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.properties" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/gradlew" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/gradlew.bat" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/local.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/Shuttle-Management-System.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ApiException.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ApiException.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Auth.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Auth.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Crypto.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Crypto.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Log.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Log.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/RateLimiter.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/RateLimiter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerMain.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerMain.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ShuttleServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ShuttleServer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ApiHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ApiHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/AuthHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/AuthHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/InviteHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/InviteHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LiveHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LiveHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LocationHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LocationHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ShiftHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ShiftHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/InviteService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/InviteService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/RegistrationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/RegistrationService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/ShiftService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/ShiftService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/TrackingService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/TrackingService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
