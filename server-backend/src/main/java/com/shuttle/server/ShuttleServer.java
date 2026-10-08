@@ -14,10 +14,6 @@ import java.util.concurrent.Executors;
 public class ShuttleServer {
     private HttpServer server;
 
-    /**
-     * Starts the HTTP server, binds configured port, attaches thread pools,
-     * and registers API context path handlers[cite: 12, 17, 22].
-     */
     public void start() throws IOException {
         int port = ServerConfig.getPort();
         server = HttpServer.create(new InetSocketAddress(port), 0);
@@ -34,9 +30,6 @@ public class ShuttleServer {
         Log.info("ShuttleServer successfully listening on http://localhost:" + port);
     }
 
-    /**
-     * Stops the server cleanly.
-     */
     public void stop() {
         if (server != null) {
             server.stop(0);

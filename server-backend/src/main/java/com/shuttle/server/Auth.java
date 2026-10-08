@@ -13,10 +13,6 @@ public class Auth {
     // Thread-safe map tracking active session tokens mapped to logged-in Worker instances
     private static final Map<String, Worker> activeSessions = new ConcurrentHashMap<>();
 
-    /**
-     * Authenticates user credentials against workers.csv repository.
-     * Generates and returns a session token upon successful validation.
-     */
     public static String authenticateUser(String email, String rawPassword) {
         if (email == null || rawPassword == null || email.trim().isEmpty()) {
             return null;
@@ -41,9 +37,6 @@ public class Auth {
         return null; // Invalid credentials or user not found
     }
 
-    /**
-     * Validates whether a provided session token exists and is active in memory.
-     */
     public static boolean validateSessionToken(String token) {
         if (token == null || token.trim().isEmpty()) {
             return false;
@@ -51,9 +44,6 @@ public class Auth {
         return activeSessions.containsKey(token);
     }
 
-    /**
-     * Enforces Role-Based Access Control (RBAC) permissions.
-     */
     public static boolean hasPermission(String token, String requiredRole) {
         if (!validateSessionToken(token)) {
             return false;
@@ -74,9 +64,7 @@ public class Auth {
         return userRole.equalsIgnoreCase("ADMIN") || userRole.equalsIgnoreCase(requiredRole.trim());
     }
 
-    /**
-     * Retrieves the active Worker entity bound to a valid session token.
-     */
+
     public static Worker getWorkerByToken(String token) {
         if (!validateSessionToken(token)) {
             return null;
@@ -84,9 +72,6 @@ public class Auth {
         return activeSessions.get(token);
     }
 
-    /**
-     * Terminates an active session and removes the token from memory.
-     */
     public static void logout(String token) {
         if (token != null) {
             activeSessions.remove(token);
