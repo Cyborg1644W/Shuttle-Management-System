@@ -112,6 +112,10 @@ The project is divided into three isolated Gradle modules (using Groovy, zero Ko
         |-- FILE_FORMATS.md
         `-- API.md
 
+## 📷 Screenshot
+<img width="1102" height="552" alt="image" src="https://github.com/user-attachments/assets/d07912a9-52c9-4b2b-876a-9c623ad43d08" />
+
+
 ## ⚡ Quick Start
 
 You need **JDK 17+**, the **Android SDK**, and **Git** installed on your system.
