@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
+import com.shuttle.mobile.R;
 
 public class MainActivity extends AppCompatActivity {
 
