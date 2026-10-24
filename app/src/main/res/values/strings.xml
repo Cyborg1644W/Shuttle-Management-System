@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FleetFlow</string>
+    <string name="press_to_continue">Press to continue</string>
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="full_name">Full Name</string>
+    <string name="employee_id">Employee ID</string>
+    <string name="role_driver">Driver</string>
+    <string name="role_operator">Operator</string>
+    <string name="start_shift">Start Shift</string>
+    <string name="end_shift">End Shift</string>
+    <string name="shift_summary">Shift Summary</string>
+</resources>
