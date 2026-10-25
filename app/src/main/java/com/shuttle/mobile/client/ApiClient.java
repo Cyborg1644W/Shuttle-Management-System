@@ -14,23 +14,13 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Talks to the shuttle backend using plain HttpURLConnection.
- *
- * Driver side:    sendLocation(...)  -> POST /shuttles/{id}/location
- * Passenger side: getShuttles(...)   -> GET  /shuttles
- *
- * Network calls never run on the main thread. Callbacks are delivered
- * on the main thread so you can update the UI directly.
- */
 public class ApiClient {
 
-    // 10.0.2.2 = your computer's localhost when using the Android emulator.
-    // On a real phone, use your computer's LAN IP, e.g. http://192.168.1.10:8080/api
     public static final String BASE_URL = "http://10.0.2.2:8080/api";
 
     private static final int TIMEOUT_MS = 8000;
@@ -57,9 +47,7 @@ public class ApiClient {
         this.authToken = token;
     }
 
-    // ------------------------------------------------------------------
     // Driver: send GPS location
-    // ------------------------------------------------------------------
 
     /** Builds the JSON body used for a location update (also what gets queued offline). */
     public static String buildLocationJson(String shuttleId, double lat, double lng,
@@ -91,11 +79,6 @@ public class ApiClient {
         });
     }
 
-    /**
-     * Blocking version. Call ONLY from a background thread.
-     * Used by GpsTrackerService and by the offline queue flush.
-     * Returns true if the server accepted it (HTTP 2xx).
-     */
     public boolean postLocationBlocking(String json) {
         String shuttleId;
         try {
@@ -103,12 +86,19 @@ public class ApiClient {
         } catch (JSONException e) {
             return true; // corrupt entry: report "handled" so it gets dropped from the queue
         }
-        return postJson("/shuttles/" + shuttleId + "/location", json);
+        return postJson("/shuttles/" + encodePathPart(shuttleId) + "/location", json);
     }
 
-    // ------------------------------------------------------------------
+    // Vehicle names like "Unit SH-1024" contain a space, which is not allowed in a URL path
+    private static String encodePathPart(String value) {
+        try {
+            return URLEncoder.encode(value, "UTF-8").replace("+", "%20");
+        } catch (java.io.UnsupportedEncodingException e) {
+            return value;
+        }
+    }
+
     // Passenger: get shuttles
-    // ------------------------------------------------------------------
 
     public void getShuttles(Callback<JSONArray> callback) {
         executor.execute(() -> {
@@ -123,9 +113,7 @@ public class ApiClient {
         });
     }
 
-    // ------------------------------------------------------------------
     // Low-level HTTP helpers
-    // ------------------------------------------------------------------
 
     private boolean postJson(String path, String json) {
         HttpURLConnection conn = null;
@@ -139,7 +127,11 @@ public class ApiClient {
                 os.write(data);
             }
             int code = conn.getResponseCode();
-            return code >= 200 && code < 300;
+            if (code >= 200 && code < 300) {
+                return true;
+            }
+            return code >= 400 && code < 500
+                    && code != 401 && code != 404 && code != 408 && code != 429;
         } catch (IOException e) {
             return false;
         } finally {

@@ -6,6 +6,7 @@ import com.shuttle.server.handler.InviteHandler;
 import com.shuttle.server.handler.LiveHandler;
 import com.shuttle.server.handler.LocationHandler;
 import com.shuttle.server.handler.ShiftHandler;
+import com.shuttle.server.handler.ShuttleLocationHandler;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -19,12 +20,13 @@ public class ShuttleServer {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.setExecutor(Executors.newFixedThreadPool(10));
 
-        // Register core context routes[cite: 17, 18, 22]
         server.createContext("/api/auth", new AuthHandler());
         server.createContext("/api/invite", new InviteHandler());
         server.createContext("/api/shift", new ShiftHandler());
         server.createContext("/api/location", new LocationHandler());
         server.createContext("/api/live", new LiveHandler());
+
+        server.createContext("/api/shuttles", new ShuttleLocationHandler());
 
         server.start();
         Log.info("ShuttleServer successfully listening on http://localhost:" + port);

@@ -25,10 +25,10 @@
             android:src="@drawable/logo" />
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:id="@+id/layoutHeaderTitle"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
-            android:layout_weight="1"
             android:orientation="vertical">
 
             <TextView
@@ -45,18 +45,36 @@
                 android:text="Home" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/tvHeaderAvatar"
-            style="@style/Fleet.Caption"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="@drawable/avatar_header_bg"
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <FrameLayout
+            android:id="@+id/flBell"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bell_box_bg"
             android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:text="D"
-            android:textColor="@color/brand_600"
-            android:textSize="13sp" />
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="Notifications"
+                android:src="@drawable/ic_bell"
+                app:tint="@color/text_primary" />
+
+            <View
+                android:id="@+id/viewDot"
+                android:layout_width="11dp"
+                android:layout_height="11dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/dot_online" />
+        </FrameLayout>
     </LinearLayout>
 
     <View
@@ -329,21 +347,14 @@
                             android:layout_height="wrap_content"
                             android:text="Stops" />
 
-                        <LinearLayout
+                        <TextView
+                            android:id="@+id/tvStatStops"
+                            style="@style/Fleet.Display"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
-                            android:gravity="bottom"
-                            android:orientation="horizontal">
-
-                            <TextView
-                                android:id="@+id/tvStatStops"
-                                style="@style/Fleet.Display"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="0"
-                                android:textSize="26sp" />
-                        </LinearLayout>
+                            android:text="0"
+                            android:textSize="26sp" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -492,100 +503,480 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:paddingStart="16dp"
-                android:paddingTop="20dp"
+                android:paddingTop="16dp"
                 android:paddingEnd="16dp"
                 android:paddingBottom="24dp">
 
+                <!-- Profile header card -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@drawable/card_bg"
-                    android:orientation="vertical"
-                    android:padding="16dp">
+                    android:orientation="vertical">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/profile_top_bg"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="bottom"
+                            android:orientation="horizontal">
+
+                            <FrameLayout
+                                android:layout_width="84dp"
+                                android:layout_height="84dp">
+
+                                <TextView
+                                    android:id="@+id/tvProfileAvatar"
+                                    style="@style/Fleet.Display"
+                                    android:layout_width="80dp"
+                                    android:layout_height="80dp"
+                                    android:background="@drawable/avatar_ring_bg"
+                                    android:gravity="center"
+                                    android:text="D"
+                                    android:textColor="@color/brand_600"
+                                    android:textSize="26sp" />
+
+                                <ImageView
+                                    android:layout_width="26dp"
+                                    android:layout_height="26dp"
+                                    android:layout_gravity="bottom|end"
+                                    android:background="@drawable/badge_check_bg"
+                                    android:contentDescription="@null"
+                                    android:padding="5dp"
+                                    android:src="@drawable/ic_check"
+                                    app:tint="@color/white" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="16dp"
+                                android:layout_marginBottom="6dp"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/tvProfileName"
+                                    style="@style/Fleet.Title"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Driver" />
+
+                                <TextView
+                                    android:id="@+id/tvProfileRole"
+                                    style="@style/Fleet.Caption"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="Driver" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/btnEditProfile"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="top|end"
+                            android:background="@drawable/chip_bg"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="12dp"
+                            android:paddingTop="6dp"
+                            android:paddingEnd="14dp"
+                            android:paddingBottom="6dp">
+
+                            <ImageView
+                                android:layout_width="14dp"
+                                android:layout_height="14dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_edit"
+                                app:tint="@color/brand_600" />
+
+                            <TextView
+                                style="@style/Fleet.Caption"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="Edit"
+                                android:textColor="@color/brand_600" />
+                        </LinearLayout>
+                    </FrameLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/pill_gray_bg"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="14dp"
+                            android:paddingTop="8dp"
+                            android:paddingEnd="14dp"
+                            android:paddingBottom="8dp">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_mail"
+                                app:tint="@color/text_secondary" />
+
+                            <TextView
+                                android:id="@+id/tvProfileEmail"
+                                style="@style/Fleet.Caption"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="10dp"
+                                android:text="No email on file" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:background="@drawable/pill_gray_bg"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="14dp"
+                            android:paddingTop="8dp"
+                            android:paddingEnd="14dp"
+                            android:paddingBottom="8dp">
+
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_phone"
+                                app:tint="@color/text_secondary" />
+
+                            <TextView
+                                android:id="@+id/tvProfilePhone"
+                                style="@style/Fleet.Caption"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="10dp"
+                                android:text="No phone on file" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Payment & Transit Passes -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_card"
+                        app:tint="@color/text_secondary" />
+
+                    <TextView
+                        style="@style/Fleet.Body"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:text="Payment &amp; Transit Passes" />
+
+                    <TextView
+                        android:id="@+id/btnManagePass"
+                        style="@style/Fleet.Caption"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="4dp"
+                        android:text="Manage"
+                        android:textColor="@color/brand_600" />
+                </LinearLayout>
+
+                <!-- Pass card -->
+                <LinearLayout
+                    android:id="@+id/cardPass"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/pass_card_bg"
+                    android:clickable="true"
+                    android:elevation="2dp"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="20dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
 
                         <TextView
-                            android:id="@+id/tvProfileAvatar"
+                            style="@style/Fleet.Overline"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Digital Transit Pass"
+                            android:textColor="#B3FFFFFF"
+                            android:textSize="10sp" />
+
+                        <TextView
                             style="@style/Fleet.Title"
-                            android:layout_width="72dp"
-                            android:layout_height="72dp"
-                            android:background="@drawable/avatar_ring_bg"
-                            android:gravity="center"
-                            android:text="D"
-                            android:textColor="@color/brand_600" />
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="Terminal Gate FastPass"
+                            android:textColor="@color/white"
+                            android:textSize="17sp" />
+
+                        <TextView
+                            style="@style/Fleet.Caption"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Tap to view barcode for scanner gates"
+                            android:textColor="#CCFFFFFF" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:background="@drawable/pass_tile_bg"
+                            android:contentDescription="@null"
+                            android:padding="12dp"
+                            android:src="@drawable/ic_qr"
+                            app:tint="@color/text_primary" />
+
+                        <TextView
+                            style="@style/Fleet.Overline"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="Tap code"
+                            android:textColor="#CCFFFFFF"
+                            android:textSize="9sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Support & Passenger Safety -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_shield"
+                        app:tint="@color/text_primary" />
+
+                    <TextView
+                        style="@style/Fleet.Overline"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="Support &amp; Passenger Safety"
+                        android:textColor="@color/text_primary" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/card_bg"
+                    android:orientation="vertical">
+
+                    <!-- Gate delays toggle -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="14dp">
+
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/icon_square_bg"
+                            android:contentDescription="@null"
+                            android:padding="10dp"
+                            android:src="@drawable/ic_bell"
+                            app:tint="@color/brand_600" />
 
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="16dp"
+                            android:layout_marginStart="14dp"
                             android:layout_weight="1"
                             android:orientation="vertical">
 
                             <TextView
-                                android:id="@+id/tvProfileName"
-                                style="@style/Fleet.Title"
+                                style="@style/Fleet.Subtitle"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Driver" />
+                                android:text="Gate Delays &amp; Departures"
+                                android:textSize="14sp" />
 
                             <TextView
-                                android:id="@+id/tvProfileRole"
+                                android:id="@+id/tvGateSub"
                                 style="@style/Fleet.Caption"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="Driver" />
+                                android:text="Active • live notifications"
+                                android:textColor="@color/brand_600" />
                         </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchGate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            app:thumbTint="@color/white"
+                            app:trackTint="@color/switch_track"
+                            app:useMaterialThemeColors="false" />
                     </LinearLayout>
 
-                    <TextView
-                        android:id="@+id/tvProfileEmail"
-                        style="@style/Fleet.Caption"
+                    <View
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:background="@drawable/chip_bg"
-                        android:paddingStart="16dp"
-                        android:paddingTop="8dp"
-                        android:paddingEnd="16dp"
-                        android:paddingBottom="8dp"
-                        android:text="Email: -" />
+                        android:layout_height="1dp"
+                        android:layout_marginStart="68dp"
+                        android:background="@color/border" />
 
-                    <TextView
-                        android:id="@+id/tvProfilePhone"
-                        style="@style/Fleet.Caption"
+                    <!-- Emergency share location -->
+                    <LinearLayout
+                        android:id="@+id/rowEmergency"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:background="@drawable/chip_bg"
-                        android:paddingStart="16dp"
-                        android:paddingTop="8dp"
-                        android:paddingEnd="16dp"
-                        android:paddingBottom="8dp"
-                        android:text="Phone: -" />
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="14dp">
 
-                    <TextView
-                        android:id="@+id/tvProfileEmp"
-                        style="@style/Fleet.Caption"
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/icon_square_bg"
+                            android:contentDescription="@null"
+                            android:padding="10dp"
+                            android:src="@drawable/ic_pin"
+                            app:tint="@color/brand_600" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="14dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                style="@style/Fleet.Subtitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Emergency Share Location"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                style="@style/Fleet.Caption"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Share your live location with dispatch" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_chevron_right"
+                            app:tint="@color/text_secondary" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="68dp"
+                        android:background="@color/border" />
+
+                    <!-- Legal -->
+                    <LinearLayout
+                        android:id="@+id/rowLegal"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:background="@drawable/chip_bg"
-                        android:paddingStart="16dp"
-                        android:paddingTop="8dp"
-                        android:paddingEnd="16dp"
-                        android:paddingBottom="8dp"
-                        android:text="Employee ID: -" />
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="14dp">
+
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/icon_square_bg"
+                            android:contentDescription="@null"
+                            android:padding="10dp"
+                            android:src="@drawable/ic_shield"
+                            app:tint="@color/brand_600" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="14dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                style="@style/Fleet.Subtitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Legal, Transit Rules &amp; Privacy"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                style="@style/Fleet.Caption"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="FleetFlow Terms of Carriage v4.2" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_chevron_right"
+                            app:tint="@color/text_secondary" />
+                    </LinearLayout>
                 </LinearLayout>
 
+                <!-- Sign out -->
                 <TextView
                     android:id="@+id/btnSignOut"
-                    style="@style/Fleet.Subtitle"
+                    style="@style/Fleet.Body"
                     android:layout_width="match_parent"
                     android:layout_height="52dp"
                     android:layout_marginTop="24dp"
@@ -594,8 +985,7 @@
                     android:focusable="true"
                     android:gravity="center"
                     android:text="Sign Out of FleetFlow"
-                    android:textColor="@color/danger"
-                    android:textSize="14sp" />
+                    android:textColor="@color/danger" />
             </LinearLayout>
         </ScrollView>
     </FrameLayout>

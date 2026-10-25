@@ -2,8 +2,7 @@ package com.shuttle.mobile.ui;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
+import android.util.Patterns;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,6 +25,7 @@ public class LoginActivity extends AppCompatActivity {
     private View layoutMobile;
     private View layoutEmail;
     private View layoutCountry;
+    private View phoneBox;
     private TextView tvCountryCode;
     private ImageView ivPhoneCheck;
     private EditText etPhone;
@@ -38,11 +38,14 @@ public class LoginActivity extends AppCompatActivity {
     private TextView tvGoRegister;
 
     private boolean mobileMode = true;
+    private AccountStore store;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        store = new AccountStore(this);
 
         tvTabMobile = findViewById(R.id.tvTabMobile);
         tvTabEmail = findViewById(R.id.tvTabEmail);
@@ -52,7 +55,6 @@ public class LoginActivity extends AppCompatActivity {
         tvCountryCode = findViewById(R.id.tvCountryCode);
         ivPhoneCheck = findViewById(R.id.ivPhoneCheck);
         etPhone = findViewById(R.id.etPhone);
-        ((ViewGroup) etPhone.getParent()).setAddStatesFromChildren(true);
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
         tvError = findViewById(R.id.tvError);
@@ -61,73 +63,43 @@ public class LoginActivity extends AppCompatActivity {
         btnGoogle = findViewById(R.id.btnGoogle);
         tvGoRegister = findViewById(R.id.tvGoRegister);
 
-        tvTabMobile.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                selectTab(true);
-            }
+        // The box around the phone number (country code + number + check)
+        phoneBox = (View) etPhone.getParent();
+        ((ViewGroup) phoneBox).setAddStatesFromChildren(true);
+
+        tvTabMobile.setOnClickListener(v -> selectTab(true));
+        tvTabEmail.setOnClickListener(v -> selectTab(false));
+        layoutCountry.setOnClickListener(v -> showCountryMenu());
+
+        // Borders react while typing: green when correct, plain otherwise
+        FieldUi.onChange(etPhone, () -> {
+            tvError.setVisibility(View.GONE);
+            updatePhone();
+        });
+        FieldUi.onChange(etEmail, () -> {
+            tvError.setVisibility(View.GONE);
+            resetEmailAndPassword();
+        });
+        FieldUi.onChange(etPassword, () -> {
+            tvError.setVisibility(View.GONE);
+            resetEmailAndPassword();
         });
 
-        tvTabEmail.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                selectTab(false);
-            }
-        });
+        btnContinue.setOnClickListener(v -> attemptLogin());
 
-        layoutCountry.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showCountryMenu();
-            }
-        });
+        btnApple.setOnClickListener(v ->
+                Toast.makeText(this, "Apple sign-in coming soon", Toast.LENGTH_SHORT).show());
+        btnGoogle.setOnClickListener(v ->
+                Toast.makeText(this, "Google sign-in coming soon", Toast.LENGTH_SHORT).show());
 
-        // Show the check only when the number has the right amount of digits
-        etPhone.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
+        tvGoRegister.setOnClickListener(v ->
+                startActivity(new Intent(this, RegisterActivity.class)));
 
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                updateCheck();
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-            }
-        });
-
-        btnContinue.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                attemptLogin();
-            }
-        });
-
-        btnApple.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(LoginActivity.this, "Apple sign-in coming soon", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        btnGoogle.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(LoginActivity.this, "Google sign-in coming soon", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        tvGoRegister.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(new Intent(LoginActivity.this, RegisterActivity.class));
-            }
-        });
-
-        updateCheck();
+        updatePhone();
+        resetEmailAndPassword();
     }
+
+    // ---------- Phone ----------
 
     // Digits only, and drops a leading 0 for +63 and +81 (e.g. 0961... -> 961...)
     private String getCleanDigits() {
@@ -140,11 +112,8 @@ public class LoginActivity extends AppCompatActivity {
         return digits;
     }
 
-    // How many digits a number needs for each country code
     private int getRequiredDigits() {
-        String code = tvCountryCode.getText().toString();
-
-        if (code.equals("+65")) {
+        if (tvCountryCode.getText().toString().equals("+65")) {
             return 8;   // Singapore
         }
         return 10;      // Philippines, United States, Japan
@@ -154,12 +123,11 @@ public class LoginActivity extends AppCompatActivity {
         return getCleanDigits().length() == getRequiredDigits();
     }
 
-    private void updateCheck() {
-        if (isPhoneValid()) {
-            ivPhoneCheck.setVisibility(View.VISIBLE);
-        } else {
-            ivPhoneCheck.setVisibility(View.INVISIBLE);
-        }
+    // Check mark and green border appear when the number is complete
+    private void updatePhone() {
+        boolean valid = isPhoneValid();
+        ivPhoneCheck.setVisibility(valid ? View.VISIBLE : View.INVISIBLE);
+        FieldUi.set(phoneBox, valid ? FieldUi.VALID : FieldUi.NORMAL);
     }
 
     private void showCountryMenu() {
@@ -169,18 +137,29 @@ public class LoginActivity extends AppCompatActivity {
         menu.getMenu().add("+81 Japan");
         menu.getMenu().add("+65 Singapore");
 
-        menu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem item) {
-                String code = item.getTitle().toString().split(" ")[0];
-                tvCountryCode.setText(code);
-                updateCheck();
-                return true;
-            }
+        menu.setOnMenuItemClickListener((MenuItem item) -> {
+            String code = item.getTitle().toString().split(" ")[0];
+            tvCountryCode.setText(code);
+            updatePhone();
+            return true;
         });
 
         menu.show();
     }
+
+    // ---------- Email and password ----------
+
+    private boolean isEmailValid() {
+        return Patterns.EMAIL_ADDRESS.matcher(etEmail.getText().toString().trim()).matches();
+    }
+
+    // The password can only be called correct after pressing Login, so it stays plain until then
+    private void resetEmailAndPassword() {
+        FieldUi.set(etEmail, isEmailValid() ? FieldUi.VALID : FieldUi.NORMAL);
+        FieldUi.set(etPassword, FieldUi.NORMAL);
+    }
+
+    // ---------- Tabs ----------
 
     private void selectTab(boolean mobile) {
         mobileMode = mobile;
@@ -203,7 +182,12 @@ public class LoginActivity extends AppCompatActivity {
             tvTabMobile.setTextColor(getResources().getColor(R.color.text_secondary));
             btnContinue.setText("Continue");
         }
+
+        updatePhone();
+        resetEmailAndPassword();
     }
+
+    // ---------- Login ----------
 
     private void attemptLogin() {
         Role role;
@@ -213,19 +197,23 @@ public class LoginActivity extends AppCompatActivity {
             String phone = getCleanDigits();
 
             if (phone.isEmpty()) {
+                FieldUi.set(phoneBox, FieldUi.ERROR);
                 showError("Please enter your mobile number.");
                 return;
             }
 
             if (!isPhoneValid()) {
+                FieldUi.set(phoneBox, FieldUi.ERROR);
                 showError("Please enter a complete mobile number.");
                 return;
             }
 
-            role = checkPhone(phone);
-            userId = tvCountryCode.getText().toString() + phone;
+            String fullPhone = tvCountryCode.getText().toString() + phone;
+            role = checkPhone(fullPhone, phone);
+            userId = fullPhone;
 
             if (role == null) {
+                FieldUi.set(phoneBox, FieldUi.ERROR);
                 showError("This mobile number is not registered.");
                 return;
             }
@@ -234,7 +222,19 @@ public class LoginActivity extends AppCompatActivity {
             String password = etPassword.getText().toString();
 
             if (email.isEmpty() || password.isEmpty()) {
+                if (email.isEmpty()) {
+                    FieldUi.set(etEmail, FieldUi.ERROR);
+                }
+                if (password.isEmpty()) {
+                    FieldUi.set(etPassword, FieldUi.ERROR);
+                }
                 showError("Please enter your email and password.");
+                return;
+            }
+
+            if (!isEmailValid()) {
+                FieldUi.set(etEmail, FieldUi.ERROR);
+                showError("Please enter a valid email address.");
                 return;
             }
 
@@ -242,6 +242,8 @@ public class LoginActivity extends AppCompatActivity {
             userId = email;
 
             if (role == null) {
+                FieldUi.set(etEmail, FieldUi.ERROR);
+                FieldUi.set(etPassword, FieldUi.ERROR);
                 showError("Wrong email or password.");
                 return;
             }
@@ -251,20 +253,32 @@ public class LoginActivity extends AppCompatActivity {
         openHomeScreen(role, userId);
     }
 
-    // TEMPORARY STUB: no real OTP yet.
+    // Registered accounts first, then the test numbers.
     // Test numbers: 9618447872 = Driver, 9618447873 = Operator.
-    private Role checkPhone(String phone) {
-        if (phone.equals("9618447872")) {
+    // TEMPORARY: no real OTP yet.
+    private Role checkPhone(String fullPhone, String digits) {
+        Role saved = store.getRoleByPhone(fullPhone);
+        if (saved != null) {
+            return saved;
+        }
+
+        if (digits.equals("9618447872")) {
             return Role.DRIVER;
         }
-        if (phone.equals("9618447873")) {
+        if (digits.equals("9618447873")) {
             return Role.OPERATOR;
         }
         return null;
     }
 
-    // TEMPORARY STUB: replace with a call to Jim's backend when it's ready.
+    // Registered accounts first, then the test logins.
+    // TEMPORARY: replace with a call to the backend when it's ready.
     private Role checkCredentials(String email, String password) {
+        Role saved = store.getRoleByEmail(email, password);
+        if (saved != null) {
+            return saved;
+        }
+
         if (email.equals("driver@shuttle.com") && password.equals("1234")) {
             return Role.DRIVER;
         }

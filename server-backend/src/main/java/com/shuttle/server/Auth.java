@@ -3,6 +3,7 @@ package com.shuttle.server;
 import com.shuttle.common.Worker;
 import com.shuttle.server.repository.WorkerRepository;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -18,9 +19,15 @@ public class Auth {
             return null;
         }
 
-        // Load workers from CSV repository
-        WorkerRepository workerRepository = new WorkerRepository();
-        List<Worker> workers = workerRepository.loadAllWorkers();
+        // Load workers from the CSV file (path comes from config.properties)
+        List<Worker> workers;
+        try {
+            WorkerRepository workerRepository = new WorkerRepository(ServerConfig.getWorkersCsvPath());
+            workers = workerRepository.getAllWorkers();
+        } catch (IOException e) {
+            Log.error("Could not read the workers file: " + e.getMessage());
+            return null;
+        }
 
         for (Worker worker : workers) {
             if (worker.getEmail() != null && worker.getEmail().equalsIgnoreCase(email.trim())) {
@@ -63,7 +70,6 @@ public class Auth {
         // Admin override or exact role match (case-insensitive)
         return userRole.equalsIgnoreCase("ADMIN") || userRole.equalsIgnoreCase(requiredRole.trim());
     }
-
 
     public static Worker getWorkerByToken(String token) {
         if (!validateSessionToken(token)) {

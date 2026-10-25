@@ -1,8 +1,6 @@
 package com.shuttle.mobile.ui;
 
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.util.Patterns;
 import android.view.MenuItem;
 import android.view.View;
@@ -19,6 +17,8 @@ import com.shuttle.common.Role;
 import com.shuttle.mobile.R;
 
 public class RegisterActivity extends AppCompatActivity {
+
+    private static final String EMPTY_MESSAGE = "Please fill in all the fields.";
 
     private View layoutChooseRole;
     private View layoutForm;
@@ -44,6 +44,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     private Role selectedRole = null;
     private AccountStore store;
+    private String firstMessage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,22 +79,58 @@ public class RegisterActivity extends AppCompatActivity {
         cardDriver.setOnClickListener(v -> showForm(Role.DRIVER));
         cardOperator.setOnClickListener(v -> showForm(Role.OPERATOR));
         tvChangeRole.setOnClickListener(v -> showChooser());
-
         layoutCountry.setOnClickListener(v -> showCountryMenu());
 
-        // Show the check once the phone number is complete
-        etPhone.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
+        // Borders react while typing (green = correct) and when you leave a field (red = wrong)
+        FieldUi.onChange(etFullName, () -> {
+            hideError();
+            applyName(false);
+        });
+        FieldUi.onChange(etEmployeeId, () -> {
+            hideError();
+            applyEmp();
+        });
+        FieldUi.onChange(etPhone, () -> {
+            hideError();
+            applyPhone(false);
+        });
+        FieldUi.onChange(etEmail, () -> {
+            hideError();
+            applyEmail(false);
+        });
+        FieldUi.onChange(etPassword, () -> {
+            hideError();
+            applyPassword(false);
+            applyConfirm(false);
+        });
+        FieldUi.onChange(etConfirmPassword, () -> {
+            hideError();
+            applyConfirm(false);
+        });
 
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                updateCheck();
+        etFullName.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                applyName(true);
             }
-
-            @Override
-            public void afterTextChanged(Editable s) {
+        });
+        etPhone.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                applyPhone(true);
+            }
+        });
+        etEmail.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                applyEmail(true);
+            }
+        });
+        etPassword.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                applyPassword(true);
+            }
+        });
+        etConfirmPassword.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                applyConfirm(true);
             }
         });
 
@@ -113,8 +150,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     private void showForm(Role role) {
         selectedRole = role;
-        tvError.setVisibility(View.GONE);
-        clearErrors();
+        hideError();
 
         if (role == Role.DRIVER) {
             tvRoleLabel.setText("Registering as Driver");
@@ -124,6 +160,7 @@ public class RegisterActivity extends AppCompatActivity {
 
         layoutChooseRole.setVisibility(View.GONE);
         layoutForm.setVisibility(View.VISIBLE);
+        refreshAll();
     }
 
     // Back arrow and phone back button: form goes back to the chooser, chooser leaves the screen
@@ -140,6 +177,110 @@ public class RegisterActivity extends AppCompatActivity {
         goBack();
     }
 
+    // ---------- What is correct / wrong for each field ----------
+    // NORMAL = still typing, VALID = correct (green), ERROR = wrong (red)
+    // "strict" is true when you leave the field: unfinished or wrong input turns red.
+
+    private int stateName(boolean strict) {
+        String s = etFullName.getText().toString().trim();
+        if (s.length() >= 2) {
+            return FieldUi.VALID;
+        }
+        return (strict && !s.isEmpty()) ? FieldUi.ERROR : FieldUi.NORMAL;
+    }
+
+    private int stateEmp() {
+        String s = etEmployeeId.getText().toString().trim();
+        if (s.isEmpty()) {
+            return FieldUi.NORMAL;
+        }
+        return WorkerStore.empIdExists(this, s) ? FieldUi.ERROR : FieldUi.VALID;
+    }
+
+    private int statePhone(boolean strict) {
+        String p = getCleanPhone();
+        if (p.length() == getRequiredDigits()) {
+            String full = tvCountryCode.getText().toString() + p;
+            return store.phoneExists(full) ? FieldUi.ERROR : FieldUi.VALID;
+        }
+        return (strict && !p.isEmpty()) ? FieldUi.ERROR : FieldUi.NORMAL;
+    }
+
+    private int stateEmail(boolean strict) {
+        String s = etEmail.getText().toString().trim();
+        if (s.isEmpty()) {
+            return FieldUi.NORMAL;
+        }
+        if (!Patterns.EMAIL_ADDRESS.matcher(s).matches()) {
+            return strict ? FieldUi.ERROR : FieldUi.NORMAL;
+        }
+        return store.emailExists(s) ? FieldUi.ERROR : FieldUi.VALID;
+    }
+
+    private int statePassword(boolean strict) {
+        String s = etPassword.getText().toString();
+        if (s.length() >= 6) {
+            return FieldUi.VALID;
+        }
+        return (strict && !s.isEmpty()) ? FieldUi.ERROR : FieldUi.NORMAL;
+    }
+
+    private int stateConfirm(boolean strict) {
+        String c = etConfirmPassword.getText().toString();
+        String p = etPassword.getText().toString();
+        if (c.isEmpty()) {
+            return FieldUi.NORMAL;
+        }
+        if (c.equals(p) && p.length() >= 6) {
+            return FieldUi.VALID;
+        }
+        return strict ? FieldUi.ERROR : FieldUi.NORMAL;
+    }
+
+    private void applyName(boolean strict) {
+        FieldUi.set(etFullName, stateName(strict));
+    }
+
+    private void applyEmp() {
+        FieldUi.set(etEmployeeId, stateEmp());
+        if (stateEmp() == FieldUi.ERROR) {
+            showError("This employee ID is already registered.");
+        }
+    }
+
+    private void applyPhone(boolean strict) {
+        FieldUi.set(layoutPhoneBox, statePhone(strict));
+        updateCheck();
+        if (statePhone(false) == FieldUi.ERROR && getCleanPhone().length() == getRequiredDigits()) {
+            showError("This mobile number is already registered.");
+        }
+    }
+
+    private void applyEmail(boolean strict) {
+        FieldUi.set(etEmail, stateEmail(strict));
+        if (stateEmail(false) == FieldUi.ERROR) {
+            showError("This email is already registered.");
+        }
+    }
+
+    private void applyPassword(boolean strict) {
+        FieldUi.set(etPassword, statePassword(strict));
+    }
+
+    private void applyConfirm(boolean strict) {
+        FieldUi.set(etConfirmPassword, stateConfirm(strict));
+    }
+
+    private void refreshAll() {
+        applyName(false);
+        FieldUi.set(etEmployeeId, stateEmp());
+        FieldUi.set(layoutPhoneBox, statePhone(false));
+        updateCheck();
+        FieldUi.set(etEmail, stateEmail(false));
+        applyPassword(false);
+        applyConfirm(false);
+    }
+
     // ---------- Phone ----------
 
     private void showCountryMenu() {
@@ -149,14 +290,11 @@ public class RegisterActivity extends AppCompatActivity {
         menu.getMenu().add("+81 Japan");
         menu.getMenu().add("+65 Singapore");
 
-        menu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem item) {
-                String code = item.getTitle().toString().split(" ")[0];
-                tvCountryCode.setText(code);
-                updateCheck();
-                return true;
-            }
+        menu.setOnMenuItemClickListener((MenuItem item) -> {
+            String code = item.getTitle().toString().split(" ")[0];
+            tvCountryCode.setText(code);
+            applyPhone(false);
+            return true;
         });
 
         menu.show();
@@ -188,25 +326,18 @@ public class RegisterActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- Errors (red border on the wrong field) ----------
-
-    private void clearErrors() {
-        etFullName.setBackgroundResource(R.drawable.input_bg);
-        etEmployeeId.setBackgroundResource(R.drawable.input_bg);
-        layoutPhoneBox.setBackgroundResource(R.drawable.input_bg);
-        etEmail.setBackgroundResource(R.drawable.input_bg);
-        etPassword.setBackgroundResource(R.drawable.input_bg);
-        etConfirmPassword.setBackgroundResource(R.drawable.input_bg);
-    }
-
-    private void markError(View field) {
-        field.setBackgroundResource(R.drawable.input_bg_error);
-    }
-
     // ---------- Register ----------
 
+    // Marks a field red and remembers the first message to show
+    private void fail(View field, String message) {
+        FieldUi.set(field, FieldUi.ERROR);
+        if (firstMessage == null) {
+            firstMessage = message;
+        }
+    }
+
     private void attemptRegister() {
-        clearErrors();
+        firstMessage = null;
 
         String fullName = etFullName.getText().toString().trim();
         String employeeId = etEmployeeId.getText().toString().trim();
@@ -214,82 +345,64 @@ public class RegisterActivity extends AppCompatActivity {
         String email = etEmail.getText().toString().trim();
         String password = etPassword.getText().toString();
         String confirm = etConfirmPassword.getText().toString();
+        String fullPhone = tvCountryCode.getText().toString() + phone;
 
-        boolean missing = false;
-        if (fullName.isEmpty()) {
-            markError(etFullName);
-            missing = true;
+        boolean anyEmpty = fullName.isEmpty() || employeeId.isEmpty() || phone.isEmpty()
+                || email.isEmpty() || password.isEmpty() || confirm.isEmpty();
+
+        if (fullName.length() < 2) {
+            fail(etFullName, "Please enter your full name.");
         }
+
         if (employeeId.isEmpty()) {
-            markError(etEmployeeId);
-            missing = true;
-        }
-        if (phone.isEmpty()) {
-            markError(layoutPhoneBox);
-            missing = true;
-        }
-        if (email.isEmpty()) {
-            markError(etEmail);
-            missing = true;
-        }
-        if (password.isEmpty()) {
-            markError(etPassword);
-            missing = true;
-        }
-        if (confirm.isEmpty()) {
-            markError(etConfirmPassword);
-            missing = true;
-        }
-        if (missing) {
-            showError("Please fill in all the fields.");
-            return;
+            fail(etEmployeeId, "Please enter your employee ID.");
+        } else if (WorkerStore.empIdExists(this, employeeId)) {
+            fail(etEmployeeId, "This employee ID is already registered.");
         }
 
         if (phone.length() != getRequiredDigits()) {
-            markError(layoutPhoneBox);
-            showError("Please enter a complete mobile number.");
-            return;
+            fail(layoutPhoneBox, "Please enter a complete mobile number.");
+        } else if (store.phoneExists(fullPhone)) {
+            fail(layoutPhoneBox, "This mobile number is already registered.");
         }
 
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            markError(etEmail);
-            showError("Please enter a valid email address.");
-            return;
+            fail(etEmail, "Please enter a valid email address.");
+        } else if (store.emailExists(email)) {
+            fail(etEmail, "This email is already registered.");
         }
 
         if (password.length() < 6) {
-            markError(etPassword);
-            showError("Password must be at least 6 characters.");
+            fail(etPassword, "Password must be at least 6 characters.");
+        }
+
+        if (confirm.isEmpty() || !password.equals(confirm)) {
+            fail(etConfirmPassword, "Passwords do not match.");
+        }
+
+        if (firstMessage != null) {
+            showError(anyEmpty ? EMPTY_MESSAGE : firstMessage);
             return;
         }
 
-        if (!password.equals(confirm)) {
-            markError(etConfirmPassword);
-            showError("Passwords do not match.");
-            return;
-        }
-
-        String fullPhone = tvCountryCode.getText().toString() + phone;
-
-        if (store.phoneExists(fullPhone)) {
-            markError(layoutPhoneBox);
-            showError("This mobile number is already registered.");
-            return;
-        }
-
-        if (store.emailExists(email)) {
-            markError(etEmail);
-            showError("This email is already registered.");
-            return;
-        }
-
-        tvError.setVisibility(View.GONE);
+        hideError();
 
         // TEMPORARY: saved on this phone only. Replace with the backend later.
         store.save(fullName, employeeId, fullPhone, email, password, selectedRole);
 
+        WorkerStore.addRegistered(
+                this,
+                fullName,
+                employeeId,
+                WorkerStore.formatPhone(tvCountryCode.getText().toString(), phone),
+                selectedRole == Role.OPERATOR);
+
         Toast.makeText(this, "Account created! You can log in now.", Toast.LENGTH_LONG).show();
         finish();
+    }
+
+    private void hideError() {
+        tvError.setVisibility(View.GONE);
     }
 
     private void showError(String message) {

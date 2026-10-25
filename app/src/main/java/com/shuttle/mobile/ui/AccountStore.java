@@ -94,4 +94,11 @@ public class AccountStore {
         }
         return Role.valueOf(role);
     }
+
+    public void setName(String userId, String name) {
+        String key = keyFor(userId);
+        if (key != null) {
+            prefs.edit().putString("name:" + key, name).apply();
+        }
+    }
 }
