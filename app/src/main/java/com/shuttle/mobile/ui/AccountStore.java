@@ -8,7 +8,36 @@ import com.shuttle.common.Role;
 // TEMPORARY: saves accounts on this phone only.
 // Replace with the backend when it's ready.
 public class AccountStore {
+    // userId is an email or a full phone number like +639175521092
+    private String keyFor(String userId) {
+        if (userId == null || userId.isEmpty()) {
+            return null;
+        }
+        if (userId.startsWith("+")) {
+            return prefs.getString("phone:" + userId, null);
+        }
+        return emailKey(userId);
+    }
 
+    public String getName(String userId) {
+        String key = keyFor(userId);
+        return key == null ? null : prefs.getString("name:" + key, null);
+    }
+
+    public String getEmployeeId(String userId) {
+        String key = keyFor(userId);
+        return key == null ? null : prefs.getString("emp:" + key, null);
+    }
+
+    public String getEmail(String userId) {
+        if (userId == null || userId.isEmpty()) {
+            return null;
+        }
+        if (userId.startsWith("+")) {
+            return prefs.getString("phone:" + userId, null);
+        }
+        return emailKey(userId);
+    }
     private final SharedPreferences prefs;
 
     public AccountStore(Context context) {

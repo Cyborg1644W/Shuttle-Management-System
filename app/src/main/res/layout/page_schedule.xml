@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Schedule tab content. Root is a ScrollView; if your page container already scrolls,
+     change the root to a plain vertical LinearLayout. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Week strip (filled in code) -->
+        <LinearLayout
+            android:id="@+id/layoutDays"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="7" />
+
+        <TextView
+            android:id="@+id/tvSchDate"
+            style="@style/Fleet.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Today" />
+
+        <TextView
+            android:id="@+id/tvSchSummary"
+            style="@style/Fleet.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="0 scheduled" />
+
+        <!-- Shift groups + worker rows (filled in code) -->
+        <LinearLayout
+            android:id="@+id/layoutSchedule"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/tvSchEmpty"
+            style="@style/Fleet.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:text="No one is scheduled for this day."
+            android:visibility="gone" />
+    </LinearLayout>
+</ScrollView>

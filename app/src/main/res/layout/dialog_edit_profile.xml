@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/dialog_card_bg"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/circle_tint_bg"
+            android:padding="11dp"
+            android:src="@drawable/ic_edit"
+            app:tint="@color/brand_600" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/Fleet.Title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Edit Profile" />
+
+            <TextView
+                style="@style/Fleet.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Update your account details" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        style="@style/Fleet.Overline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="Full name" />
+
+    <EditText
+        android:id="@+id/etEpName"
+        style="@style/Fleet.Body"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/input_bg"
+        android:hint="Your full name"
+        android:inputType="textPersonName|textCapWords"
+        android:maxLines="1"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp" />
+
+    <TextView
+        style="@style/Fleet.Overline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="Email" />
+
+    <EditText
+        android:id="@+id/etEpEmail"
+        style="@style/Fleet.Body"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/input_bg"
+        android:hint="name@example.com"
+        android:inputType="textEmailAddress"
+        android:maxLines="1"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp" />
+
+    <TextView
+        style="@style/Fleet.Overline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="Mobile number (+63)" />
+
+    <EditText
+        android:id="@+id/etEpPhone"
+        style="@style/Fleet.Body"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/input_bg"
+        android:hint="9XX XXX XXXX"
+        android:inputType="phone"
+        android:maxLength="15"
+        android:maxLines="1"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp" />
+
+    <!-- Employee ID can't be changed here -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/neutral_box_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="12dp">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_lock"
+            app:tint="@color/text_secondary" />
+
+        <TextView
+            android:id="@+id/tvEpEmp"
+            style="@style/Fleet.Caption"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:text="Employee ID" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvEpError"
+        style="@style/Fleet.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textColor="@color/danger"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnEpCancel"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1"
+            android:text="Cancel"
+            android:textColor="@color/text_secondary"
+            app:cornerRadius="@dimen/radius_control" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnEpSave"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:text="Save"
+            app:backgroundTint="@color/brand_600"
+            app:cornerRadius="@dimen/radius_control" />
+    </LinearLayout>
+</LinearLayout>

@@ -11,6 +11,7 @@ import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextWatcher;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -30,6 +31,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.shuttle.mobile.R;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class OperatorActivity extends AppCompatActivity {
 
@@ -65,6 +67,11 @@ public class OperatorActivity extends AppCompatActivity {
         String label2() {
             return operator ? "Shift Time" : "Terminal";
         }
+
+        // Online workers get the green ring and dot
+        boolean isOnline() {
+            return status.equals("ON SHIFT") || status.equals("ACTIVE");
+        }
     }
 
     private final ArrayList<WorkerItem> workers = new ArrayList<>();
@@ -83,6 +90,17 @@ public class OperatorActivity extends AppCompatActivity {
     private TextView tvHeaderAvatar;
     private View viewDot;
 
+    // Tabs: Workers (default) and Schedule
+    private View pageWorkers;
+    private View pageSchedule;
+    private View fabAdd;
+    private TextView tvPageLabel;
+    private ImageView ivNavWorkers;
+    private ImageView ivNavSchedule;
+    private TextView tvNavWorkers;
+    private TextView tvNavSchedule;
+    private boolean showingSchedule = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -100,6 +118,14 @@ public class OperatorActivity extends AppCompatActivity {
         tvStatStandby = findViewById(R.id.tvStatStandby);
         tvHeaderAvatar = findViewById(R.id.tvHeaderAvatar);
         viewDot = findViewById(R.id.viewDot);
+        pageWorkers = findViewById(R.id.pageWorkers);
+        pageSchedule = findViewById(R.id.pageSchedule);
+        fabAdd = findViewById(R.id.fabAdd);
+        tvPageLabel = findViewById(R.id.tvPageLabel);
+        ivNavWorkers = findViewById(R.id.ivNavWorkers);
+        ivNavSchedule = findViewById(R.id.ivNavSchedule);
+        tvNavWorkers = findViewById(R.id.tvNavWorkers);
+        tvNavSchedule = findViewById(R.id.tvNavSchedule);
 
         loadSampleWorkers();
 
@@ -128,10 +154,45 @@ public class OperatorActivity extends AppCompatActivity {
 
         findViewById(R.id.navDashboard).setOnClickListener(v -> comingSoon("Dashboard"));
         findViewById(R.id.navFleet).setOnClickListener(v -> comingSoon("Fleet"));
-        findViewById(R.id.navSchedule).setOnClickListener(v -> comingSoon("Schedule"));
+        findViewById(R.id.navWorkers).setOnClickListener(v -> showTab(false));
+        findViewById(R.id.navSchedule).setOnClickListener(v -> showTab(true));
+
+        SchedulePage.bind(this, pageSchedule);
 
         updateSummary();
         renderList();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (showingSchedule) {
+            showTab(false);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    // ---------- Tabs ----------
+
+    private void showTab(boolean schedule) {
+        showingSchedule = schedule;
+        pageWorkers.setVisibility(schedule ? View.GONE : View.VISIBLE);
+        pageSchedule.setVisibility(schedule ? View.VISIBLE : View.GONE);
+        fabAdd.setVisibility(schedule ? View.GONE : View.VISIBLE);
+        tvPageLabel.setText(schedule ? "Schedule" : "Workers");
+        styleNav(ivNavWorkers, tvNavWorkers, !schedule);
+        styleNav(ivNavSchedule, tvNavSchedule, schedule);
+    }
+
+    private void styleNav(ImageView icon, TextView label, boolean selected) {
+        int color = ContextCompat.getColor(this, selected ? R.color.brand_600 : R.color.text_secondary);
+        icon.setImageTintList(ColorStateList.valueOf(color));
+        label.setTextColor(color);
+        if (selected) {
+            icon.setBackgroundResource(R.drawable.chip_bg);
+        } else {
+            icon.setBackground(null);
+        }
     }
 
     private void loadSampleWorkers() {
@@ -158,15 +219,14 @@ public class OperatorActivity extends AppCompatActivity {
         int standby = 0;
 
         for (WorkerItem w : workers) {
-            boolean working = w.status.equals("ON SHIFT") || w.status.equals("ACTIVE");
-            if (working) {
+            if (w.isOnline()) {
                 onDuty++;
             }
             if (w.operator) {
                 operators++;
             } else {
                 drivers++;
-                if (working) {
+                if (w.isOnline()) {
                     driversActive++;
                 }
             }
@@ -175,12 +235,13 @@ public class OperatorActivity extends AppCompatActivity {
             }
         }
 
+        // Green dot, then "34 Registered Staff • 28 On Duty"
         SpannableStringBuilder sub = new SpannableStringBuilder();
-        sub.append(total + " Registered Staff • ");
-        int start = sub.length();
-        sub.append(onDuty + " On Duty");
+        sub.append("● ");
         sub.setSpan(new ForegroundColorSpan(ContextCompat.getColor(this, R.color.brand_600)),
-                start, sub.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sub.setSpan(new RelativeSizeSpan(0.7f), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sub.append(total + " Registered Staff • " + onDuty + " On Duty");
         tvSubtitle.setText(sub);
 
         tvStatDrivers.setText(String.valueOf(driversActive));
@@ -229,7 +290,12 @@ public class OperatorActivity extends AppCompatActivity {
         listContainer.removeAllViews();
         int shown = 0;
 
-        for (final WorkerItem w : workers) {
+        // Active first, then on break, then off duty at the bottom (stable: same-status keeps its order)
+        ArrayList<WorkerItem> sorted = new ArrayList<>(workers);
+        Collections.sort(sorted, (a, b) ->
+                Integer.compare(WorkerDialogs.statusRank(a.status), WorkerDialogs.statusRank(b.status)));
+
+        for (final WorkerItem w : sorted) {
             if (!matches(w)) {
                 continue;
             }
@@ -237,7 +303,22 @@ public class OperatorActivity extends AppCompatActivity {
 
             View card = LayoutInflater.from(this).inflate(R.layout.item_worker_card, listContainer, false);
 
-            ((TextView) card.findViewById(R.id.tvAvatar)).setText(initials(w.name));
+            TextView tvAvatar = card.findViewById(R.id.tvAvatar);
+            tvAvatar.setText(initials(w.name));
+            // Online: green ring and dot. On break: amber ring. Offline: plain circle.
+            if (w.isOnline()) {
+                tvAvatar.setBackgroundResource(R.drawable.avatar_ring_bg);
+                card.findViewById(R.id.viewOnline).setVisibility(View.VISIBLE);
+            } else if (WorkerDialogs.isBreak(w.status)) {
+                tvAvatar.setBackgroundResource(R.drawable.avatar_ring_break);
+                View dot = card.findViewById(R.id.viewOnline);
+                dot.setBackgroundResource(R.drawable.dot_break);
+                dot.setVisibility(View.VISIBLE);
+            } else {
+                tvAvatar.setBackgroundResource(R.drawable.icon_circle_bg);
+                card.findViewById(R.id.viewOnline).setVisibility(View.GONE);
+            }
+
             ((TextView) card.findViewById(R.id.tvName)).setText(w.name);
             ((TextView) card.findViewById(R.id.tvMeta)).setText(w.empId + " • " + w.role());
             styleBadge((TextView) card.findViewById(R.id.tvBadge), w.status);
@@ -301,7 +382,12 @@ public class OperatorActivity extends AppCompatActivity {
         final BottomSheetDialog dialog = new BottomSheetDialog(this);
         View sheet = LayoutInflater.from(this).inflate(R.layout.bottom_sheet_worker, null);
 
-        ((TextView) sheet.findViewById(R.id.tvSheetAvatar)).setText(initials(w.name));
+        TextView tvSheetAvatar = sheet.findViewById(R.id.tvSheetAvatar);
+        tvSheetAvatar.setText(initials(w.name));
+        tvSheetAvatar.setBackgroundResource(w.isOnline() ? R.drawable.avatar_ring_bg
+                : WorkerDialogs.isBreak(w.status) ? R.drawable.avatar_ring_break
+                  : R.drawable.icon_circle_bg);
+
         ((TextView) sheet.findViewById(R.id.tvSheetName)).setText(w.name);
         ((TextView) sheet.findViewById(R.id.tvSheetMeta)).setText(w.empId + " • " + w.role());
         styleBadge((TextView) sheet.findViewById(R.id.tvSheetBadge), w.status);
@@ -340,44 +426,43 @@ public class OperatorActivity extends AppCompatActivity {
     // ---------- Sheet actions ----------
 
     private void showShiftLog(WorkerItem w) {
-        String log;
         if (w.operator) {
-            log = "Shift: " + w.value2 + "\nStation: " + w.value1
-                    + "\nDispatches today: 14\nTerminal checks: 8\nLast activity: 2 min ago";
+            WorkerDialogs.showShiftLog(this, w.name, w.role(), w.status, R.drawable.ic_pin,
+                    new String[]{"14", "Dispatches today", "8", "Terminal checks"},
+                    new String[]{"Shift", w.value2, "Station", w.value1, "Last activity", "2 min ago"});
         } else {
-            log = "Vehicle: " + w.value1 + "\nTerminal: " + w.value2
-                    + "\nShift start: 06:02\nDistance: 84 km\nAvg. speed: 31 km/h\nStops: 12\nLast GPS ping: 1 min ago";
+            WorkerDialogs.showShiftLog(this, w.name, w.role(), w.status, R.drawable.ic_vehicle,
+                    new String[]{"84 km", "Distance", "31 km/h", "Avg. speed"},
+                    new String[]{"Shift start", "06:02",
+                            "Vehicle", w.value1 + " • " + w.value2,
+                            "Stops • last GPS ping", "12 stops • 1 min ago"});
         }
-        log += "\n\n(Sample data until the backend is connected.)";
-
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Shift Log • " + w.name)
-                .setMessage(log)
-                .setPositiveButton("Close", null)
-                .show();
     }
 
     private void showReassign(final WorkerItem w) {
         final String[] options;
         String title;
+        String noun;
+        int icon;
 
         if (w.operator) {
             title = "Reassign station";
+            noun = "station";
+            icon = R.drawable.ic_pin;
             options = new String[]{"PITX Central Bay", "Ayala Bay B", "One Ayala Hub", "Unassigned"};
         } else {
             title = "Reassign vehicle";
+            noun = "vehicle";
+            icon = R.drawable.ic_vehicle;
             options = new String[]{"Unit SH-1024", "Unit SH-2088", "Unit SH-3150", "Unassigned"};
         }
 
-        new MaterialAlertDialogBuilder(this)
-                .setTitle(title)
-                .setItems(options, (dialog, which) -> {
-                    w.value1 = options[which];
+        WorkerDialogs.showReassign(this, title, "Choose a new " + noun + " for " + w.name,
+                icon, options, w.value1, picked -> {
+                    w.value1 = picked;
                     renderList();
-                    Toast.makeText(this, w.name + " reassigned to " + options[which], Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                    Toast.makeText(this, w.name + " reassigned to " + picked, Toast.LENGTH_SHORT).show();
+                });
     }
 
     private void confirmRemove(final WorkerItem w) {
@@ -406,95 +491,43 @@ public class OperatorActivity extends AppCompatActivity {
     // ---------- Add / Edit worker ----------
 
     private void showWorkerForm(final WorkerItem existing) {
-        View form = LayoutInflater.from(this).inflate(R.layout.dialog_worker_form, null);
-
-        final EditText etName = form.findViewById(R.id.etFormName);
-        final EditText etEmp = form.findViewById(R.id.etFormEmp);
-        final EditText etPhone = form.findViewById(R.id.etFormPhone);
-        final TextView tvDriver = form.findViewById(R.id.tvFormDriver);
-        final TextView tvOperator = form.findViewById(R.id.tvFormOperator);
-        final boolean[] isOperator = {false};
-
-        tvDriver.setOnClickListener(v -> {
-            isOperator[0] = false;
-            styleChip(tvDriver, true);
-            styleChip(tvOperator, false);
-        });
-
-        tvOperator.setOnClickListener(v -> {
-            isOperator[0] = true;
-            styleChip(tvDriver, false);
-            styleChip(tvOperator, true);
-        });
-
+        String digits = "";
         if (existing != null) {
-            // Editing: the role can't be changed here
-            form.findViewById(R.id.layoutFormRole).setVisibility(View.GONE);
-            etName.setText(existing.name);
-            etEmp.setText(existing.empId);
-
-            String digits = existing.phone.replaceAll("[^0-9]", "");
+            digits = existing.phone.replaceAll("[^0-9]", "");
             if (digits.startsWith("63")) {
                 digits = digits.substring(2);
             }
-            etPhone.setText(digits);
         }
 
-        final AlertDialog dialog = new MaterialAlertDialogBuilder(this)
-                .setTitle(existing == null ? "Add Worker" : "Edit Worker Profile")
-                .setView(form)
-                .setPositiveButton(existing == null ? "Add" : "Save", null)
-                .setNegativeButton("Cancel", null)
-                .create();
+        WorkerDialogs.showWorkerForm(this, existing == null,
+                existing == null ? "" : existing.name,
+                existing == null ? "" : existing.empId,
+                digits,
+                (name, emp, phoneDigits, op) -> {
+                    for (WorkerItem other : workers) {
+                        if (other != existing && other.empId.equalsIgnoreCase(emp)) {
+                            return "This ID is already used";
+                        }
+                    }
 
-        dialog.show();
+                    String phone = "+63 " + phoneDigits.substring(0, 3) + " "
+                            + phoneDigits.substring(3, 6) + " " + phoneDigits.substring(6);
 
-        // Set here so the dialog stays open when something is wrong
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String name = etName.getText().toString().trim();
-            String emp = etEmp.getText().toString().trim().toUpperCase();
-            String digits = etPhone.getText().toString().replaceAll("[^0-9]", "");
-            if (digits.startsWith("0")) {
-                digits = digits.substring(1);
-            }
+                    if (existing == null) {
+                        workers.add(new WorkerItem(name, emp, "OFF DUTY", op,
+                                "Unassigned", op ? "Not set" : "Unassigned", phone));
+                        Toast.makeText(this, name + " added", Toast.LENGTH_SHORT).show();
+                    } else {
+                        existing.name = name;
+                        existing.empId = emp;
+                        existing.phone = phone;
+                        Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show();
+                    }
 
-            if (name.isEmpty()) {
-                etName.setError("Enter a name");
-                return;
-            }
-            if (emp.isEmpty()) {
-                etEmp.setError("Enter an employee ID");
-                return;
-            }
-            for (WorkerItem other : workers) {
-                if (other != existing && other.empId.equalsIgnoreCase(emp)) {
-                    etEmp.setError("This ID is already used");
-                    return;
-                }
-            }
-            if (digits.length() != 10) {
-                etPhone.setError("Enter 10 digits");
-                return;
-            }
-
-            String phone = "+63 " + digits.substring(0, 3) + " " + digits.substring(3, 6) + " " + digits.substring(6);
-
-            if (existing == null) {
-                boolean op = isOperator[0];
-                workers.add(new WorkerItem(name, emp, "OFF DUTY", op,
-                        "Unassigned", op ? "Not set" : "Unassigned", phone));
-                Toast.makeText(this, name + " added", Toast.LENGTH_SHORT).show();
-            } else {
-                existing.name = name;
-                existing.empId = emp;
-                existing.phone = phone;
-                Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show();
-            }
-
-            updateSummary();
-            renderList();
-            dialog.dismiss();
-        });
+                    updateSummary();
+                    renderList();
+                    return null;
+                });
     }
 
     // ---------- Bell and account menu ----------

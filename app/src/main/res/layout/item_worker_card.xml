@@ -8,7 +8,7 @@
     android:clickable="true"
     android:focusable="true"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:padding="16dp">
 
     <!-- Top row -->
     <LinearLayout
@@ -17,16 +17,28 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tvAvatar"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/icon_square_bg"
-            android:gravity="center"
-            android:text="AB"
-            android:textColor="@color/brand_600"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+        <FrameLayout
+            android:layout_width="52dp"
+            android:layout_height="52dp">
+
+            <TextView
+                android:id="@+id/tvAvatar"
+                style="@style/Fleet.Subtitle"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/icon_circle_bg"
+                android:gravity="center"
+                android:text="AB"
+                android:textColor="@color/brand_600" />
+
+            <View
+                android:id="@+id/viewOnline"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="bottom|end"
+                android:background="@drawable/dot_online"
+                android:visibility="gone" />
+        </FrameLayout>
 
         <LinearLayout
             android:layout_width="0dp"
@@ -37,35 +49,33 @@
 
             <TextView
                 android:id="@+id/tvName"
+                style="@style/Fleet.Title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Name"
-                android:textColor="@color/text_primary"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/tvMeta"
+                style="@style/Fleet.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="EMP-0000 • Driver"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp" />
+                android:text="EMP-0000 • Driver" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/tvBadge"
+            style="@style/Fleet.Overline"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/badge_bg"
-            android:paddingStart="10dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="10dp"
-            android:paddingBottom="4dp"
+            android:paddingStart="12dp"
+            android:paddingTop="5dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="5dp"
             android:text="ON SHIFT"
-            android:textSize="10sp"
-            android:textStyle="bold" />
+            android:textSize="10sp" />
     </LinearLayout>
 
     <!-- Info box -->
@@ -87,8 +97,8 @@
 
             <ImageView
                 android:id="@+id/ivIcon1"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_vehicle"
                 app:tint="@color/brand_600" />
@@ -101,29 +111,28 @@
 
                 <TextView
                     android:id="@+id/tvLabel1"
+                    style="@style/Fleet.Overline"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Vehicle"
-                    android:textColor="@color/text_secondary"
                     android:textSize="10sp" />
 
                 <TextView
                     android:id="@+id/tvValue1"
+                    style="@style/Fleet.Body"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Unit SH-1024"
-                    android:textColor="@color/text_primary"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textSize="13sp" />
             </LinearLayout>
         </LinearLayout>
 
         <View
             android:layout_width="1dp"
-            android:layout_height="28dp"
+            android:layout_height="32dp"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp"
-            android:background="@color/surface_tint_2" />
+            android:background="@color/border" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -134,8 +143,8 @@
 
             <ImageView
                 android:id="@+id/ivIcon2"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_pin"
                 app:tint="@color/brand_600" />
@@ -148,20 +157,19 @@
 
                 <TextView
                     android:id="@+id/tvLabel2"
+                    style="@style/Fleet.Overline"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Terminal"
-                    android:textColor="@color/text_secondary"
                     android:textSize="10sp" />
 
                 <TextView
                     android:id="@+id/tvValue2"
+                    style="@style/Fleet.Body"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Terminal 3 Bay A"
-                    android:textColor="@color/text_primary"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textSize="13sp" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
@@ -175,61 +183,60 @@
         android:orientation="horizontal">
 
         <ImageView
-            android:layout_width="13dp"
-            android:layout_height="13dp"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
             android:contentDescription="@null"
             android:src="@drawable/ic_phone"
             app:tint="@color/text_secondary" />
 
         <TextView
             android:id="@+id/tvPhone"
+            style="@style/Fleet.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
-            android:text="+63 000 000 0000"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+            android:text="+63 000 000 0000" />
 
         <ImageView
             android:id="@+id/btnCall"
-            android:layout_width="40dp"
-            android:layout_height="36dp"
+            android:layout_width="44dp"
+            android:layout_height="40dp"
             android:background="@drawable/btn_phone_bg"
             android:contentDescription="Call"
-            android:padding="10dp"
+            android:padding="11dp"
             android:src="@drawable/ic_phone"
             app:tint="@color/brand_600" />
 
         <LinearLayout
             android:id="@+id/btnAction"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="40dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/btn_radio_bg"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp">
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
 
             <ImageView
                 android:id="@+id/ivActionIcon"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_radio" />
 
             <TextView
                 android:id="@+id/tvAction"
+                style="@style/Fleet.Subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
+                android:layout_marginStart="8dp"
                 android:text="Radio"
                 android:textColor="@color/radio_text"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                android:textSize="13sp" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

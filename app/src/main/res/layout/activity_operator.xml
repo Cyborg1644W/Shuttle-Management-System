@@ -19,38 +19,37 @@
         android:paddingBottom="12dp">
 
         <ImageView
-            android:layout_width="34dp"
-            android:layout_height="34dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:contentDescription="@string/app_name"
             android:src="@drawable/logo" />
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="12dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
             <TextView
+                style="@style/Fleet.Subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Shuttle Admin"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:text="Shuttle Admin" />
 
             <TextView
+                style="@style/Fleet.Overline"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="WORKERS"
-                android:textColor="@color/text_secondary"
-                android:textSize="10sp" />
+                android:id="@+id/tvPageLabel"
+                android:text="Workers" />
         </LinearLayout>
 
         <FrameLayout
             android:id="@+id/flBell"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bell_box_bg"
             android:clickable="true"
             android:focusable="true">
 
@@ -64,28 +63,33 @@
 
             <View
                 android:id="@+id/viewDot"
-                android:layout_width="9dp"
-                android:layout_height="9dp"
+                android:layout_width="11dp"
+                android:layout_height="11dp"
                 android:layout_gravity="top|end"
-                android:layout_marginTop="6dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/dot_red" />
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/dot_online" />
         </FrameLayout>
 
         <TextView
             android:id="@+id/tvHeaderAvatar"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/icon_square_bg"
+            style="@style/Fleet.Caption"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/avatar_header_bg"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
             android:text="SA"
             android:textColor="@color/brand_600"
-            android:textSize="13sp"
-            android:textStyle="bold" />
+            android:textSize="13sp" />
     </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/border" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -93,6 +97,7 @@
         android:layout_weight="1">
 
         <ScrollView
+            android:id="@+id/pageWorkers"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:fillViewport="true">
@@ -102,26 +107,24 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:paddingStart="16dp"
-                android:paddingTop="16dp"
+                android:paddingTop="20dp"
                 android:paddingEnd="16dp"
                 android:paddingBottom="100dp">
 
                 <TextView
+                    style="@style/Fleet.Display"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Worker Management"
-                    android:textColor="@color/text_primary"
-                    android:textSize="22sp"
-                    android:textStyle="bold" />
+                    android:text="Worker Management" />
 
                 <TextView
                     android:id="@+id/tvSubtitle"
+                    style="@style/Fleet.Body"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
+                    android:layout_marginTop="4dp"
                     android:text="Registered Staff"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
+                    android:textColor="@color/text_secondary" />
 
                 <!-- Stat cards -->
                 <LinearLayout
@@ -134,47 +137,45 @@
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginEnd="10dp"
+                        android:layout_marginEnd="8dp"
                         android:layout_weight="1"
                         android:background="@drawable/stat_card_bg"
                         android:orientation="vertical"
                         android:paddingStart="16dp"
-                        android:paddingTop="14dp"
-                        android:paddingEnd="12dp"
-                        android:paddingBottom="14dp">
+                        android:paddingTop="16dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="16dp">
 
                         <TextView
+                            style="@style/Fleet.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Drivers Active"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:maxLines="1"
+                            android:text="Drivers Active" />
 
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
+                            android:layout_marginTop="8dp"
                             android:gravity="bottom"
                             android:orientation="horizontal">
 
                             <TextView
                                 android:id="@+id/tvStatDrivers"
+                                style="@style/Fleet.Display"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:fontFamily="@font/plus_jakarta_sans_semibold"
                                 android:text="0"
-                                android:textColor="@color/text_primary"
-                                android:textSize="30sp" />
+                                android:textSize="32sp" />
 
                             <TextView
                                 android:id="@+id/tvStatDriversTotal"
+                                style="@style/Fleet.Caption"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:layout_marginBottom="5dp"
-                                android:text="/0"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
+                                android:layout_marginStart="8dp"
+                                android:layout_marginBottom="6dp"
+                                android:text="/0" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -182,46 +183,44 @@
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginEnd="10dp"
+                        android:layout_marginEnd="8dp"
                         android:layout_weight="1"
                         android:background="@drawable/stat_card_bg"
                         android:orientation="vertical"
                         android:paddingStart="16dp"
-                        android:paddingTop="14dp"
-                        android:paddingEnd="12dp"
-                        android:paddingBottom="14dp">
+                        android:paddingTop="16dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="16dp">
 
                         <TextView
+                            style="@style/Fleet.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Operators"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:maxLines="1"
+                            android:text="Operators" />
 
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
+                            android:layout_marginTop="8dp"
                             android:gravity="bottom"
                             android:orientation="horizontal">
 
                             <TextView
                                 android:id="@+id/tvStatOperators"
+                                style="@style/Fleet.Display"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:fontFamily="@font/plus_jakarta_sans_semibold"
                                 android:text="0"
-                                android:textColor="@color/text_primary"
-                                android:textSize="30sp" />
+                                android:textSize="32sp" />
 
                             <TextView
+                                style="@style/Fleet.Caption"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="8dp"
-                                android:layout_marginBottom="5dp"
-                                android:text="Bays"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
+                                android:layout_marginBottom="6dp"
+                                android:text="Bays" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -233,41 +232,39 @@
                         android:background="@drawable/stat_card_bg"
                         android:orientation="vertical"
                         android:paddingStart="16dp"
-                        android:paddingTop="14dp"
-                        android:paddingEnd="12dp"
-                        android:paddingBottom="14dp">
+                        android:paddingTop="16dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="16dp">
 
                         <TextView
+                            style="@style/Fleet.Caption"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Standby Pool"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:maxLines="1"
+                            android:text="Standby Pool" />
 
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
+                            android:layout_marginTop="8dp"
                             android:gravity="bottom"
                             android:orientation="horizontal">
 
                             <TextView
                                 android:id="@+id/tvStatStandby"
+                                style="@style/Fleet.Display"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:fontFamily="@font/plus_jakarta_sans_semibold"
                                 android:text="0"
-                                android:textColor="@color/text_primary"
-                                android:textSize="30sp" />
+                                android:textSize="32sp" />
 
                             <TextView
+                                style="@style/Fleet.Caption"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="8dp"
-                                android:layout_marginBottom="5dp"
-                                android:text="Avail"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
+                                android:layout_marginBottom="6dp"
+                                android:text="Avail" />
                         </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
@@ -275,34 +272,33 @@
                 <!-- Search -->
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="52dp"
                     android:layout_marginTop="16dp"
                     android:addStatesFromChildren="true"
                     android:background="@drawable/input_bg"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp">
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp">
 
                     <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:contentDescription="@null"
                         android:src="@drawable/ic_search"
-                        app:tint="@color/text_tertiary" />
+                        app:tint="@color/text_secondary" />
 
                     <EditText
                         android:id="@+id/etSearch"
+                        style="@style/Fleet.Body"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:layout_marginStart="10dp"
+                        android:layout_marginStart="12dp"
                         android:background="@null"
                         android:hint="Search staff name, ID (e.g. EMP-0842)..."
                         android:inputType="text"
                         android:maxLines="1"
-                        android:textColor="@color/text_primary"
-                        android:textColorHint="@color/text_tertiary"
-                        android:textSize="13sp" />
+                        android:textColorHint="@color/text_secondary" />
                 </LinearLayout>
 
                 <!-- Filter chips -->
@@ -320,41 +316,42 @@
 
                         <TextView
                             android:id="@+id/chipAll"
+                            style="@style/Fleet.Caption"
                             android:layout_width="wrap_content"
-                            android:layout_height="34dp"
+                            android:layout_height="36dp"
                             android:background="@drawable/tab_selected"
                             android:gravity="center"
-                            android:paddingStart="16dp"
-                            android:paddingEnd="16dp"
+                            android:paddingStart="20dp"
+                            android:paddingEnd="20dp"
                             android:text="All Roles"
                             android:textColor="@color/white"
-                            android:textSize="12sp" />
+                            android:textSize="13sp" />
 
                         <TextView
                             android:id="@+id/chipDrivers"
+                            style="@style/Fleet.Caption"
                             android:layout_width="wrap_content"
-                            android:layout_height="34dp"
+                            android:layout_height="36dp"
                             android:layout_marginStart="8dp"
                             android:background="@drawable/tab_unselected"
                             android:gravity="center"
-                            android:paddingStart="16dp"
-                            android:paddingEnd="16dp"
+                            android:paddingStart="20dp"
+                            android:paddingEnd="20dp"
                             android:text="Drivers"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:textSize="13sp" />
 
                         <TextView
                             android:id="@+id/chipOperators"
+                            style="@style/Fleet.Caption"
                             android:layout_width="wrap_content"
-                            android:layout_height="34dp"
+                            android:layout_height="36dp"
                             android:layout_marginStart="8dp"
                             android:background="@drawable/tab_unselected"
                             android:gravity="center"
-                            android:paddingStart="16dp"
-                            android:paddingEnd="16dp"
+                            android:paddingStart="20dp"
+                            android:paddingEnd="20dp"
                             android:text="Operators"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
+                            android:textSize="13sp" />
                     </LinearLayout>
                 </HorizontalScrollView>
 
@@ -363,10 +360,18 @@
                     android:id="@+id/listContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="16dp"
                     android:orientation="vertical" />
             </LinearLayout>
         </ScrollView>
+
+        <!-- Schedule tab (hidden until the Schedule button is tapped) -->
+        <include
+            android:id="@+id/pageSchedule"
+            layout="@layout/page_schedule"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
 
         <!-- Add Worker button -->
         <LinearLayout
@@ -382,26 +387,26 @@
             android:focusable="true"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="18dp"
-            android:paddingTop="14dp"
-            android:paddingEnd="20dp"
-            android:paddingBottom="14dp">
+            android:paddingStart="20dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="16dp">
 
             <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_plus"
                 app:tint="@color/white" />
 
             <TextView
+                style="@style/Fleet.Subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:text="Add Worker"
                 android:textColor="@color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textSize="14sp" />
         </LinearLayout>
     </FrameLayout>
 
@@ -429,14 +434,16 @@
                 android:layout_height="32dp"
                 android:contentDescription="@null"
                 android:padding="5dp"
+                android:id="@+id/ivNavDashboard"
                 android:src="@drawable/ic_home"
                 app:tint="@color/text_secondary" />
 
             <TextView
+                style="@style/Fleet.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:id="@+id/tvNavDashboard"
                 android:text="Dashboard"
-                android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
         </LinearLayout>
 
@@ -455,19 +462,23 @@
                 android:layout_height="32dp"
                 android:contentDescription="@null"
                 android:padding="5dp"
+                android:id="@+id/ivNavFleet"
                 android:src="@drawable/ic_vehicle"
                 app:tint="@color/text_secondary" />
 
             <TextView
+                style="@style/Fleet.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:id="@+id/tvNavFleet"
                 android:text="Fleet"
-                android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/navWorkers"
+            android:clickable="true"
+            android:focusable="true"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -480,16 +491,18 @@
                 android:background="@drawable/chip_bg"
                 android:contentDescription="@null"
                 android:padding="5dp"
+                android:id="@+id/ivNavWorkers"
                 android:src="@drawable/ic_nav_workers"
                 app:tint="@color/brand_600" />
 
             <TextView
+                style="@style/Fleet.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:id="@+id/tvNavWorkers"
                 android:text="Workers"
                 android:textColor="@color/brand_600"
-                android:textSize="11sp"
-                android:textStyle="bold" />
+                android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -507,14 +520,16 @@
                 android:layout_height="32dp"
                 android:contentDescription="@null"
                 android:padding="5dp"
+                android:id="@+id/ivNavSchedule"
                 android:src="@drawable/ic_nav_schedule"
                 app:tint="@color/text_secondary" />
 
             <TextView
+                style="@style/Fleet.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:id="@+id/tvNavSchedule"
                 android:text="Schedule"
-                android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>
