@@ -9,9 +9,9 @@ import com.shuttle.mobile.R;
 
 public class FieldUi {
 
-    public static final int NORMAL = 0;   // plain (turns green while you type in it)
-    public static final int VALID = 1;    // green: correct
-    public static final int ERROR = 2;    // red: wrong
+    public static final int NORMAL = 0;
+    public static final int VALID = 1;
+    public static final int ERROR = 2;
 
     public static void set(View field, int state) {
         if (state == VALID) {

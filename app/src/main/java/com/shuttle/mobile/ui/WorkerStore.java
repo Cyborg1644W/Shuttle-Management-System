@@ -10,6 +10,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 
+//TEMPORARY
 /**
  * Stand-in worker storage. Replace with the Worker Management version if your teammate has one.
  * Saves workers in workers.txt (internal storage), one per line:

@@ -12,6 +12,8 @@ public class ServerConfig {
     private static int port = 8080;
     private static String workersCsv = "sample-data/import/workers.csv";
     private static String shuttlesCsv = "sample-data/import/shuttles.csv";
+    private static String shiftsCsv = null;
+    private static String scheduleCsv = null;
 
     static {
         loadConfig();
@@ -26,6 +28,8 @@ public class ServerConfig {
                 port = Integer.parseInt(props.getProperty("server.port", String.valueOf(port)));
                 workersCsv = props.getProperty("csv.workers", workersCsv);
                 shuttlesCsv = props.getProperty("csv.shuttles", shuttlesCsv);
+                shiftsCsv = props.getProperty("csv.shifts", shiftsCsv);
+                scheduleCsv = props.getProperty("csv.schedule", scheduleCsv);
             }
         } catch (Exception e) {
             System.out.println("[INFO] Using default system configurations.");
@@ -43,5 +47,18 @@ public class ServerConfig {
 
     public static Path getShuttlesCsvPath() {
         return Paths.get(shuttlesCsv);
+    }
+
+    public static Path getShiftsCsvPath() {
+        return shiftsCsv != null ? Paths.get(shiftsCsv) : sibling("shifts.csv");
+    }
+
+    public static Path getScheduleCsvPath() {
+        return scheduleCsv != null ? Paths.get(scheduleCsv) : sibling("schedule.csv");
+    }
+
+    private static Path sibling(String name) {
+        Path parent = getWorkersCsvPath().getParent();
+        return parent == null ? Paths.get(name) : parent.resolve(name);
     }
 }

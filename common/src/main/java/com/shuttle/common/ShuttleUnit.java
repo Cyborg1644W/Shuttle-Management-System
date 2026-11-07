@@ -2,24 +2,27 @@ package com.shuttle.common;
 
 public class ShuttleUnit {
 
-    private String shuttleID;
+    private String shuttleId;
     private String plateNumber;
     private int capacity;
-    private boolean available;
+    private String currentStatus = "AVAILABLE";
+
+    public ShuttleUnit() {
+    }
 
     public ShuttleUnit(String shuttleID, String plateNumber, int capacity, boolean available) {
-        this.shuttleID = shuttleID;
+        this.shuttleId = shuttleID;
         this.plateNumber = plateNumber;
         this.capacity = capacity;
-        this.available = available;
+        this.currentStatus = available ? "AVAILABLE" : "OFFLINE";
     }
 
     public String toCsvRow() {
-        return CsvUtil.toRow(shuttleID, plateNumber, String.valueOf(capacity), String.valueOf(available));
+        return CsvUtil.toRow(shuttleId, plateNumber, String.valueOf(capacity), currentStatus);
     }
 
-    public String getShuttleID() { return shuttleID; }
-    public void setShuttleID(String shuttleID) { this.shuttleID = shuttleID; }
+    public String getShuttleId() { return shuttleId; }
+    public void setShuttleId(String shuttleId) { this.shuttleId = shuttleId; }
 
     public String getPlateNumber() { return plateNumber; }
     public void setPlateNumber(String plateNumber) { this.plateNumber = plateNumber; }
@@ -27,6 +30,11 @@ public class ShuttleUnit {
     public int getCapacity() { return capacity; }
     public void setCapacity(int capacity) { this.capacity = capacity; }
 
-    public boolean isAvailable() { return available; }
-    public void setAvailable(boolean available) { this.available = available; }
+    public String getCurrentStatus() { return currentStatus; }
+    public void setCurrentStatus(String currentStatus) { this.currentStatus = currentStatus; }
+
+    public String getShuttleID() { return shuttleId; }
+    public void setShuttleID(String shuttleID) { this.shuttleId = shuttleID; }
+    public boolean isAvailable() { return "AVAILABLE".equals(currentStatus); }
+    public void setAvailable(boolean available) { this.currentStatus = available ? "AVAILABLE" : "OFFLINE"; }
 }

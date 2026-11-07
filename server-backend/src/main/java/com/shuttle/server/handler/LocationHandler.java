@@ -1,28 +1,39 @@
 package com.shuttle.server.handler;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
+import com.shuttle.common.Driver;
+import com.shuttle.common.Worker;
 import com.shuttle.server.ApiException;
+import com.shuttle.server.Json;
 import com.shuttle.server.service.TrackingService;
-import java.io.IOException;
 
-public class LocationHandler implements HttpHandler {
+import static com.shuttle.server.Json.has;
+import static com.shuttle.server.Json.lng;
+import static com.shuttle.server.Json.num;
+import static com.shuttle.server.Json.str;
+public class LocationHandler extends BaseHandler {
+
     @Override
-    public void handle(HttpExchange exchange) throws IOException {
-        try {
-            String token = ApiHandler.extractToken(exchange);
-            ApiHandler.requireAuth(token);
-
-            if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-                String coords = exchange.getRequestHeaders().getFirst("X-Coordinates");
-                String locationToSave = (coords != null) ? coords : "14.4445, 121.0012";
-                TrackingService.updateLocation("shuttle-1", locationToSave);
-                ApiHandler.sendResponse(exchange, 200, "{\"status\": \"Location updated\"}");
-            } else {
-                throw new ApiException(405, "Method Not Allowed");
-            }
-        } catch (ApiException e) {
-            ApiHandler.sendResponse(exchange, e.getStatusCode(), "{\"error\": \"" + e.getMessage() + "\"}");
+    protected Response process(Request r) {
+        if (!r.is("POST")) {
+            throw new ApiException(405, "Method Not Allowed");
         }
+        Worker me = r.worker();
+
+        String shuttleId;
+        if (me instanceof Driver) {
+            shuttleId = ((Driver) me).getAssignedShuttleId();
+            if (shuttleId == null || shuttleId.isEmpty()) {
+                throw new ApiException(409, "No vehicle assigned to you");
+            }
+        } else {
+            shuttleId = str(r.body, "shuttleId");
+        }
+
+        if (!has(r.body, "latitude") || !has(r.body, "longitude")) {
+            throw new ApiException(400, "latitude and longitude are required");
+        }
+        TrackingService.updateLocation(shuttleId, num(r.body, "latitude"), num(r.body, "longitude"),
+                num(r.body, "speed"), lng(r.body, "timestamp"));
+        return ok(Json.obj("status", "Location updated"));
     }
 }

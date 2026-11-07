@@ -14,6 +14,7 @@ import com.shuttle.mobile.R;
 
 import java.util.Random;
 
+//TEMPORARY
 // A QR-looking pattern for the demo pass. It is NOT a real QR code.
 public class QrCodeView extends View {
 

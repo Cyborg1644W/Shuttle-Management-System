@@ -15,10 +15,13 @@ import android.text.style.RelativeSizeSpan;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,7 +38,6 @@ import java.util.Collections;
 
 public class OperatorActivity extends AppCompatActivity {
 
-    // One worker. TEMPORARY sample data: replace with real workers from the backend later.
     private static class WorkerItem {
         String name;
         String empId;
@@ -68,7 +70,6 @@ public class OperatorActivity extends AppCompatActivity {
             return operator ? "Shift Time" : "Terminal";
         }
 
-        // Online workers get the green ring and dot
         boolean isOnline() {
             return status.equals("ON SHIFT") || status.equals("ACTIVE");
         }
@@ -90,16 +91,24 @@ public class OperatorActivity extends AppCompatActivity {
     private TextView tvHeaderAvatar;
     private View viewDot;
 
-    // Tabs: Workers (default) and Schedule
+    private static final int TAB_WORKERS = 0;
+    private static final int TAB_SCHEDULE = 1;
+    private static final int TAB_DASHBOARD = 2;
+    private static final int TAB_FLEET = 3;
+
     private View pageWorkers;
     private View pageSchedule;
+    private View pageDashboard;
+    private View pageFleet;
     private View fabAdd;
     private TextView tvPageLabel;
     private ImageView ivNavWorkers;
     private ImageView ivNavSchedule;
     private TextView tvNavWorkers;
     private TextView tvNavSchedule;
-    private boolean showingSchedule = false;
+    private View navDashboard;
+    private View navFleet;
+    private int currentTab = TAB_WORKERS;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -126,6 +135,8 @@ public class OperatorActivity extends AppCompatActivity {
         ivNavSchedule = findViewById(R.id.ivNavSchedule);
         tvNavWorkers = findViewById(R.id.tvNavWorkers);
         tvNavSchedule = findViewById(R.id.tvNavSchedule);
+        navDashboard = findViewById(R.id.navDashboard);
+        navFleet = findViewById(R.id.navFleet);
 
         loadSampleWorkers();
 
@@ -152,10 +163,10 @@ public class OperatorActivity extends AppCompatActivity {
         tvHeaderAvatar.setOnClickListener(v -> showAccountMenu());
         findViewById(R.id.fabAdd).setOnClickListener(v -> showWorkerForm(null));
 
-        findViewById(R.id.navDashboard).setOnClickListener(v -> comingSoon("Dashboard"));
-        findViewById(R.id.navFleet).setOnClickListener(v -> comingSoon("Fleet"));
-        findViewById(R.id.navWorkers).setOnClickListener(v -> showTab(false));
-        findViewById(R.id.navSchedule).setOnClickListener(v -> showTab(true));
+        navDashboard.setOnClickListener(v -> showTab(TAB_DASHBOARD));
+        navFleet.setOnClickListener(v -> showTab(TAB_FLEET));
+        findViewById(R.id.navWorkers).setOnClickListener(v -> showTab(TAB_WORKERS));
+        findViewById(R.id.navSchedule).setOnClickListener(v -> showTab(TAB_SCHEDULE));
 
         SchedulePage.bind(this, pageSchedule);
 
@@ -165,23 +176,71 @@ public class OperatorActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (showingSchedule) {
-            showTab(false);
+        if (currentTab != TAB_WORKERS) {
+            showTab(TAB_WORKERS);
         } else {
             super.onBackPressed();
         }
     }
 
-    // ---------- Tabs ----------
+    private void showTab(int tab) {
+        currentTab = tab;
 
-    private void showTab(boolean schedule) {
-        showingSchedule = schedule;
-        pageWorkers.setVisibility(schedule ? View.GONE : View.VISIBLE);
-        pageSchedule.setVisibility(schedule ? View.VISIBLE : View.GONE);
-        fabAdd.setVisibility(schedule ? View.GONE : View.VISIBLE);
-        tvPageLabel.setText(schedule ? "Schedule" : "Workers");
-        styleNav(ivNavWorkers, tvNavWorkers, !schedule);
-        styleNav(ivNavSchedule, tvNavSchedule, schedule);
+        if (tab == TAB_DASHBOARD && pageDashboard == null) {
+            ViewGroup parent = (ViewGroup) pageSchedule.getParent();
+            pageDashboard = addPage(Dashboard.create(this, parent));
+        }
+        if (tab == TAB_FLEET && pageFleet == null) {
+            ViewGroup parent = (ViewGroup) pageSchedule.getParent();
+            pageFleet = addPage(Fleet.create(this, parent));
+        }
+
+        pageWorkers.setVisibility(tab == TAB_WORKERS ? View.VISIBLE : View.GONE);
+        pageSchedule.setVisibility(tab == TAB_SCHEDULE ? View.VISIBLE : View.GONE);
+        if (pageDashboard != null) {
+            pageDashboard.setVisibility(tab == TAB_DASHBOARD ? View.VISIBLE : View.GONE);
+        }
+        if (pageFleet != null) {
+            pageFleet.setVisibility(tab == TAB_FLEET ? View.VISIBLE : View.GONE);
+        }
+
+        fabAdd.setVisibility(tab == TAB_WORKERS ? View.VISIBLE : View.GONE);
+
+        String label = "Workers";
+        if (tab == TAB_SCHEDULE) {
+            label = "Schedule";
+        } else if (tab == TAB_DASHBOARD) {
+            label = "Dashboard";
+        } else if (tab == TAB_FLEET) {
+            label = "Fleet";
+        }
+        tvPageLabel.setText(label);
+
+        styleNav(ivNavWorkers, tvNavWorkers, tab == TAB_WORKERS);
+        styleNav(ivNavSchedule, tvNavSchedule, tab == TAB_SCHEDULE);
+        styleNavGroup(navDashboard, tab == TAB_DASHBOARD);
+        styleNavGroup(navFleet, tab == TAB_FLEET);
+    }
+
+    private View addPage(View page) {
+        ViewGroup parent = (ViewGroup) pageSchedule.getParent();
+        page.setVisibility(View.GONE);
+        parent.addView(page, parent.indexOfChild(pageSchedule) + 1,
+                copyParams(pageSchedule.getLayoutParams()));
+        return page;
+    }
+
+    private ViewGroup.LayoutParams copyParams(ViewGroup.LayoutParams p) {
+        if (p instanceof LinearLayout.LayoutParams) {
+            return new LinearLayout.LayoutParams((LinearLayout.LayoutParams) p);
+        }
+        if (p instanceof FrameLayout.LayoutParams) {
+            return new FrameLayout.LayoutParams((FrameLayout.LayoutParams) p);
+        }
+        if (p instanceof RelativeLayout.LayoutParams) {
+            return new RelativeLayout.LayoutParams((RelativeLayout.LayoutParams) p);
+        }
+        return p;
     }
 
     private void styleNav(ImageView icon, TextView label, boolean selected) {
@@ -192,6 +251,30 @@ public class OperatorActivity extends AppCompatActivity {
             icon.setBackgroundResource(R.drawable.chip_bg);
         } else {
             icon.setBackground(null);
+        }
+    }
+
+    private void styleNavGroup(View nav, boolean selected) {
+        if (!(nav instanceof ViewGroup)) {
+            return;
+        }
+        int color = ContextCompat.getColor(this, selected ? R.color.brand_600 : R.color.text_secondary);
+        ViewGroup group = (ViewGroup) nav;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof ImageView) {
+                ImageView icon = (ImageView) child;
+                icon.setImageTintList(ColorStateList.valueOf(color));
+                if (selected) {
+                    icon.setBackgroundResource(R.drawable.chip_bg);
+                } else {
+                    icon.setBackground(null);
+                }
+            } else if (child instanceof TextView) {
+                ((TextView) child).setTextColor(color);
+            } else if (child instanceof ViewGroup) {
+                styleNavGroup(child, selected);
+            }
         }
     }
 
@@ -207,8 +290,6 @@ public class OperatorActivity extends AppCompatActivity {
         workers.add(new WorkerItem("Lea Ramos", "EMP-0377", "ON BREAK", true,
                 "Ayala Bay B", "14:00 - 22:00", "+63 915 220 9034"));
     }
-
-    // ---------- Summary (subtitle, stat cards, chip count) ----------
 
     private void updateSummary() {
         int total = workers.size();
@@ -235,7 +316,6 @@ public class OperatorActivity extends AppCompatActivity {
             }
         }
 
-        // Green dot, then "34 Registered Staff • 28 On Duty"
         SpannableStringBuilder sub = new SpannableStringBuilder();
         sub.append("● ");
         sub.setSpan(new ForegroundColorSpan(ContextCompat.getColor(this, R.color.brand_600)),
@@ -250,8 +330,6 @@ public class OperatorActivity extends AppCompatActivity {
         tvStatStandby.setText(String.valueOf(standby));
         chipAll.setText("All Roles  " + total);
     }
-
-    // ---------- Filter and list ----------
 
     private void selectFilter(String filter) {
         currentFilter = filter;
@@ -290,7 +368,6 @@ public class OperatorActivity extends AppCompatActivity {
         listContainer.removeAllViews();
         int shown = 0;
 
-        // Active first, then on break, then off duty at the bottom (stable: same-status keeps its order)
         ArrayList<WorkerItem> sorted = new ArrayList<>(workers);
         Collections.sort(sorted, (a, b) ->
                 Integer.compare(WorkerDialogs.statusRank(a.status), WorkerDialogs.statusRank(b.status)));
@@ -305,7 +382,6 @@ public class OperatorActivity extends AppCompatActivity {
 
             TextView tvAvatar = card.findViewById(R.id.tvAvatar);
             tvAvatar.setText(initials(w.name));
-            // Online: green ring and dot. On break: amber ring. Offline: plain circle.
             if (w.isOnline()) {
                 tvAvatar.setBackgroundResource(R.drawable.avatar_ring_bg);
                 card.findViewById(R.id.viewOnline).setVisibility(View.VISIBLE);
@@ -376,8 +452,6 @@ public class OperatorActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- Bottom sheet ----------
-
     private void openSheet(final WorkerItem w) {
         final BottomSheetDialog dialog = new BottomSheetDialog(this);
         View sheet = LayoutInflater.from(this).inflate(R.layout.bottom_sheet_worker, null);
@@ -417,13 +491,10 @@ public class OperatorActivity extends AppCompatActivity {
 
         dialog.setContentView(sheet);
 
-        // Lets the rounded top corners of the sheet show
         ((View) sheet.getParent()).setBackgroundColor(Color.TRANSPARENT);
 
         dialog.show();
     }
-
-    // ---------- Sheet actions ----------
 
     private void showShiftLog(WorkerItem w) {
         if (w.operator) {
@@ -488,8 +559,6 @@ public class OperatorActivity extends AppCompatActivity {
                 .show();
     }
 
-    // ---------- Add / Edit worker ----------
-
     private void showWorkerForm(final WorkerItem existing) {
         String digits = "";
         if (existing != null) {
@@ -529,8 +598,6 @@ public class OperatorActivity extends AppCompatActivity {
                     return null;
                 });
     }
-
-    // ---------- Bell and account menu ----------
 
     private void showNotifications() {
         viewDot.setVisibility(View.GONE);
@@ -572,8 +639,6 @@ public class OperatorActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    // ---------- Helpers ----------
-
     private void styleBadge(TextView badge, String status) {
         int bg;
         int dot;
@@ -588,7 +653,6 @@ public class OperatorActivity extends AppCompatActivity {
             dot = R.color.break_dot;
             text = R.color.break_text;
         } else {
-            // ON SHIFT and ACTIVE
             bg = R.color.badge_on_bg;
             dot = R.color.brand_600;
             text = R.color.brand_600;

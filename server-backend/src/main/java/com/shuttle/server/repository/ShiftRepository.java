@@ -27,7 +27,8 @@ public class ShiftRepository {
     public static final String FILE_NAME = "shifts.csv";
 
     public static final List<String> HEADER =
-            List.of("shiftId", "driverId", "shuttleId", "startTime", "endTime", "status");
+            List.of("shiftId", "driverId", "shuttleId", "startTime", "endTime", "status",
+                    "distanceKm", "stops", "terminal", "route");
 
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final String STATUS_COMPLETED = "COMPLETED";
@@ -181,6 +182,12 @@ public class ShiftRepository {
     }
 
     public Optional<ShiftRecord> closeShift(String shiftId, long endMillis, String finalStatus) throws IOException {
+        return closeShift(shiftId, endMillis, finalStatus, 0, 0, null);
+    }
+
+    /** Closes a running shift and records how far it went, how many stops and the route driven. */
+    public Optional<ShiftRecord> closeShift(String shiftId, long endMillis, String finalStatus,
+                                            double distanceKm, int stops, String route) throws IOException {
         if (STATUS_ACTIVE.equalsIgnoreCase(finalStatus)) {
             throw new IllegalArgumentException("finalStatus cannot be ACTIVE");
         }
@@ -193,6 +200,11 @@ public class ShiftRepository {
             ShiftRecord closed = copyOf(current);
             closed.setEndTime(endMillis);
             closed.setStatus(finalStatus);
+            closed.setDistanceKm(distanceKm);
+            closed.setStops(stops);
+            if (route != null) {
+                closed.setRoute(route);
+            }
             closed = copyOf(closed); // validates end >= start and the status value
             Map<String, ShiftRecord> next = new LinkedHashMap<>(byId);
             next.put(shiftId, closed);
@@ -232,6 +244,20 @@ public class ShiftRepository {
         if (!STATUS_ACTIVE.equals(status) && end == 0) {
             throw new IllegalArgumentException("a " + status + " shift needs an endTime");
         }
+        double distance = 0;
+        String distanceRaw = row.getOrDefault("distanceKm", "0");
+        try {
+            distance = Double.parseDouble(distanceRaw);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("distanceKm is not a number: '" + distanceRaw + "'");
+        }
+        int stops;
+        String stopsRaw = row.getOrDefault("stops", "0");
+        try {
+            stops = Integer.parseInt(stopsRaw);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("stops is not a whole number: '" + stopsRaw + "'");
+        }
         ShiftRecord s = new ShiftRecord();
         s.setShiftId(id);
         s.setDriverId(driverId);
@@ -239,6 +265,10 @@ public class ShiftRepository {
         s.setStartTime(start);
         s.setEndTime(end);
         s.setStatus(status);
+        s.setDistanceKm(distance);
+        s.setStops(stops);
+        s.setTerminal(row.get("terminal"));
+        s.setRoute(row.get("route"));
         return s;
     }
 
@@ -249,7 +279,11 @@ public class ShiftRepository {
                 nullToEmpty(s.getShuttleId()),
                 String.valueOf(s.getStartTime()),
                 s.getEndTime() == 0 ? "" : String.valueOf(s.getEndTime()),
-                nullToEmpty(s.getStatus())
+                nullToEmpty(s.getStatus()),
+                String.valueOf(s.getDistanceKm()),
+                String.valueOf(s.getStops()),
+                nullToEmpty(s.getTerminal()),
+                nullToEmpty(s.getRoute())
         };
     }
 

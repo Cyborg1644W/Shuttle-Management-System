@@ -32,11 +32,11 @@ public class WorkerRepository {
 
     public static final List<String> HEADER = List.of(
             "employeeID", "fullName", "email", "passwordHash", "role",
-            "employmentStatus", "shiftStatus",
+            "employmentStatus", "shiftStatus", "phone",
             // Driver-only
-            "licenseNumber", "licenseExpirationDate", "assignedShuttleId", "activeShiftId",
+            "licenseNumber", "licenseExpirationDate", "assignedShuttleId", "assignedTerminal", "activeShiftId",
             // Operator-only
-            "terminalZone", "permissionsMask", "managedShuttleIds");
+            "terminalZone", "shiftTime", "permissionsMask", "managedShuttleIds");
 
     // Allowed values
 
@@ -47,8 +47,9 @@ public class WorkerRepository {
             EMPLOYMENT_ACTIVE, EMPLOYMENT_INACTIVE, EMPLOYMENT_SUSPENDED));
 
     public static final String SHIFT_ON = "ON_SHIFT";
+    public static final String SHIFT_BREAK = "ON_BREAK";
     public static final String SHIFT_OFF = "OFF_SHIFT";
-    private static final Set<String> SHIFT_STATUSES = new HashSet<>(Arrays.asList(SHIFT_ON, SHIFT_OFF));
+    private static final Set<String> SHIFT_STATUSES = new HashSet<>(Arrays.asList(SHIFT_ON, SHIFT_BREAK, SHIFT_OFF));
 
     private static final String LIST_SEPARATOR = ";";
     private static final String ID_PREFIX = "EMP-";
@@ -213,6 +214,36 @@ public class WorkerRepository {
         }
     }
 
+    /** Gives a worker a new employee ID, keeping everything else. Returns false if oldId doesn't exist. */
+    public boolean renameEmployeeId(String oldId, String newId) throws IOException {
+        lock.writeLock().lock();
+        try {
+            Worker current = byId.get(oldId);
+            if (current == null) {
+                return false;
+            }
+            if (!oldId.equals(newId) && byId.containsKey(newId)) {
+                throw new IllegalStateException("Employee ID already in use: " + newId);
+            }
+            Worker renamed = copyOf(current);
+            renamed.setEmployeeID(newId);
+            renamed = copyOf(renamed); // validates the new ID
+            Map<String, Worker> next = new LinkedHashMap<>();
+            for (Map.Entry<String, Worker> e : byId.entrySet()) {
+                if (e.getKey().equals(oldId)) {
+                    next.put(newId, renamed);
+                } else {
+                    next.put(e.getKey(), e.getValue());
+                }
+            }
+            persist(next);
+            byId = next;
+            return true;
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
     public static Worker fromRow(CsvTable.Row row) {
         String id = row.get("employeeID");
         if (!ValidationUtil.isNotEmpty(id) || id.indexOf(' ') >= 0) {
@@ -239,11 +270,7 @@ public class WorkerRepository {
         Worker worker;
         if (role == Role.DRIVER) {
             Driver d = new Driver();
-            String license = row.get("licenseNumber");
-            if (!ValidationUtil.isNotEmpty(license)) {
-                throw new IllegalArgumentException("licenseNumber is required for a DRIVER");
-            }
-            d.setLicenseNumber(license);
+            d.setLicenseNumber(emptyToNull(row.get("licenseNumber")));
             String expiry = row.get("licenseExpirationDate");
             if (!expiry.isEmpty()) {
                 try {
@@ -254,11 +281,13 @@ public class WorkerRepository {
             }
             d.setLicenseExpirationDate(emptyToNull(expiry));
             d.setAssignedShuttleId(emptyToNull(row.get("assignedShuttleId")));
+            d.setAssignedTerminal(emptyToNull(row.get("assignedTerminal")));
             d.setActiveShiftId(emptyToNull(row.get("activeShiftId")));
             worker = d;
         } else {
             Operator o = new Operator();
             o.setTerminalZone(emptyToNull(row.get("terminalZone")));
+            o.setShiftTime(emptyToNull(row.get("shiftTime")));
             String mask = row.getOrDefault("permissionsMask", "0");
             try {
                 o.setPermissionsMask(Integer.parseInt(mask));
@@ -279,6 +308,7 @@ public class WorkerRepository {
         worker.setFullName(row.get("fullName"));
         worker.setEmail(email);
         worker.setPasswordHash(row.get("passwordHash"));
+        worker.setPhone(row.get("phone"));
         worker.setEmploymentStatus(checkedStatus("employmentStatus",
                 row.getOrDefault("employmentStatus", EMPLOYMENT_ACTIVE), EMPLOYMENT_STATUSES));
         worker.setShiftStatus(checkedStatus("shiftStatus",
@@ -289,29 +319,35 @@ public class WorkerRepository {
     public static String[] toRow(Worker w) {
         String[] c = new String[HEADER.size()];
         Arrays.fill(c, "");
-        c[0] = nullToEmpty(w.getEmployeeID());
-        c[1] = nullToEmpty(w.getFullName());
-        c[2] = nullToEmpty(w.getEmail());
-        c[3] = nullToEmpty(w.getPasswordHash());
-        c[4] = roleOf(w).name();
-        c[5] = nullToEmpty(w.getEmploymentStatus());
-        c[6] = nullToEmpty(w.getShiftStatus());
+        c[col("employeeID")] = nullToEmpty(w.getEmployeeID());
+        c[col("fullName")] = nullToEmpty(w.getFullName());
+        c[col("email")] = nullToEmpty(w.getEmail());
+        c[col("passwordHash")] = nullToEmpty(w.getPasswordHash());
+        c[col("role")] = roleOf(w).name();
+        c[col("employmentStatus")] = nullToEmpty(w.getEmploymentStatus());
+        c[col("shiftStatus")] = nullToEmpty(w.getShiftStatus());
+        c[col("phone")] = nullToEmpty(w.getPhone());
         if (w instanceof Driver) {
             Driver d = (Driver) w;
-            c[7] = nullToEmpty(d.getLicenseNumber());
-            c[8] = nullToEmpty(d.getLicenseExpirationDate());
-            c[9] = nullToEmpty(d.getAssignedShuttleId());
-            c[10] = nullToEmpty(d.getActiveShiftId());
+            c[col("licenseNumber")] = nullToEmpty(d.getLicenseNumber());
+            c[col("licenseExpirationDate")] = nullToEmpty(d.getLicenseExpirationDate());
+            c[col("assignedShuttleId")] = nullToEmpty(d.getAssignedShuttleId());
+            c[col("assignedTerminal")] = nullToEmpty(d.getAssignedTerminal());
+            c[col("activeShiftId")] = nullToEmpty(d.getActiveShiftId());
         } else {
             Operator o = (Operator) w;
-            c[11] = nullToEmpty(o.getTerminalZone());
-            c[12] = String.valueOf(o.getPermissionsMask());
-            c[13] = o.getManagedShuttleIds() == null ? ""
+            c[col("terminalZone")] = nullToEmpty(o.getTerminalZone());
+            c[col("shiftTime")] = nullToEmpty(o.getShiftTime());
+            c[col("permissionsMask")] = String.valueOf(o.getPermissionsMask());
+            c[col("managedShuttleIds")] = o.getManagedShuttleIds() == null ? ""
                     : String.join(LIST_SEPARATOR, o.getManagedShuttleIds());
         }
         return c;
     }
 
+    private static int col(String name) {
+        return HEADER.indexOf(name);
+    }
 
     private Map<String, Worker> readFromDisk() throws IOException {
         if (!Files.exists(file)) {

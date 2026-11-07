@@ -15,13 +15,11 @@ import com.shuttle.mobile.R;
 import java.util.ArrayList;
 import java.util.List;
 
-// A tiny map drawn by hand: no Google Maps, no map SDK.
-// Turns latitude/longitude into x/y pixels and draws the route on a Canvas.
 public class PureJavaMapCanvas extends View {
 
-    private final ArrayList<double[]> planned = new ArrayList<>();   // dashed guide route
-    private final ArrayList<double[]> traveled = new ArrayList<>();  // solid driven route
-    private double[] current = null;                                  // vehicle marker
+    private final ArrayList<double[]> planned = new ArrayList<>();
+    private final ArrayList<double[]> traveled = new ArrayList<>();
+    private double[] current = null;
 
     private final Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -37,7 +35,6 @@ public class PureJavaMapCanvas extends View {
 
     private float density;
 
-    // projection (set every time the map is drawn)
     private double minLng;
     private double maxLat;
     private double cosLat;
@@ -102,7 +99,6 @@ public class PureJavaMapCanvas extends View {
         invalidate();
     }
 
-    // ---------- What to draw ----------
 
     public void setPlanned(List<double[]> points) {
         planned.clear();
@@ -116,7 +112,6 @@ public class PureJavaMapCanvas extends View {
         invalidate();
     }
 
-    // The vehicle marker. Pass null to hide it.
     public void setCurrent(double[] point) {
         current = point;
         invalidate();

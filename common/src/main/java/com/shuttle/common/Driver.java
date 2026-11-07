@@ -5,8 +5,13 @@ public class Driver extends Worker {
     private String licenseNumber;
     private String licenseExpirationDate;
     private String assignedShuttleId;
+    private String assignedTerminal;
     private String activeShiftId;
     private GpsCoordinate lastLocation;
+
+    public Driver() {
+        super(Role.DRIVER);
+    }
 
     public Driver(String employeeID, String fullName, String email, String passwordHash,
                   String licenseNumber, String licenseExpirationDate) {
@@ -26,7 +31,8 @@ public class Driver extends Worker {
         String lat = lastLocation == null ? "" : String.valueOf(lastLocation.getLatitude());
         String lon = lastLocation == null ? "" : String.valueOf(lastLocation.getLongitude());
         return super.toCsvRow() + ","
-                + CsvUtil.toRow(licenseNumber, licenseExpirationDate, assignedShuttleId, activeShiftId, lat, lon);
+                + CsvUtil.toRow(licenseNumber, licenseExpirationDate, assignedShuttleId,
+                assignedTerminal, activeShiftId, lat, lon);
     }
 
     public String getLicenseNumber() { return licenseNumber; }
@@ -37,6 +43,9 @@ public class Driver extends Worker {
 
     public String getAssignedShuttleId() { return assignedShuttleId; }
     public void setAssignedShuttleId(String assignedShuttleId) { this.assignedShuttleId = assignedShuttleId; }
+
+    public String getAssignedTerminal() { return assignedTerminal; }
+    public void setAssignedTerminal(String assignedTerminal) { this.assignedTerminal = assignedTerminal; }
 
     public String getActiveShiftId() { return activeShiftId; }
     public void setActiveShiftId(String activeShiftId) { this.activeShiftId = activeShiftId; }

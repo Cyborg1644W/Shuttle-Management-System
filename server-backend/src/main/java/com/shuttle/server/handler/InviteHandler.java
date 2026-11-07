@@ -1,54 +1,64 @@
 package com.shuttle.server.handler;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
+import com.shuttle.common.Worker;
 import com.shuttle.server.ApiException;
-import com.shuttle.server.Auth;
+import com.shuttle.server.Json;
 import com.shuttle.server.service.InviteService;
 import com.shuttle.server.service.RegistrationService;
-import java.io.IOException;
 
-public class InviteHandler implements HttpHandler {
+import static com.shuttle.server.Json.str;
+public class InviteHandler extends BaseHandler {
+
     @Override
-    public void handle(HttpExchange exchange) throws IOException {
-        try {
-            String path = exchange.getRequestURI().getPath();
+    protected boolean isPublic(Request r) {
+        return "register".equals(r.seg(1));
+    }
 
-            if (path.endsWith("/generate") || path.endsWith("/generate/")) {
-                String token = ApiHandler.extractToken(exchange);
-                ApiHandler.requireAuth(token);
+    @Override
+    protected Response process(Request r) throws Exception {
+        String action = r.seg(1);
 
-                if (!Auth.hasPermission(token, "ADMIN")) {
-                    throw new ApiException(403, "Admin privileges required");
-                }
-
-                if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-                    throw new ApiException(405, "Method Not Allowed");
-                }
-
-                String role = exchange.getRequestHeaders().getFirst("X-Role");
-                String code = InviteService.createInvite(role != null ? role : "DRIVER");
-                ApiHandler.sendResponse(exchange, 201, "{\"invite_code\": \"" + code + "\"}");
-                return;
+        if ("generate".equals(action)) {
+            if (!r.is("POST")) {
+                throw new ApiException(405, "Method Not Allowed");
             }
-
-            if (path.endsWith("/register") || path.endsWith("/register/")) {
-                if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-                    throw new ApiException(405, "Method Not Allowed");
-                }
-
-                String code = exchange.getRequestHeaders().getFirst("X-Invite-Code");
-                String email = exchange.getRequestHeaders().getFirst("X-Email");
-                String password = exchange.getRequestHeaders().getFirst("X-Password");
-
-                RegistrationService.registerUser(code, email, password);
-                ApiHandler.sendResponse(exchange, 200, "{\"status\": \"Registration Successful\"}");
-                return;
+            r.requireOperator();
+            String role = str(r.body, "role");
+            if (role.isEmpty() && r.header("X-Role") != null) {
+                role = r.header("X-Role");
             }
-
-            throw new ApiException(404, "Endpoint Not Found");
-        } catch (ApiException e) {
-            ApiHandler.sendResponse(exchange, e.getStatusCode(), "{\"error\": \"" + e.getMessage() + "\"}");
+            String employeeId = str(r.body, "employeeId");
+            String code = InviteService.createInvite(role, employeeId.isEmpty() ? null : employeeId);
+            return created(Json.obj("invite_code", code, "expiresInHours", 48));
         }
+
+        if ("register".equals(action)) {
+            if (!r.is("POST")) {
+                throw new ApiException(405, "Method Not Allowed");
+            }
+            String code = str(r.body, "inviteCode");
+            String email = str(r.body, "email");
+            String password = str(r.body, "password");
+            String name = str(r.body, "name");
+            if (code.isEmpty() && email.isEmpty()) { // older clients sent headers
+                code = nz(r.header("X-Invite-Code"));
+                email = nz(r.header("X-Email"));
+                password = nz(r.header("X-Password"));
+                name = nz(r.header("X-Name"));
+                if (name.isEmpty() && email.contains("@")) {
+                    name = email.substring(0, email.indexOf('@'));
+                }
+            }
+            Worker w = RegistrationService.registerUser(code, name, email, str(r.body, "phone"),
+                    password, str(r.body, "licenseNumber"));
+            return created(Json.obj("status", "Registration Successful",
+                    "employeeId", w.getEmployeeID(), "role", w.getRole().name()));
+        }
+
+        throw new ApiException(404, "Endpoint Not Found");
+    }
+
+    private static String nz(String v) {
+        return v == null ? "" : v;
     }
 }

@@ -14,7 +14,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
-
+//TEMPORARY
 /**
  * Fills the Schedule tab (page_schedule.xml): a week strip, and the staff scheduled
  * for the selected day grouped into Morning / Afternoon / Night shifts.

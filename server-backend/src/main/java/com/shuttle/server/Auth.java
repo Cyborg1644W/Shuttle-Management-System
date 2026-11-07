@@ -1,86 +1,86 @@
 package com.shuttle.server;
 
 import com.shuttle.common.Worker;
-import com.shuttle.server.repository.WorkerRepository;
 
-import java.io.IOException;
-import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Auth {
 
-    // Thread-safe map tracking active session tokens mapped to logged-in Worker instances
-    private static final Map<String, Worker> activeSessions = new ConcurrentHashMap<>();
+    private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
 
     public static String authenticateUser(String email, String rawPassword) {
         if (email == null || rawPassword == null || email.trim().isEmpty()) {
             return null;
         }
 
-        // Load workers from the CSV file (path comes from config.properties)
-        List<Worker> workers;
-        try {
-            WorkerRepository workerRepository = new WorkerRepository(ServerConfig.getWorkersCsvPath());
-            workers = workerRepository.getAllWorkers();
-        } catch (IOException e) {
-            Log.error("Could not read the workers file: " + e.getMessage());
+        Optional<Worker> found = Repositories.workers().findByEmail(email.trim());
+        if (!found.isPresent()) {
             return null;
         }
+        Worker worker = found.get();
 
-        for (Worker worker : workers) {
-            if (worker.getEmail() != null && worker.getEmail().equalsIgnoreCase(email.trim())) {
-                // Cross-reference raw password with pre-hashed credential via Crypto utility
-                if (Crypto.verifyPassword(rawPassword, worker.getPasswordHash())) {
-                    String sessionToken = UUID.randomUUID().toString();
-                    activeSessions.put(sessionToken, worker);
-                    return sessionToken;
-                }
-                break; // Matching user found, but password verification failed
-            }
+        if (!Crypto.verifyPassword(rawPassword, worker.getPasswordHash())) {
+            return null;
+        }
+        String employment = worker.getEmploymentStatus();
+        if (employment != null && !employment.equalsIgnoreCase("ACTIVE")) {
+            throw new ApiException(403, "This account is " + employment.toLowerCase(Locale.ROOT)
+                    + ". Please contact an operator.");
         }
 
-        return null; // Invalid credentials or user not found
+        String sessionToken = UUID.randomUUID().toString();
+        activeSessions.put(sessionToken, worker.getEmployeeID());
+        return sessionToken;
     }
 
     public static boolean validateSessionToken(String token) {
-        if (token == null || token.trim().isEmpty()) {
-            return false;
-        }
-        return activeSessions.containsKey(token);
+        return getWorkerByToken(token) != null;
     }
 
     public static boolean hasPermission(String token, String requiredRole) {
-        if (!validateSessionToken(token)) {
-            return false;
-        }
-
-        Worker worker = activeSessions.get(token);
+        Worker worker = getWorkerByToken(token);
         if (worker == null) {
             return false;
         }
-
         if (requiredRole == null || requiredRole.trim().isEmpty()) {
             return true;
         }
-
         String userRole = worker.getRole() != null ? worker.getRole().toString() : "";
-
-        // Admin override or exact role match (case-insensitive)
-        return userRole.equalsIgnoreCase("ADMIN") || userRole.equalsIgnoreCase(requiredRole.trim());
+        return userRole.equalsIgnoreCase(requiredRole.trim());
     }
 
+    /** The signed-in worker for this token, or null. */
     public static Worker getWorkerByToken(String token) {
-        if (!validateSessionToken(token)) {
+        if (token == null || token.trim().isEmpty()) {
             return null;
         }
-        return activeSessions.get(token);
+        String employeeId = activeSessions.get(token);
+        if (employeeId == null) {
+            return null;
+        }
+        Optional<Worker> worker = Repositories.workers().findById(employeeId);
+        if (!worker.isPresent()) {
+            activeSessions.remove(token);
+            return null;
+        }
+        return worker.get();
     }
 
     public static void logout(String token) {
         if (token != null) {
             activeSessions.remove(token);
         }
+    }
+
+    public static void endSessionsFor(String employeeId) {
+        activeSessions.values().removeIf(id -> id.equals(employeeId));
+    }
+
+    public static void replaceEmployeeId(String oldId, String newId) {
+        activeSessions.replaceAll((token, id) -> id.equals(oldId) ? newId : id);
     }
 }

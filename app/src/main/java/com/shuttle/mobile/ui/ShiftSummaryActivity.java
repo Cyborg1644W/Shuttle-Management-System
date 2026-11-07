@@ -42,7 +42,7 @@ public class ShiftSummaryActivity extends AppCompatActivity {
         ((TextView) findViewById(R.id.tvSumStart)).setText(timeFmt.format(new Date(e.start)));
         ((TextView) findViewById(R.id.tvSumEnd)).setText(timeFmt.format(new Date(e.end)));
 
-        // The route that was driven
+
         PureJavaMapCanvas map = findViewById(R.id.mapSummary);
         ArrayList<double[]> route = ShiftStore.parseRoute(e.route);
         map.setTraveled(route);
