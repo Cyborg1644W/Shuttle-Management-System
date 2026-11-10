@@ -15,7 +15,7 @@ import java.util.List;
 public class OfflineQueueManager {
 
     private static final String FILE_NAME = "offline_queue.txt";
-    private static final int MAX_ENTRIES = 1000; // keeps the file from growing forever
+    private static final int MAX_ENTRIES = 1000;
 
     public interface Sender {
         boolean send(String json);
@@ -27,7 +27,6 @@ public class OfflineQueueManager {
         this.file = new File(context.getFilesDir(), FILE_NAME);
     }
 
-    /** Adds one entry to the end of the queue file. */
     public synchronized void enqueue(String json) {
         List<String> entries = readAll();
         entries.add(json.replace("\n", " ")); // keep one entry per line
@@ -36,7 +35,6 @@ public class OfflineQueueManager {
         writeAll(entries);
     }
 
-    /** Returns all queued entries, oldest first. */
     public synchronized List<String> readAll() {
         List<String> list = new ArrayList<>();
         if (!file.exists()) return list;

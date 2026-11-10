@@ -141,8 +141,8 @@
 
                     <TextView
                         android:id="@+id/tvCountryCode"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_width="22dp"
+                        android:layout_height="15dp"
                         android:text="+63"
                         android:textColor="@color/text_primary"
                         android:textSize="15sp" />
@@ -319,25 +319,6 @@
                 android:background="@color/border" />
         </LinearLayout>
 
-        <!-- Apple -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnApple"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="16dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="Continue with Apple"
-            android:textColor="@color/text_primary"
-            android:textSize="15sp"
-            app:backgroundTint="@color/white"
-            app:cornerRadius="16dp"
-            app:icon="@drawable/ic_apple"
-            app:iconGravity="textStart"
-            app:iconPadding="12dp"
-            app:iconTint="@color/text_primary"
-            app:strokeColor="@color/border"
-            app:strokeWidth="1dp" />
 
         <!-- Google -->
         <com.google.android.material.button.MaterialButton

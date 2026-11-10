@@ -47,9 +47,6 @@ public class ApiClient {
         this.authToken = token;
     }
 
-    // Driver: send GPS location
-
-    /** Builds the JSON body used for a location update (also what gets queued offline). */
     public static String buildLocationJson(String shuttleId, double lat, double lng,
                                            float speed, long timestamp) {
         try {
@@ -65,7 +62,6 @@ public class ApiClient {
         }
     }
 
-    /** Async version, result delivered on main thread. */
     public void sendLocation(String shuttleId, double lat, double lng, float speed,
                              long timestamp, Callback<Boolean> callback) {
         final String json = buildLocationJson(shuttleId, lat, lng, speed, timestamp);
@@ -89,7 +85,6 @@ public class ApiClient {
         return postJson("/shuttles/" + encodePathPart(shuttleId) + "/location", json);
     }
 
-    // Vehicle names like "Unit SH-1024" contain a space, which is not allowed in a URL path
     private static String encodePathPart(String value) {
         try {
             return URLEncoder.encode(value, "UTF-8").replace("+", "%20");
@@ -97,8 +92,6 @@ public class ApiClient {
             return value;
         }
     }
-
-    // Passenger: get shuttles
 
     public void getShuttles(Callback<JSONArray> callback) {
         executor.execute(() -> {
@@ -112,8 +105,6 @@ public class ApiClient {
             }
         });
     }
-
-    // Low-level HTTP helpers
 
     private boolean postJson(String path, String json) {
         HttpURLConnection conn = null;

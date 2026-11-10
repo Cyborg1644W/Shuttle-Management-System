@@ -27,13 +27,4 @@
             android:textColor="@color/brand_600"
             android:layout_marginTop="16dp" />
     </LinearLayout>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:text="@string/press_to_continue"
-        android:textSize="14sp"
-        android:textColor="@color/text_secondary"
-        android:layout_marginBottom="32dp" />
 </FrameLayout>

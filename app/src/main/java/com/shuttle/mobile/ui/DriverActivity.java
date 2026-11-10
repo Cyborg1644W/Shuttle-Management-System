@@ -36,7 +36,12 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.shuttle.mobile.R;
+import com.shuttle.mobile.client.ApiClient;
 import com.shuttle.mobile.gps.GpsTrackerService;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -49,10 +54,13 @@ public class DriverActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
     private static final String ACTION_LOCATION_UPDATE = "com.shuttle.mobile.LOCATION_UPDATE";
 
-    private String userId = "";
     private String driverName = "Driver";
     private String employeeId = "-";
     private String email = "";
+    private String vehicle = "Unassigned";
+    private String terminal = "Unassigned";
+    private long activeStart = 0;
+    private boolean busy = false;
 
     private View pageHome;
     private View pageTrips;
@@ -89,7 +97,6 @@ public class DriverActivity extends AppCompatActivity {
     private TextView tvNavTrips;
     private TextView tvNavProfile;
 
-    // Real GPS data collected from GpsTrackerService during the current shift
     private final ArrayList<double[]> liveTrail = new ArrayList<>();
     private double liveDistanceKm = 0;
     private double liveSpeedKmh = 0;
@@ -106,7 +113,6 @@ public class DriverActivity extends AppCompatActivity {
         }
     };
 
-    // Receives the real GPS points sent by GpsTrackerService
     private boolean receiverRegistered = false;
 
     private final BroadcastReceiver locationReceiver = new BroadcastReceiver() {
@@ -125,23 +131,22 @@ public class DriverActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (!Session.isSignedIn()) {
+            signOut();
+            return;
+        }
+
         setContentView(R.layout.activity_driver);
 
-        String id = getIntent().getStringExtra("user");
-        userId = id == null ? "" : id;
-
-        AccountStore accounts = new AccountStore(this);
-        String savedName = accounts.getName(userId);
-        String savedEmp = accounts.getEmployeeId(userId);
-        String savedEmail = accounts.getEmail(userId);
-        if (savedName != null) {
-            driverName = savedName;
+        if (Session.getName() != null && !Session.getName().isEmpty()) {
+            driverName = Session.getName();
         }
-        if (savedEmp != null) {
-            employeeId = savedEmp;
+        if (Session.getEmployeeId() != null && !Session.getEmployeeId().isEmpty()) {
+            employeeId = Session.getEmployeeId();
         }
-        if (savedEmail != null && savedEmail.contains("@")) {
-            email = savedEmail;
+        if (Session.getEmail() != null && Session.getEmail().contains("@")) {
+            email = Session.getEmail();
         }
 
         pageHome = findViewById(R.id.pageHome);
@@ -179,7 +184,6 @@ public class DriverActivity extends AppCompatActivity {
         tvNavTrips = findViewById(R.id.tvNavTrips);
         tvNavProfile = findViewById(R.id.tvNavProfile);
 
-        // Greeting
         int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         TextView tvGreeting = findViewById(R.id.tvGreeting);
         if (hour < 12) {
@@ -192,7 +196,6 @@ public class DriverActivity extends AppCompatActivity {
 
         fillProfile();
 
-        // Gate alerts toggle (remembered)
         final SharedPreferences settings = getSharedPreferences("fleetflow_settings", Context.MODE_PRIVATE);
         switchGate.setChecked(settings.getBoolean("gate_alerts", true));
         updateGateText();
@@ -201,7 +204,6 @@ public class DriverActivity extends AppCompatActivity {
             updateGateText();
         });
 
-        // Clicks
         findViewById(R.id.navHome).setOnClickListener(v -> setTab(0));
         findViewById(R.id.navTrips).setOnClickListener(v -> setTab(1));
         findViewById(R.id.navProfile).setOnClickListener(v -> setTab(2));
@@ -247,7 +249,11 @@ public class DriverActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (!Session.isSignedIn()) {
+            return;
+        }
         refreshShiftUi();
+        syncFromServer();
         if (currentTab == 1) {
             renderTrips();
         }
@@ -268,7 +274,91 @@ public class DriverActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- GPS permission and tracking ----------
+    private void handleError(int status, String message) {
+        if (status == 401) {
+            Toast.makeText(this, "Your session ended. Please sign in again.", Toast.LENGTH_LONG).show();
+            signOut();
+        } else {
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void setBusy(boolean value) {
+        busy = value;
+        btnShift.setEnabled(!value);
+    }
+
+    private void syncFromServer() {
+        String id = Session.getEmployeeId();
+        if (id == null || id.isEmpty()) {
+            return;
+        }
+
+        FleetApi.get("/workers/" + FleetApi.encode(id), new FleetApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject json) {
+                if (isFinishing()) {
+                    return;
+                }
+                JSONObject w = json.optJSONObject("worker");
+                if (w == null) {
+                    w = json;
+                }
+                String v = FleetApi.text(w, "shuttleId");
+                String t = FleetApi.text(w, "terminal");
+                vehicle = v.isEmpty() ? "Unassigned" : v;
+                terminal = t.isEmpty() ? "Unassigned" : t;
+                refreshShiftUi();
+            }
+
+            @Override
+            public void onError(int status, String message) {
+                if (isFinishing()) {
+                    return;
+                }
+                if (status == 401) {
+                    handleError(status, message);
+                }
+            }
+        });
+
+        FleetApi.get("/shift/active", new FleetApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject json) {
+                if (isFinishing()) {
+                    return;
+                }
+                if (json.optBoolean("active", false)) {
+                    JSONObject s = json.optJSONObject("shift");
+                    if (s != null) {
+                        activeStart = s.optLong("startTime", 0);
+                        String v = FleetApi.text(s, "shuttleId");
+                        String t = FleetApi.text(s, "terminal");
+                        if (!v.isEmpty()) {
+                            vehicle = v;
+                        }
+                        if (!t.isEmpty()) {
+                            terminal = t;
+                        }
+                    }
+                } else if (activeStart > 0) {
+                    activeStart = 0;
+                    stopService(new Intent(DriverActivity.this, GpsTrackerService.class));
+                }
+                refreshShiftUi();
+            }
+
+            @Override
+            public void onError(int status, String message) {
+                if (isFinishing()) {
+                    return;
+                }
+                if (status == 401) {
+                    handleError(status, message);
+                }
+            }
+        });
+    }
 
     private void requestLocationPermission() {
         boolean fineGranted = ActivityCompat.checkSelfPermission(
@@ -312,7 +402,7 @@ public class DriverActivity extends AppCompatActivity {
 
     private void startGpsTracking() {
         Intent serviceIntent = new Intent(this, GpsTrackerService.class);
-        serviceIntent.putExtra(GpsTrackerService.EXTRA_SHUTTLE_ID, getVehicle());
+        serviceIntent.putExtra(GpsTrackerService.EXTRA_SHUTTLE_ID, vehicle);
         serviceIntent.putExtra(GpsTrackerService.EXTRA_SIMULATE, false);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -322,23 +412,20 @@ public class DriverActivity extends AppCompatActivity {
         }
     }
 
-    // Called for every real GPS point sent by GpsTrackerService
     private void onLivePosition(double lat, double lng, float speedMs) {
-        if (ShiftStore.getActiveStart(this) <= 0) {
+        if (activeStart <= 0) {
             return;
         }
 
         double[] p = new double[]{lat, lng};
         long now = System.currentTimeMillis();
 
-        // Never show more than 150 km/h
         liveSpeedKmh = Math.min(speedMs * 3.6, 150);
 
         if (!liveTrail.isEmpty()) {
             double km = haversineKm(liveTrail.get(liveTrail.size() - 1), p);
             double hours = (now - lastPointTime) / 3600000.0;
 
-            // Under 5 m is just GPS noise while standing still: move the marker only
             if (km < 0.005) {
                 lastPointTime = now;
                 if (mapView != null) {
@@ -347,8 +434,6 @@ public class DriverActivity extends AppCompatActivity {
                 return;
             }
 
-            // Faster than 150 km/h means a bad fix or a teleport: keep the point,
-            // but don't count the jump as distance driven
             boolean jump = hours > 0 && km / hours > 150;
             if (!jump) {
                 liveDistanceKm += km;
@@ -364,15 +449,12 @@ public class DriverActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- Tabs ----------
-
     private void setTab(int tab) {
         currentTab = tab;
         pageHome.setVisibility(tab == 0 ? View.VISIBLE : View.GONE);
         pageTrips.setVisibility(tab == 1 ? View.VISIBLE : View.GONE);
         pageProfile.setVisibility(tab == 2 ? View.VISIBLE : View.GONE);
 
-        // The Profile page only has the logo and bell on top, like the design
         layoutHeaderTitle.setVisibility(tab == 2 ? View.GONE : View.VISIBLE);
 
         String[] labels = {"Home", "Trips", "Profile"};
@@ -398,8 +480,6 @@ public class DriverActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- Profile ----------
-
     private void fillProfile() {
         String first = driverName.trim().split("\\s+")[0];
         tvHello.setText("Hi, " + first);
@@ -412,17 +492,15 @@ public class DriverActivity extends AppCompatActivity {
         tvProfilePhone.setText(findPhone());
     }
 
-    // Phone comes from the login number (e.g. +639171234567 -> +63 917 123 4567)
     private String findPhone() {
-        if (userId.startsWith("+63") && userId.length() == 13) {
-            String n = userId.substring(3);
-            return "+63 " + n.substring(0, 3) + " " + n.substring(3, 6) + " " + n.substring(6);
+        String p = Session.getPhone();
+        if (p == null || p.isEmpty()) {
+            return "No phone on file";
         }
-        if (userId.startsWith("+")) {
-            return userId;
+        if (p.matches("\\+63[0-9]{10}")) {
+            return "+63 " + p.substring(3, 6) + " " + p.substring(6, 9) + " " + p.substring(9);
         }
-        StaffMember m = WorkerStore.findByName(this, driverName);
-        return (m != null && m.phone != null && !m.phone.isEmpty()) ? m.phone : "No phone on file";
+        return p;
     }
 
     private void updateGateText() {
@@ -453,16 +531,41 @@ public class DriverActivity extends AppCompatActivity {
                 .setTitle("Edit name")
                 .setView(box)
                 .setPositiveButton("Save", (dialog, which) -> {
-                    String newName = input.getText().toString().trim();
+                    final String newName = input.getText().toString().trim();
                     if (newName.length() < 2) {
                         Toast.makeText(this, "Please enter your full name", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    new AccountStore(this).setName(userId, newName);
-                    WorkerStore.rename(this, driverName, newName);
-                    driverName = newName;
-                    fillProfile();
-                    Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show();
+
+                    JSONObject body = new JSONObject();
+                    try {
+                        body.put("fullName", newName);
+                    } catch (JSONException e) {
+                        return;
+                    }
+
+                    FleetApi.put("/workers/" + FleetApi.encode(Session.getEmployeeId()), body,
+                            new FleetApi.Callback() {
+                                @Override
+                                public void onSuccess(JSONObject json) {
+                                    if (isFinishing()) {
+                                        return;
+                                    }
+                                    Session.setName(newName);
+                                    driverName = newName;
+                                    fillProfile();
+                                    Toast.makeText(DriverActivity.this, "Profile updated",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+
+                                @Override
+                                public void onError(int status, String message) {
+                                    if (isFinishing()) {
+                                        return;
+                                    }
+                                    handleError(status, message);
+                                }
+                            });
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -484,7 +587,6 @@ public class DriverActivity extends AppCompatActivity {
         box.setGravity(Gravity.CENTER_HORIZONTAL);
         box.setPadding(dp(24), dp(24), dp(24), dp(4));
 
-        // Status pill
         TextView pill = new TextView(this);
         pill.setText("● ACTIVE");
         pill.setTextColor(brand);
@@ -499,7 +601,6 @@ public class DriverActivity extends AppCompatActivity {
         box.addView(pill, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        // Title and who the pass belongs to
         TextView title = new TextView(this);
         title.setText("Terminal Gate FastPass");
         title.setTextSize(20);
@@ -521,7 +622,6 @@ public class DriverActivity extends AppCompatActivity {
         whoParams.topMargin = dp(2);
         box.addView(who, whoParams);
 
-        // The code sits on a white card
         FrameLayout card = new FrameLayout(this);
         card.setBackgroundResource(R.drawable.pass_tile_bg);
         card.setPadding(dp(16), dp(16), dp(16), dp(16));
@@ -578,7 +678,6 @@ public class DriverActivity extends AppCompatActivity {
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(24), dp(24), dp(24), dp(4));
 
-        // Header: title on the left, "3 new" pill on the right
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -620,7 +719,6 @@ public class DriverActivity extends AppCompatActivity {
                 .show();
     }
 
-    // One notification: round icon, bold text, small category label underneath
     private void addNotificationRow(LinearLayout parent, int iconRes, String text, String label) {
         boolean first = parent.getChildCount() == 1;
 
@@ -674,11 +772,8 @@ public class DriverActivity extends AppCompatActivity {
         parent.addView(row, rowParams);
     }
 
-    // ---------- Shift ----------
-
     private void refreshShiftUi() {
-        long start = ShiftStore.getActiveStart(this);
-        boolean active = start > 0;
+        boolean active = activeStart > 0;
 
         styleBadge(tvStatusBadge, active ? "ON SHIFT" : "OFF DUTY");
         tvStatusHint.setText(active ? "Shift in progress" : "Ready to start your shift");
@@ -693,8 +788,8 @@ public class DriverActivity extends AppCompatActivity {
                     ContextCompat.getColor(this, R.color.brand_600)));
         }
 
-        tvVehicle.setText(getVehicle());
-        tvTerminal.setText(getTerminal());
+        tvVehicle.setText(vehicle);
+        tvTerminal.setText(terminal);
 
         handler.removeCallbacks(ticker);
         if (active) {
@@ -704,34 +799,13 @@ public class DriverActivity extends AppCompatActivity {
         }
     }
 
-    // Vehicle and terminal come from what the Operator assigned on Worker Management
-    private String getVehicle() {
-        StaffMember m = WorkerStore.findByName(this, driverName);
-        return (m != null && !m.operator) ? m.value1 : "Unassigned";
-    }
-
-    private String getTerminal() {
-        StaffMember m = WorkerStore.findByName(this, driverName);
-        return (m != null && !m.operator) ? m.value2 : "Unassigned";
-    }
-
     private void onShiftButton() {
-        long start = ShiftStore.getActiveStart(this);
+        if (busy) {
+            return;
+        }
 
-        if (start <= 0) {
-            // Fresh shift, fresh route
-            liveTrail.clear();
-            liveDistanceKm = 0;
-            liveSpeedKmh = 0;
-            lastPointTime = 0;
-
-            // Asks for location permission first (if needed), then starts the GPS service
-            requestLocationPermission();
-
-            ShiftStore.setActiveStart(this, System.currentTimeMillis());
-            WorkerStore.setStatusByName(this, driverName, "ON SHIFT");
-            refreshShiftUi();
-            Toast.makeText(this, "Shift started", Toast.LENGTH_SHORT).show();
+        if (activeStart <= 0) {
+            startShift();
         } else {
             new MaterialAlertDialogBuilder(this)
                     .setTitle("End shift?")
@@ -742,18 +816,53 @@ public class DriverActivity extends AppCompatActivity {
         }
     }
 
+    private void startShift() {
+        setBusy(true);
+
+        FleetApi.post("/shift/start", null, new FleetApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject json) {
+                if (isFinishing()) {
+                    return;
+                }
+                setBusy(false);
+
+                activeStart = json.optLong("startTime", System.currentTimeMillis());
+                String v = FleetApi.text(json, "shuttleId");
+                String t = FleetApi.text(json, "terminal");
+                if (!v.isEmpty()) {
+                    vehicle = v;
+                }
+                if (!t.isEmpty()) {
+                    terminal = t;
+                }
+
+                liveTrail.clear();
+                liveDistanceKm = 0;
+                liveSpeedKmh = 0;
+                lastPointTime = 0;
+
+                requestLocationPermission();
+                refreshShiftUi();
+                Toast.makeText(DriverActivity.this, "Shift started", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onError(int status, String message) {
+                if (isFinishing()) {
+                    return;
+                }
+                setBusy(false);
+                handleError(status, message);
+            }
+        });
+    }
+
     private void endShift() {
-        long start = ShiftStore.getActiveStart(this);
-
-        // Always stop GPS tracking when a shift ends
-        stopService(new Intent(this, GpsTrackerService.class));
-
-        if (start <= 0) {
+        if (activeStart <= 0) {
             return;
         }
-        long end = System.currentTimeMillis();
 
-        // Keep at most about 80 points of the real route
         ArrayList<double[]> points = new ArrayList<>();
         int stride = liveTrail.size() / 80 + 1;
         for (int i = 0; i < liveTrail.size(); i += stride) {
@@ -763,32 +872,56 @@ public class DriverActivity extends AppCompatActivity {
             points.add(liveTrail.get(liveTrail.size() - 1));
         }
 
-        ShiftStore.Entry entry = new ShiftStore.Entry(
-                start, end,
-                liveDistanceKm,
-                0,
-                getVehicle(),
-                getTerminal(),
-                ShiftStore.routeToString(points));
-        ShiftStore.add(this, entry);
+        JSONObject body = new JSONObject();
+        try {
+            body.put("distanceKm", liveDistanceKm);
+            body.put("stops", 0);
+            body.put("route", FleetApi.routeToString(points));
+        } catch (JSONException e) {
+            return;
+        }
 
-        ShiftStore.setActiveStart(this, 0);
-        WorkerStore.setStatusByName(this, driverName, "OFF DUTY");
-        refreshShiftUi();
+        setBusy(true);
 
-        Intent intent = new Intent(this, ShiftSummaryActivity.class);
-        intent.putExtra("startTime", start);
-        startActivity(intent);
+        FleetApi.post("/shift/end", body, new FleetApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject json) {
+                if (isFinishing()) {
+                    return;
+                }
+                setBusy(false);
+
+                stopService(new Intent(DriverActivity.this, GpsTrackerService.class));
+                activeStart = 0;
+                refreshShiftUi();
+
+                String shiftId = FleetApi.text(json, "shiftId");
+                if (!shiftId.isEmpty()) {
+                    Intent intent = new Intent(DriverActivity.this, ShiftSummaryActivity.class);
+                    intent.putExtra("shiftId", shiftId);
+                    startActivity(intent);
+                }
+            }
+
+            @Override
+            public void onError(int status, String message) {
+                if (isFinishing()) {
+                    return;
+                }
+                setBusy(false);
+
+                if (status == 409) {
+                    stopService(new Intent(DriverActivity.this, GpsTrackerService.class));
+                    activeStart = 0;
+                    refreshShiftUi();
+                }
+                handleError(status, message);
+            }
+        });
     }
 
-    // ---------- Live numbers and map ----------
-
-    // Runs every second during a shift. Updates the numbers; the map is
-    // updated when a real GPS point arrives (see onLivePosition).
     private void updateLive() {
-        long start = ShiftStore.getActiveStart(this);
-
-        if (start <= 0) {
+        if (activeStart <= 0) {
             tvTimer.setText("00:00:00");
             tvStatDistance.setText("0.0");
             tvStatStops.setText("0");
@@ -798,21 +931,19 @@ public class DriverActivity extends AppCompatActivity {
             return;
         }
 
-        long elapsed = Math.max(0, System.currentTimeMillis() - start);
+        long elapsed = Math.max(0, System.currentTimeMillis() - activeStart);
 
-        tvTimer.setText(ShiftStore.formatDuration(elapsed));
+        tvTimer.setText(FleetApi.formatDuration(elapsed));
         tvStatDistance.setText(String.format(Locale.US, "%.1f", liveDistanceKm));
         tvStatStops.setText("0");
         tvStatSpeed.setText(String.format(Locale.US, "%.0f", liveSpeedKmh));
 
-        // Redraw the real route (e.g. after coming back to the app)
         if (!liveTrail.isEmpty()) {
             mapView.setTraveled(liveTrail);
             mapView.setCurrent(liveTrail.get(liveTrail.size() - 1));
         }
     }
 
-    // Distance between two GPS points in km
     private static double haversineKm(double[] a, double[] b) {
         double r = 6371.0;
         double dLat = Math.toRadians(b[0] - a[0]);
@@ -823,42 +954,74 @@ public class DriverActivity extends AppCompatActivity {
         return 2 * r * Math.asin(Math.sqrt(h));
     }
 
-    // ---------- Trips ----------
-
     private void renderTrips() {
-        listTrips.removeAllViews();
-        ArrayList<ShiftStore.Entry> shifts = ShiftStore.load(this);
+        FleetApi.get("/shift", new FleetApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject json) {
+                if (isFinishing()) {
+                    return;
+                }
+                showTrips(json.optJSONArray("shifts"));
+            }
 
-        tvTripsEmpty.setVisibility(shifts.isEmpty() ? View.VISIBLE : View.GONE);
+            @Override
+            public void onError(int status, String message) {
+                if (isFinishing()) {
+                    return;
+                }
+                handleError(status, message);
+            }
+        });
+    }
+
+    private void showTrips(JSONArray shifts) {
+        listTrips.removeAllViews();
 
         SimpleDateFormat dateFmt = new SimpleDateFormat("EEE, MMM d", Locale.getDefault());
         SimpleDateFormat timeFmt = new SimpleDateFormat("h:mm a", Locale.getDefault());
 
-        // Newest first
-        for (int i = shifts.size() - 1; i >= 0; i--) {
-            final ShiftStore.Entry e = shifts.get(i);
+        int shown = 0;
+        int count = shifts == null ? 0 : shifts.length();
+
+        for (int i = 0; i < count; i++) {
+            final JSONObject e = shifts.optJSONObject(i);
+            if (e == null || e.optLong("endTime", 0) <= 0) {
+                continue;
+            }
+
+            long start = e.optLong("startTime", 0);
+            long end = e.optLong("endTime", 0);
+            final String shiftId = FleetApi.text(e, "shiftId");
+
             View row = LayoutInflater.from(this).inflate(R.layout.item_trip_row, listTrips, false);
 
-            ((TextView) row.findViewById(R.id.tvTripDate)).setText(dateFmt.format(new Date(e.start)));
+            ((TextView) row.findViewById(R.id.tvTripDate)).setText(dateFmt.format(new Date(start)));
             ((TextView) row.findViewById(R.id.tvTripTime)).setText(
-                    timeFmt.format(new Date(e.start)) + " - " + timeFmt.format(new Date(e.end)));
-            ((TextView) row.findViewById(R.id.tvTripDuration)).setText(ShiftStore.formatDuration(e.durationMs()));
+                    timeFmt.format(new Date(start)) + " - " + timeFmt.format(new Date(end)));
+            ((TextView) row.findViewById(R.id.tvTripDuration)).setText(
+                    FleetApi.formatDuration(e.optLong("durationMs", end - start)));
             ((TextView) row.findViewById(R.id.tvTripDistance)).setText(
-                    String.format(Locale.US, "%.1f km", e.distanceKm));
+                    String.format(Locale.US, "%.1f km", e.optDouble("distanceKm", 0)));
 
             row.setOnClickListener(v -> {
                 Intent intent = new Intent(this, ShiftSummaryActivity.class);
-                intent.putExtra("startTime", e.start);
+                intent.putExtra("shiftId", shiftId);
                 startActivity(intent);
             });
 
             listTrips.addView(row);
+            shown++;
         }
+
+        tvTripsEmpty.setVisibility(shown == 0 ? View.VISIBLE : View.GONE);
     }
 
-    // ---------- Sign out and helpers ----------
-
     private void signOut() {
+        FleetApi.post("/auth/logout", null, null);
+        stopService(new Intent(this, GpsTrackerService.class));
+        Session.clear();
+        ApiClient.getInstance().setAuthToken(null);
+
         Intent intent = new Intent(this, LoginActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);

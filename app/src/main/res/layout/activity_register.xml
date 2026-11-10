@@ -295,7 +295,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="EMPLOYEE ID"
+                android:text="INVITE CODE"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -306,7 +306,7 @@
                 android:layout_height="60dp"
                 android:layout_marginTop="10dp"
                 android:background="@drawable/input_bg"
-                android:hint="EMP-0842"
+                android:hint="e.g. 3F9A1C2B"
                 android:inputType="textCapCharacters"
                 android:paddingStart="20dp"
                 android:paddingEnd="20dp"

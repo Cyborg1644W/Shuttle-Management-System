@@ -1,6 +1,7 @@
 package com.shuttle.mobile.ui;
 
 import android.os.Bundle;
+import android.text.InputType;
 import android.util.Patterns;
 import android.view.MenuItem;
 import android.view.View;
@@ -31,7 +32,7 @@ public class RegisterActivity extends AppCompatActivity {
     private TextView tvRoleLabel;
     private TextView tvChangeRole;
     private EditText etFullName;
-    private EditText etEmployeeId;
+    private EditText etInviteCode;
     private EditText etPhone;
     private EditText etEmail;
     private EditText etPassword;
@@ -43,15 +44,13 @@ public class RegisterActivity extends AppCompatActivity {
     private Button btnRegister;
 
     private Role selectedRole = null;
-    private AccountStore store;
     private String firstMessage;
+    private boolean registering = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
-
-        store = new AccountStore(this);
 
         layoutChooseRole = findViewById(R.id.layoutChooseRole);
         layoutForm = findViewById(R.id.layoutForm);
@@ -64,7 +63,7 @@ public class RegisterActivity extends AppCompatActivity {
         tvRoleLabel = findViewById(R.id.tvRoleLabel);
         tvChangeRole = findViewById(R.id.tvChangeRole);
         etFullName = findViewById(R.id.etFullName);
-        etEmployeeId = findViewById(R.id.etEmployeeId);
+        etInviteCode = findViewById(R.id.etEmployeeId);
         etPhone = findViewById(R.id.etPhone);
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
@@ -75,20 +74,21 @@ public class RegisterActivity extends AppCompatActivity {
         tvGoLogin = findViewById(R.id.tvGoLogin);
         btnRegister = findViewById(R.id.btnRegister);
 
-        // Step 1: pick a role
+        etInviteCode.setHint("Invite code");
+        etInviteCode.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+
         cardDriver.setOnClickListener(v -> showForm(Role.DRIVER));
         cardOperator.setOnClickListener(v -> showForm(Role.OPERATOR));
         tvChangeRole.setOnClickListener(v -> showChooser());
         layoutCountry.setOnClickListener(v -> showCountryMenu());
 
-        // Borders react while typing (green = correct) and when you leave a field (red = wrong)
         FieldUi.onChange(etFullName, () -> {
             hideError();
             applyName(false);
         });
-        FieldUi.onChange(etEmployeeId, () -> {
+        FieldUi.onChange(etInviteCode, () -> {
             hideError();
-            applyEmp();
+            applyCode();
         });
         FieldUi.onChange(etPhone, () -> {
             hideError();
@@ -163,7 +163,6 @@ public class RegisterActivity extends AppCompatActivity {
         refreshAll();
     }
 
-    // Back arrow and phone back button: form goes back to the chooser, chooser leaves the screen
     private void goBack() {
         if (selectedRole != null) {
             showChooser();
@@ -177,10 +176,6 @@ public class RegisterActivity extends AppCompatActivity {
         goBack();
     }
 
-    // ---------- What is correct / wrong for each field ----------
-    // NORMAL = still typing, VALID = correct (green), ERROR = wrong (red)
-    // "strict" is true when you leave the field: unfinished or wrong input turns red.
-
     private int stateName(boolean strict) {
         String s = etFullName.getText().toString().trim();
         if (s.length() >= 2) {
@@ -189,19 +184,22 @@ public class RegisterActivity extends AppCompatActivity {
         return (strict && !s.isEmpty()) ? FieldUi.ERROR : FieldUi.NORMAL;
     }
 
-    private int stateEmp() {
-        String s = etEmployeeId.getText().toString().trim();
+    private boolean isCodeValid() {
+        return etInviteCode.getText().toString().trim().matches("[A-Za-z0-9]{8}");
+    }
+
+    private int stateCode() {
+        String s = etInviteCode.getText().toString().trim();
         if (s.isEmpty()) {
             return FieldUi.NORMAL;
         }
-        return WorkerStore.empIdExists(this, s) ? FieldUi.ERROR : FieldUi.VALID;
+        return isCodeValid() ? FieldUi.VALID : FieldUi.NORMAL;
     }
 
     private int statePhone(boolean strict) {
         String p = getCleanPhone();
         if (p.length() == getRequiredDigits()) {
-            String full = tvCountryCode.getText().toString() + p;
-            return store.phoneExists(full) ? FieldUi.ERROR : FieldUi.VALID;
+            return FieldUi.VALID;
         }
         return (strict && !p.isEmpty()) ? FieldUi.ERROR : FieldUi.NORMAL;
     }
@@ -211,10 +209,10 @@ public class RegisterActivity extends AppCompatActivity {
         if (s.isEmpty()) {
             return FieldUi.NORMAL;
         }
-        if (!Patterns.EMAIL_ADDRESS.matcher(s).matches()) {
-            return strict ? FieldUi.ERROR : FieldUi.NORMAL;
+        if (Patterns.EMAIL_ADDRESS.matcher(s).matches()) {
+            return FieldUi.VALID;
         }
-        return store.emailExists(s) ? FieldUi.ERROR : FieldUi.VALID;
+        return strict ? FieldUi.ERROR : FieldUi.NORMAL;
     }
 
     private int statePassword(boolean strict) {
@@ -241,26 +239,17 @@ public class RegisterActivity extends AppCompatActivity {
         FieldUi.set(etFullName, stateName(strict));
     }
 
-    private void applyEmp() {
-        FieldUi.set(etEmployeeId, stateEmp());
-        if (stateEmp() == FieldUi.ERROR) {
-            showError("This employee ID is already registered.");
-        }
+    private void applyCode() {
+        FieldUi.set(etInviteCode, stateCode());
     }
 
     private void applyPhone(boolean strict) {
         FieldUi.set(layoutPhoneBox, statePhone(strict));
         updateCheck();
-        if (statePhone(false) == FieldUi.ERROR && getCleanPhone().length() == getRequiredDigits()) {
-            showError("This mobile number is already registered.");
-        }
     }
 
     private void applyEmail(boolean strict) {
         FieldUi.set(etEmail, stateEmail(strict));
-        if (stateEmail(false) == FieldUi.ERROR) {
-            showError("This email is already registered.");
-        }
     }
 
     private void applyPassword(boolean strict) {
@@ -273,15 +262,13 @@ public class RegisterActivity extends AppCompatActivity {
 
     private void refreshAll() {
         applyName(false);
-        FieldUi.set(etEmployeeId, stateEmp());
+        applyCode();
         FieldUi.set(layoutPhoneBox, statePhone(false));
         updateCheck();
-        FieldUi.set(etEmail, stateEmail(false));
+        applyEmail(false);
         applyPassword(false);
         applyConfirm(false);
     }
-
-    // ---------- Phone ----------
 
     private void showCountryMenu() {
         PopupMenu menu = new PopupMenu(this, layoutCountry);
@@ -300,7 +287,6 @@ public class RegisterActivity extends AppCompatActivity {
         menu.show();
     }
 
-    // Digits only, and drops a leading 0 for +63 and +81 (0961... -> 961...)
     private String getCleanPhone() {
         String digits = etPhone.getText().toString().replaceAll("[^0-9]", "");
         String code = tvCountryCode.getText().toString();
@@ -313,9 +299,9 @@ public class RegisterActivity extends AppCompatActivity {
 
     private int getRequiredDigits() {
         if (tvCountryCode.getText().toString().equals("+65")) {
-            return 8;   // Singapore
+            return 8;
         }
-        return 10;      // Philippines, United States, Japan
+        return 10;
     }
 
     private void updateCheck() {
@@ -326,9 +312,6 @@ public class RegisterActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- Register ----------
-
-    // Marks a field red and remembers the first message to show
     private void fail(View field, String message) {
         FieldUi.set(field, FieldUi.ERROR);
         if (firstMessage == null) {
@@ -337,39 +320,38 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void attemptRegister() {
+        if (registering) {
+            return;
+        }
         firstMessage = null;
 
         String fullName = etFullName.getText().toString().trim();
-        String employeeId = etEmployeeId.getText().toString().trim();
+        String inviteCode = etInviteCode.getText().toString().trim().toUpperCase();
         String phone = getCleanPhone();
         String email = etEmail.getText().toString().trim();
         String password = etPassword.getText().toString();
         String confirm = etConfirmPassword.getText().toString();
         String fullPhone = tvCountryCode.getText().toString() + phone;
 
-        boolean anyEmpty = fullName.isEmpty() || employeeId.isEmpty() || phone.isEmpty()
+        boolean anyEmpty = fullName.isEmpty() || inviteCode.isEmpty() || phone.isEmpty()
                 || email.isEmpty() || password.isEmpty() || confirm.isEmpty();
 
         if (fullName.length() < 2) {
             fail(etFullName, "Please enter your full name.");
         }
 
-        if (employeeId.isEmpty()) {
-            fail(etEmployeeId, "Please enter your employee ID.");
-        } else if (WorkerStore.empIdExists(this, employeeId)) {
-            fail(etEmployeeId, "This employee ID is already registered.");
+        if (inviteCode.isEmpty()) {
+            fail(etInviteCode, "Please enter your invite code.");
+        } else if (!isCodeValid()) {
+            fail(etInviteCode, "The invite code has 8 letters and numbers.");
         }
 
         if (phone.length() != getRequiredDigits()) {
             fail(layoutPhoneBox, "Please enter a complete mobile number.");
-        } else if (store.phoneExists(fullPhone)) {
-            fail(layoutPhoneBox, "This mobile number is already registered.");
         }
 
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             fail(etEmail, "Please enter a valid email address.");
-        } else if (store.emailExists(email)) {
-            fail(etEmail, "This email is already registered.");
         }
 
         if (password.length() < 6) {
@@ -386,19 +368,57 @@ public class RegisterActivity extends AppCompatActivity {
         }
 
         hideError();
+        setRegistering(true);
 
-        // TEMPORARY: saved on this phone only. Replace with the backend later.
-        store.save(fullName, employeeId, fullPhone, email, password, selectedRole);
+        AuthApi.register(inviteCode, fullName, email, fullPhone, password,
+                new AuthApi.RegisterCallback() {
+                    @Override
+                    public void onSuccess(Role role) {
+                        if (isFinishing()) {
+                            return;
+                        }
+                        String message = "Account created! You can log in now.";
+                        if (selectedRole != null && role != selectedRole) {
+                            message = "Account created as "
+                                    + (role == Role.OPERATOR ? "Operator" : "Driver")
+                                    + ", as set by your invite code. You can log in now.";
+                        }
+                        Toast.makeText(RegisterActivity.this, message, Toast.LENGTH_LONG).show();
+                        finish();
+                    }
 
-        WorkerStore.addRegistered(
-                this,
-                fullName,
-                employeeId,
-                WorkerStore.formatPhone(tvCountryCode.getText().toString(), phone),
-                selectedRole == Role.OPERATOR);
+                    @Override
+                    public void onError(int status, String message) {
+                        if (isFinishing()) {
+                            return;
+                        }
+                        setRegistering(false);
+                        showServerError(status, message);
+                    }
+                });
+    }
 
-        Toast.makeText(this, "Account created! You can log in now.", Toast.LENGTH_LONG).show();
-        finish();
+    private void showServerError(int status, String message) {
+        String lower = message.toLowerCase();
+
+        if (status == 403 || lower.contains("invite")) {
+            FieldUi.set(etInviteCode, FieldUi.ERROR);
+        } else if (lower.contains("email")) {
+            FieldUi.set(etEmail, FieldUi.ERROR);
+        } else if (lower.contains("mobile")) {
+            FieldUi.set(layoutPhoneBox, FieldUi.ERROR);
+        } else if (lower.contains("password")) {
+            FieldUi.set(etPassword, FieldUi.ERROR);
+        } else if (lower.contains("name")) {
+            FieldUi.set(etFullName, FieldUi.ERROR);
+        }
+        showError(message);
+    }
+
+    private void setRegistering(boolean busy) {
+        registering = busy;
+        btnRegister.setEnabled(!busy);
+        btnRegister.setText(busy ? "Creating account..." : "Create Account");
     }
 
     private void hideError() {

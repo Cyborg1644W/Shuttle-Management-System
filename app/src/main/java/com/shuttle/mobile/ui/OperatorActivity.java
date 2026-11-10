@@ -138,7 +138,6 @@ public class OperatorActivity extends AppCompatActivity {
         navDashboard = findViewById(R.id.navDashboard);
         navFleet = findViewById(R.id.navFleet);
 
-        loadSampleWorkers();
 
         chipAll.setOnClickListener(v -> selectFilter("ALL"));
         chipDrivers.setOnClickListener(v -> selectFilter("DRIVER"));
@@ -278,18 +277,6 @@ public class OperatorActivity extends AppCompatActivity {
         }
     }
 
-    private void loadSampleWorkers() {
-        workers.add(new WorkerItem("Reindel Andrada", "EMP-0842", "ON SHIFT", false,
-                "Unit SH-1024", "Terminal 3 Bay A", "+63 917 552 1092"));
-        workers.add(new WorkerItem("Roxane Tabo", "EMP-0915", "ON SHIFT", false,
-                "Unit SH-2088", "One Ayala Hub", "+63 920 883 4410"));
-        workers.add(new WorkerItem("Yuri Esplana", "EMP-0620", "ACTIVE", true,
-                "PITX Central Bay", "06:00 - 14:00", "+63 918 334 7890"));
-        workers.add(new WorkerItem("Marco Santos", "EMP-0431", "OFF DUTY", false,
-                "Unassigned", "Terminal 1 Bay C", "+63 921 700 1188"));
-        workers.add(new WorkerItem("Lea Ramos", "EMP-0377", "ON BREAK", true,
-                "Ayala Bay B", "14:00 - 22:00", "+63 915 220 9034"));
-    }
 
     private void updateSummary() {
         int total = workers.size();
