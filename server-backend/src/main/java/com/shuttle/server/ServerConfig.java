@@ -12,8 +12,8 @@ public class ServerConfig {
     private static int port = 8080;
     private static String workersCsv = "sample-data/import/workers.csv";
     private static String shuttlesCsv = "sample-data/import/shuttles.csv";
-    private static String shiftsCsv = null;
-    private static String scheduleCsv = null;
+    private static String shiftsCsv = null;     // default: next to workers.csv
+    private static String scheduleCsv = null;   // default: next to workers.csv
 
     static {
         loadConfig();

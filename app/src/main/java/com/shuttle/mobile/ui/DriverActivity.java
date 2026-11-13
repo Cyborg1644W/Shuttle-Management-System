@@ -230,7 +230,7 @@ public class DriverActivity extends AppCompatActivity {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(locationReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
             } else {
-                registerReceiver(locationReceiver, filter);
+                ContextCompat.registerReceiver(this, locationReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
             }
 
             receiverRegistered = true;

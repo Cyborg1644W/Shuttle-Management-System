@@ -9,7 +9,7 @@ import com.shuttle.common.Worker;
 import com.shuttle.server.ApiException;
 import com.shuttle.server.Auth;
 import com.shuttle.server.Crypto;
-import com.shuttle.server.Json;
+import com.shuttle.server.Csv;
 import com.shuttle.server.Log;
 import com.shuttle.server.Repositories;
 import com.shuttle.server.repository.WorkerRepository;
@@ -20,13 +20,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import static com.shuttle.server.Json.has;
-import static com.shuttle.server.Json.str;
+import static com.shuttle.server.Csv.has;
+import static com.shuttle.server.Csv.str;
 
 public class WorkerService {
 
     public static final String PENDING_HASH = "PENDING";
     private static final String PENDING_DOMAIN = "@fleetflow.invalid";
+
 
     public static Worker get(String employeeId) {
         return Repositories.workers().findById(employeeId == null ? "" : employeeId.trim())
@@ -44,7 +45,7 @@ public class WorkerService {
     public static Map<String, Object> toPublic(Worker w) {
         boolean pending = PENDING_HASH.equals(w.getPasswordHash());
         String email = w.getEmail() == null || w.getEmail().endsWith(PENDING_DOMAIN) ? "" : w.getEmail();
-        Map<String, Object> m = Json.obj(
+        Map<String, Object> m = Csv.obj(
                 "employeeId", w.getEmployeeID(),
                 "fullName", w.getFullName(),
                 "email", email,
@@ -95,11 +96,14 @@ public class WorkerService {
         }
     }
 
-    public static Worker register(InviteService.Invite invite, String fullName, String email, String phone,
-                                  String password, String licenseNumber) throws IOException {
+    public static Worker register(Role role, String fullName, String email, String phone, String password,
+                                  String licenseNumber, String requestedId) throws IOException {
         synchronized (Repositories.LOCK) {
             String name = requireName(fullName);
             String normalizedPhone = normalizePhone(phone);
+            if (normalizedPhone.isEmpty()) {
+                throw new ApiException(400, "Please enter your mobile number");
+            }
             String cleanEmail = email == null ? "" : email.trim();
             if (!ValidationUtil.isValidEmail(cleanEmail)) {
                 throw new ApiException(400, "Enter a valid email address");
@@ -107,33 +111,52 @@ public class WorkerService {
             if (password == null || password.length() < 6) {
                 throw new ApiException(400, "Password must be at least 6 characters");
             }
-            if (Repositories.workers().existsByEmail(cleanEmail)
-                    && !(invite.employeeId != null && sameEmail(invite.employeeId, cleanEmail))) {
+            if (Repositories.workers().existsByEmail(cleanEmail)) {
                 throw new ApiException(409, "This email is already registered");
             }
 
-            Worker w;
-            if (invite.employeeId != null) {
-                w = get(invite.employeeId);
-                if (!PENDING_HASH.equals(w.getPasswordHash())) {
-                    throw new ApiException(409, "This worker has already registered");
+            Worker w = findPendingByPhone(normalizedPhone, role);
+            if (w == null) {
+                String id = requestedId == null || requestedId.trim().isEmpty()
+                        ? Repositories.workers().nextEmployeeId()
+                        : cleanEmployeeId(requestedId);
+                if (Repositories.workers().existsById(id)) {
+                    throw new ApiException(409, "This employee ID is already used");
                 }
-            } else {
-                w = blank(Role.valueOf(invite.role));
-                w.setEmployeeID(Repositories.workers().nextEmployeeId());
+                if (isPhoneTaken(normalizedPhone)) {
+                    throw new ApiException(409, "This mobile number is already registered");
+                }
+                w = blank(role);
+                w.setEmployeeID(id);
             }
             w.setFullName(name);
             w.setEmail(cleanEmail);
             w.setPasswordHash(Crypto.hashPassword(password));
-            if (!normalizedPhone.isEmpty()) {
-                w.setPhone(normalizedPhone);
-            }
+            w.setPhone(normalizedPhone);
             if (w instanceof Driver && licenseNumber != null && !licenseNumber.trim().isEmpty()) {
                 ((Driver) w).setLicenseNumber(licenseNumber.trim());
             }
             Repositories.workers().saveWorker(w);
             return w;
         }
+    }
+
+    private static Worker findPendingByPhone(String phone, Role role) {
+        for (Worker w : Repositories.workers().getAllWorkers()) {
+            if (PENDING_HASH.equals(w.getPasswordHash()) && phone.equals(w.getPhone()) && w.getRole() == role) {
+                return w;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isPhoneTaken(String phone) {
+        for (Worker w : Repositories.workers().getAllWorkers()) {
+            if (!PENDING_HASH.equals(w.getPasswordHash()) && phone.equals(w.getPhone())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static Worker update(String employeeId, Map<String, Object> body, boolean byOperator) throws IOException {
@@ -260,6 +283,7 @@ public class WorkerService {
         }
     }
 
+
     public static String normalizeStatus(String raw) {
         String s = raw == null ? "" : raw.trim().toUpperCase(Locale.ROOT).replace(' ', '_');
         switch (s) {
@@ -319,11 +343,6 @@ public class WorkerService {
             throw new ApiException(400, "Employee ID can't be empty or contain spaces");
         }
         return id;
-    }
-
-    private static boolean sameEmail(String employeeId, String email) {
-        return Repositories.workers().findByEmail(email)
-                .map(w -> w.getEmployeeID().equals(employeeId)).orElse(false);
     }
 
     private static String nz(String v) {

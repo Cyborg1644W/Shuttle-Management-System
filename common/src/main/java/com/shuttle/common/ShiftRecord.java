@@ -1,5 +1,6 @@
 package com.shuttle.common;
 
+/** One driver shift (a trip). endTime == 0 while it is still running. */
 public class ShiftRecord {
 
     private String shiftId;
@@ -7,11 +8,11 @@ public class ShiftRecord {
     private String shuttleId;
     private long startTime;
     private long endTime;
-    private String status = "ACTIVE";
+    private String status = "ACTIVE";   // ACTIVE / COMPLETED / TIMED_OUT
     private double distanceKm;
     private int stops;
     private String terminal = "";
-    private String route = "";
+    private String route = "";          // "lat,lng;lat,lng;..."
 
     public ShiftRecord() {
     }

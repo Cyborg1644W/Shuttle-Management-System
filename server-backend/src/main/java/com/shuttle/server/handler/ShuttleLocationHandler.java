@@ -3,14 +3,15 @@ package com.shuttle.server.handler;
 import com.shuttle.common.Driver;
 import com.shuttle.common.Worker;
 import com.shuttle.server.ApiException;
-import com.shuttle.server.Json;
+import com.shuttle.server.Csv;
 import com.shuttle.server.service.FleetService;
 import com.shuttle.server.service.TrackingService;
 
-import static com.shuttle.server.Json.has;
-import static com.shuttle.server.Json.lng;
-import static com.shuttle.server.Json.num;
-import static com.shuttle.server.Json.str;
+import static com.shuttle.server.Csv.filled;
+import static com.shuttle.server.Csv.lng;
+import static com.shuttle.server.Csv.num;
+import static com.shuttle.server.Csv.str;
+
 public class ShuttleLocationHandler extends BaseHandler {
 
     @Override
@@ -20,11 +21,11 @@ public class ShuttleLocationHandler extends BaseHandler {
 
         if (id == null) {
             if (r.is("GET")) {
-                return ok(Json.obj("shuttles", FleetService.list()));
+                return ok(FleetService.list());
             }
             if (r.is("POST")) {
                 r.requireOperator();
-                return created(FleetService.toJson(FleetService.add(r.body)));
+                return created(FleetService.toRow(FleetService.add(r.body)));
             }
         } else if (action == null) {
             if (r.is("GET")) {
@@ -33,22 +34,22 @@ public class ShuttleLocationHandler extends BaseHandler {
             if (r.is("DELETE")) {
                 r.requireOperator();
                 FleetService.remove(id);
-                return ok(Json.obj("removed", true));
+                return ok(Csv.obj("removed", true));
             }
         } else if (action.equals("location") && r.is("POST")) {
             Worker me = r.worker();
             if (me instanceof Driver && !id.equalsIgnoreCase(nz(((Driver) me).getAssignedShuttleId()))) {
                 throw new ApiException(403, "You can only report the position of your own vehicle");
             }
-            if (!has(r.body, "latitude") || !has(r.body, "longitude")) {
+            if (!filled(r.body, "latitude") || !filled(r.body, "longitude")) {
                 throw new ApiException(400, "latitude and longitude are required");
             }
             TrackingService.updateLocation(id, num(r.body, "latitude"), num(r.body, "longitude"),
                     num(r.body, "speed"), lng(r.body, "timestamp"));
-            return ok(Json.obj("status", "Location updated"));
+            return ok(Csv.obj("status", "Location updated"));
         } else if (action.equals("status") && r.is("PUT")) {
             r.requireOperator();
-            return ok(FleetService.toJson(FleetService.setStatus(id, str(r.body, "status"))));
+            return ok(FleetService.toRow(FleetService.setStatus(id, str(r.body, "status"))));
         }
 
         throw new ApiException(404, "Endpoint Not Found");

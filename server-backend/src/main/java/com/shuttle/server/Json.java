@@ -9,7 +9,6 @@ public final class Json {
 
     private Json() { }
 
-    // ---------- Reading ----------
 
     public static Object parse(String text) {
         Parser p = new Parser(text);
@@ -32,7 +31,6 @@ public final class Json {
         return r;
     }
 
-    // Getters that never throw: missing/wrong type gives "" / 0 / false
     public static String str(Map<String, Object> m, String key) {
         Object v = m.get(key);
         return v == null ? "" : String.valueOf(v);
@@ -62,7 +60,6 @@ public final class Json {
         return "true".equalsIgnoreCase(String.valueOf(v));
     }
 
-    // ---------- Writing ----------
 
     public static String stringify(Object o) {
         StringBuilder sb = new StringBuilder();
@@ -124,7 +121,6 @@ public final class Json {
         sb.append('"');
     }
 
-    // ---------- Parser ----------
 
     private static final class Parser {
         final String s;

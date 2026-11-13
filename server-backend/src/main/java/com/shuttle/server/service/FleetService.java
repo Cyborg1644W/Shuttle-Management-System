@@ -4,7 +4,7 @@ import com.shuttle.common.ShiftRecord;
 import com.shuttle.common.ShuttleUnit;
 import com.shuttle.common.Worker;
 import com.shuttle.server.ApiException;
-import com.shuttle.server.Json;
+import com.shuttle.server.Csv;
 import com.shuttle.server.Log;
 import com.shuttle.server.Repositories;
 import com.shuttle.server.repository.ShuttleRepository;
@@ -15,23 +15,22 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import static com.shuttle.server.Json.str;
-
+import static com.shuttle.server.Csv.str;
 public class FleetService {
 
     public static List<Map<String, Object>> list() {
         List<Map<String, Object>> out = new ArrayList<>();
         for (ShuttleUnit s : Repositories.shuttles().getAllShuttles()) {
-            out.add(toJson(s));
+            out.add(toRow(s));
         }
         return out;
     }
 
     public static Map<String, Object> get(String shuttleId) {
-        return toJson(find(shuttleId));
+        return toRow(find(shuttleId));
     }
 
-    public static Map<String, Object> toJson(ShuttleUnit s) {
+    public static Map<String, Object> toRow(ShuttleUnit s) {
         String driverId = "";
         String driverName = "";
         for (ShiftRecord shift : Repositories.shifts().findAllActive()) {
@@ -40,7 +39,7 @@ public class FleetService {
                 driverName = Repositories.workers().findById(driverId).map(Worker::getFullName).orElse("");
             }
         }
-        Map<String, Object> m = Json.obj(
+        Map<String, Object> m = Csv.obj(
                 "shuttleId", s.getShuttleId(),
                 "plateNumber", s.getPlateNumber(),
                 "capacity", s.getCapacity(),
@@ -48,17 +47,13 @@ public class FleetService {
                 "driverId", driverId,
                 "driverName", driverName);
 
+        // Position columns are empty until the shuttle has reported a position
         TrackingService.Position p = TrackingService.get(s.getShuttleId());
-        if (p == null) {
-            m.put("position", null);
-        } else {
-            m.put("position", Json.obj(
-                    "latitude", p.latitude,
-                    "longitude", p.longitude,
-                    "speedKmh", p.speedKmh,
-                    "timestamp", p.deviceTime,
-                    "ageSeconds", Math.max(0, (System.currentTimeMillis() - p.receivedAt) / 1000)));
-        }
+        m.put("latitude", p == null ? "" : p.latitude);
+        m.put("longitude", p == null ? "" : p.longitude);
+        m.put("speedKmh", p == null ? "" : p.speedKmh);
+        m.put("positionTime", p == null ? "" : p.deviceTime);
+        m.put("ageSeconds", p == null ? "" : Math.max(0, (System.currentTimeMillis() - p.receivedAt) / 1000));
         return m;
     }
 
@@ -66,7 +61,7 @@ public class FleetService {
         synchronized (Repositories.LOCK) {
             String id = str(body, "shuttleId").trim();
             String plate = str(body, "plateNumber").trim();
-            int capacity = (int) Json.lng(body, "capacity");
+            int capacity = (int) Csv.lng(body, "capacity");
             if (id.isEmpty() || id.indexOf(' ') >= 0) {
                 throw new ApiException(400, "shuttleId can't be empty or contain spaces");
             }

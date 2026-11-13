@@ -12,7 +12,6 @@ import java.nio.file.Path;
 
 public final class Repositories {
 
-
     public static final Object LOCK = new Object();
 
     private static WorkerRepository workers;

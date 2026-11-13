@@ -8,6 +8,7 @@ public final class CsvUtil {
     private CsvUtil() {
     }
 
+    /** Wraps a value in quotes if it contains a comma, quote or line break. */
     public static String escape(String value) {
         if (value == null) {
             return "";
@@ -18,6 +19,7 @@ public final class CsvUtil {
         return value;
     }
 
+    /** Same as escape(); the name CsvTable uses. */
     public static String escapeCsv(String value) {
         return escape(value);
     }
@@ -30,6 +32,7 @@ public final class CsvUtil {
         return String.join(",", escaped);
     }
 
+    /** Splits one CSV line into its cells, understanding "quoted, values" and "" for a quote. */
     public static String[] parseCsvLine(String line) {
         List<String> cells = new ArrayList<>();
         StringBuilder current = new StringBuilder();

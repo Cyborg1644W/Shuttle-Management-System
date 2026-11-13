@@ -5,8 +5,8 @@ import java.util.List;
 
 public class Operator extends Worker {
 
-    private String terminalZone;
-    private String shiftTime;
+    private String terminalZone;    // the station the operator is posted at
+    private String shiftTime;       // e.g. "06:00 - 14:00"
     private int permissionsMask;
     private List<String> managedShuttleIds = new ArrayList<>();
 

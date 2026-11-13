@@ -5,7 +5,7 @@ public class ShuttleUnit {
     private String shuttleId;
     private String plateNumber;
     private int capacity;
-    private String currentStatus = "AVAILABLE";
+    private String currentStatus = "AVAILABLE";  // AVAILABLE / IN_SERVICE / MAINTENANCE / OFFLINE
 
     public ShuttleUnit() {
     }
@@ -33,6 +33,7 @@ public class ShuttleUnit {
     public String getCurrentStatus() { return currentStatus; }
     public void setCurrentStatus(String currentStatus) { this.currentStatus = currentStatus; }
 
+    // Older names for the same things
     public String getShuttleID() { return shuttleId; }
     public void setShuttleID(String shuttleID) { this.shuttleId = shuttleID; }
     public boolean isAvailable() { return "AVAILABLE".equals(currentStatus); }

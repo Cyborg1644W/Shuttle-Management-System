@@ -6,7 +6,7 @@ import com.shuttle.common.ShiftRecord;
 import com.shuttle.common.ShuttleUnit;
 import com.shuttle.common.Worker;
 import com.shuttle.server.ApiException;
-import com.shuttle.server.Json;
+import com.shuttle.server.Csv;
 import com.shuttle.server.Repositories;
 import com.shuttle.server.repository.ScheduleRepository;
 import com.shuttle.server.repository.ShuttleRepository;
@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.shuttle.server.Json.str;
+import static com.shuttle.server.Csv.str;
 
 public class ReportService {
 
@@ -64,16 +64,19 @@ public class ReportService {
             }
         }
 
-        return Json.obj(
+        return Csv.obj(
                 "totalShifts", finished,
                 "activeShifts", Repositories.shifts().findAllActive().size(),
                 "totalUnits", shuttles.size(),
                 "activeUnits", active,
                 "inactiveUnits", inactive,
                 "maintenanceUnits", maintenance,
-                "staff", Json.obj("total", workers.size(), "onDuty", onDuty, "drivers", drivers,
-                        "driversActive", driversActive, "operators", operators,
-                        "standby", workers.size() - onDuty));
+                "staffTotal", workers.size(),
+                "staffOnDuty", onDuty,
+                "drivers", drivers,
+                "driversActive", driversActive,
+                "operators", operators,
+                "standby", workers.size() - onDuty);
     }
 
     public static List<Map<String, Object>> schedule() {
@@ -87,26 +90,21 @@ public class ReportService {
             String place = w instanceof Driver
                     ? nz(((Driver) w).getAssignedTerminal())
                     : nz(((Operator) w).getTerminalZone());
-            out.add(Json.obj("employeeId", w.getEmployeeID(), "name", w.getFullName(),
+            out.add(Csv.obj("employeeId", w.getEmployeeID(), "name", w.getFullName(),
                     "role", w.getRole().name(), "place", place, "shift", e.shift, "days", e.days));
         }
         return out;
     }
 
-    public static List<Map<String, Object>> replaceSchedule(List<Object> items) throws IOException {
+    public static List<Map<String, Object>> replaceSchedule(List<Map<String, Object>> items) throws IOException {
         synchronized (Repositories.LOCK) {
             List<ScheduleRepository.Entry> fresh = new ArrayList<>();
-            for (Object o : items) {
-                if (!(o instanceof Map)) {
-                    throw new ApiException(400, "Each schedule entry must be an object");
-                }
-                @SuppressWarnings("unchecked")
-                Map<String, Object> m = (Map<String, Object>) o;
+            for (Map<String, Object> m : items) {
                 String id = str(m, "employeeId").trim();
                 if (!Repositories.workers().existsById(id)) {
                     throw new ApiException(400, "Unknown employee: " + id);
                 }
-                fresh.add(new ScheduleRepository.Entry(id, (int) Json.lng(m, "shift"), str(m, "days")));
+                fresh.add(new ScheduleRepository.Entry(id, (int) Csv.lng(m, "shift"), str(m, "days")));
             }
             Repositories.schedule().replaceAll(fresh);
             return schedule();

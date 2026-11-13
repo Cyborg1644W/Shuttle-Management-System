@@ -7,8 +7,8 @@ public abstract class Worker {
     private String email;
     private String passwordHash;
     private String phone = "";
-    private String employmentStatus = "ACTIVE";
-    private String shiftStatus = "OFF_SHIFT";
+    private String employmentStatus = "ACTIVE";   // ACTIVE / INACTIVE / SUSPENDED
+    private String shiftStatus = "OFF_SHIFT";     // ON_SHIFT / ON_BREAK / OFF_SHIFT
     private final Role role;
 
     protected Worker(Role role) {

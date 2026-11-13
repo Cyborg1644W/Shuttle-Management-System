@@ -3,16 +3,17 @@ package com.shuttle.server.handler;
 import com.sun.net.httpserver.HttpExchange;
 import com.shuttle.server.ApiException;
 import com.shuttle.server.Auth;
-import com.shuttle.server.Json;
+import com.shuttle.server.Csv;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+
 public class ApiHandler {
 
     public static void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
         byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
-        exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+        exchange.getResponseHeaders().set("Content-Type", "text/csv; charset=utf-8");
         if (bytes.length == 0) {
             exchange.sendResponseHeaders(statusCode, -1);
             exchange.close();
@@ -24,9 +25,8 @@ public class ApiHandler {
         }
     }
 
-    /** Sends {"error": "..."} with the message properly escaped. */
     public static void sendError(HttpExchange exchange, int statusCode, String message) throws IOException {
-        sendResponse(exchange, statusCode, Json.stringify(Json.obj("error", message)));
+        sendResponse(exchange, statusCode, Csv.error(message));
     }
 
     public static String extractToken(HttpExchange exchange) {

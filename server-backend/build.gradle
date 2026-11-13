@@ -1,0 +1,11 @@
+plugins {
+    id 'application'
+}
+
+application {
+    mainClass = 'com.shuttle.server.ServerMain'
+}
+
+dependencies {
+    implementation project(':common')
+}

@@ -290,30 +290,6 @@
                 android:textColorHint="@color/text_tertiary"
                 android:textSize="16sp" />
 
-            <!-- Employee ID -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="INVITE CODE"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <EditText
-                android:id="@+id/etEmployeeId"
-                android:layout_width="match_parent"
-                android:layout_height="60dp"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/input_bg"
-                android:hint="e.g. 3F9A1C2B"
-                android:inputType="textCapCharacters"
-                android:paddingStart="20dp"
-                android:paddingEnd="20dp"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_tertiary"
-                android:textSize="16sp" />
-
             <!-- Phone -->
             <TextView
                 android:layout_width="wrap_content"

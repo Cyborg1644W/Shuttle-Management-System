@@ -4,8 +4,8 @@ public class Driver extends Worker {
 
     private String licenseNumber;
     private String licenseExpirationDate;
-    private String assignedShuttleId;
-    private String assignedTerminal;
+    private String assignedShuttleId;   // the vehicle the operator assigned
+    private String assignedTerminal;    // the terminal / bay the operator assigned
     private String activeShiftId;
     private GpsCoordinate lastLocation;
 

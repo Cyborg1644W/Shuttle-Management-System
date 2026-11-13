@@ -50,12 +50,12 @@ public class TrackingService {
         Position previous = positions.get(shuttleId);
         if (previous != null) {
             if (time <= previous.deviceTime) {
-                return; // late or duplicate point: keep the newer one we already have
+                return;
             }
             double seconds = (time - previous.deviceTime) / 1000.0;
             double distanceKm = distanceKm(previous.latitude, previous.longitude, lat, lng);
             double speedKmh = distanceKm / seconds * 3600;
-            // Ignore tiny time gaps where GPS noise alone would look fast
+
             if (seconds >= 2 && speedKmh > MAX_SPEED_KMH) {
                 Log.info("Rejected spoofed location ping for shuttle: " + shuttleId + " (Speed: " + Math.round(speedKmh) + " km/h)");
                 throw new ApiException(400, "Location update rejected: Velocity anomaly detected");

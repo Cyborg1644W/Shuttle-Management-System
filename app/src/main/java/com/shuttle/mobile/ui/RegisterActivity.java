@@ -1,7 +1,6 @@
 package com.shuttle.mobile.ui;
 
 import android.os.Bundle;
-import android.text.InputType;
 import android.util.Patterns;
 import android.view.MenuItem;
 import android.view.View;
@@ -32,7 +31,6 @@ public class RegisterActivity extends AppCompatActivity {
     private TextView tvRoleLabel;
     private TextView tvChangeRole;
     private EditText etFullName;
-    private EditText etInviteCode;
     private EditText etPhone;
     private EditText etEmail;
     private EditText etPassword;
@@ -63,7 +61,6 @@ public class RegisterActivity extends AppCompatActivity {
         tvRoleLabel = findViewById(R.id.tvRoleLabel);
         tvChangeRole = findViewById(R.id.tvChangeRole);
         etFullName = findViewById(R.id.etFullName);
-        etInviteCode = findViewById(R.id.etEmployeeId);
         etPhone = findViewById(R.id.etPhone);
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
@@ -74,9 +71,6 @@ public class RegisterActivity extends AppCompatActivity {
         tvGoLogin = findViewById(R.id.tvGoLogin);
         btnRegister = findViewById(R.id.btnRegister);
 
-        etInviteCode.setHint("Invite code");
-        etInviteCode.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
-
         cardDriver.setOnClickListener(v -> showForm(Role.DRIVER));
         cardOperator.setOnClickListener(v -> showForm(Role.OPERATOR));
         tvChangeRole.setOnClickListener(v -> showChooser());
@@ -85,10 +79,6 @@ public class RegisterActivity extends AppCompatActivity {
         FieldUi.onChange(etFullName, () -> {
             hideError();
             applyName(false);
-        });
-        FieldUi.onChange(etInviteCode, () -> {
-            hideError();
-            applyCode();
         });
         FieldUi.onChange(etPhone, () -> {
             hideError();
@@ -173,7 +163,11 @@ public class RegisterActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        goBack();
+        if (selectedRole != null) {
+            showChooser();
+        } else {
+            super.onBackPressed();
+        }
     }
 
     private int stateName(boolean strict) {
@@ -182,18 +176,6 @@ public class RegisterActivity extends AppCompatActivity {
             return FieldUi.VALID;
         }
         return (strict && !s.isEmpty()) ? FieldUi.ERROR : FieldUi.NORMAL;
-    }
-
-    private boolean isCodeValid() {
-        return etInviteCode.getText().toString().trim().matches("[A-Za-z0-9]{8}");
-    }
-
-    private int stateCode() {
-        String s = etInviteCode.getText().toString().trim();
-        if (s.isEmpty()) {
-            return FieldUi.NORMAL;
-        }
-        return isCodeValid() ? FieldUi.VALID : FieldUi.NORMAL;
     }
 
     private int statePhone(boolean strict) {
@@ -239,10 +221,6 @@ public class RegisterActivity extends AppCompatActivity {
         FieldUi.set(etFullName, stateName(strict));
     }
 
-    private void applyCode() {
-        FieldUi.set(etInviteCode, stateCode());
-    }
-
     private void applyPhone(boolean strict) {
         FieldUi.set(layoutPhoneBox, statePhone(strict));
         updateCheck();
@@ -262,7 +240,6 @@ public class RegisterActivity extends AppCompatActivity {
 
     private void refreshAll() {
         applyName(false);
-        applyCode();
         FieldUi.set(layoutPhoneBox, statePhone(false));
         updateCheck();
         applyEmail(false);
@@ -326,24 +303,17 @@ public class RegisterActivity extends AppCompatActivity {
         firstMessage = null;
 
         String fullName = etFullName.getText().toString().trim();
-        String inviteCode = etInviteCode.getText().toString().trim().toUpperCase();
         String phone = getCleanPhone();
         String email = etEmail.getText().toString().trim();
         String password = etPassword.getText().toString();
         String confirm = etConfirmPassword.getText().toString();
         String fullPhone = tvCountryCode.getText().toString() + phone;
 
-        boolean anyEmpty = fullName.isEmpty() || inviteCode.isEmpty() || phone.isEmpty()
+        boolean anyEmpty = fullName.isEmpty() || phone.isEmpty()
                 || email.isEmpty() || password.isEmpty() || confirm.isEmpty();
 
         if (fullName.length() < 2) {
             fail(etFullName, "Please enter your full name.");
-        }
-
-        if (inviteCode.isEmpty()) {
-            fail(etInviteCode, "Please enter your invite code.");
-        } else if (!isCodeValid()) {
-            fail(etInviteCode, "The invite code has 8 letters and numbers.");
         }
 
         if (phone.length() != getRequiredDigits()) {
@@ -367,23 +337,23 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
+        if (selectedRole == null) {
+            showChooser();
+            return;
+        }
+
         hideError();
         setRegistering(true);
 
-        AuthApi.register(inviteCode, fullName, email, fullPhone, password,
+        AuthApi.register(selectedRole, fullName, email, fullPhone, password,
                 new AuthApi.RegisterCallback() {
                     @Override
                     public void onSuccess(Role role) {
                         if (isFinishing()) {
                             return;
                         }
-                        String message = "Account created! You can log in now.";
-                        if (selectedRole != null && role != selectedRole) {
-                            message = "Account created as "
-                                    + (role == Role.OPERATOR ? "Operator" : "Driver")
-                                    + ", as set by your invite code. You can log in now.";
-                        }
-                        Toast.makeText(RegisterActivity.this, message, Toast.LENGTH_LONG).show();
+                        Toast.makeText(RegisterActivity.this,
+                                "Account created! You can log in now.", Toast.LENGTH_LONG).show();
                         finish();
                     }
 
@@ -401,9 +371,7 @@ public class RegisterActivity extends AppCompatActivity {
     private void showServerError(int status, String message) {
         String lower = message.toLowerCase();
 
-        if (status == 403 || lower.contains("invite")) {
-            FieldUi.set(etInviteCode, FieldUi.ERROR);
-        } else if (lower.contains("email")) {
+        if (lower.contains("email")) {
             FieldUi.set(etEmail, FieldUi.ERROR);
         } else if (lower.contains("mobile")) {
             FieldUi.set(layoutPhoneBox, FieldUi.ERROR);

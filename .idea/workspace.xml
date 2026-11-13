@@ -337,6 +337,11 @@
           <theme>@style/Theme.Shuttle</theme>
         </config>
       </layout>
+      <layout url="file://$PROJECT_DIR$/app/src/main/res/layout/activity_driver_profile.xml">
+        <config>
+          <theme>@style/Theme.Shuttle</theme>
+        </config>
+      </layout>
       <layout url="file://$PROJECT_DIR$/app/src/main/res/layout/activity_login.xml">
         <config>
           <theme>@style/Theme.Shuttle</theme>
@@ -348,11 +353,6 @@
         </config>
       </layout>
       <layout url="file://$PROJECT_DIR$/app/src/main/res/layout/activity_operator.xml">
-        <config>
-          <theme>@style/Theme.Shuttle</theme>
-        </config>
-      </layout>
-      <layout url="file://$PROJECT_DIR$/app/src/main/res/layout/activity_operator_profile.xml">
         <config>
           <theme>@style/Theme.Shuttle</theme>
         </config>
@@ -454,31 +454,58 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9d671059-d5a4-42c6-8013-4968884c9299" name="Changes" comment="Add login, register, operator and drivers screens.">
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/AuthApi.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/FleetApi.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/Session.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Csv.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/AuthHandler.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.0/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.0/executionHistory/executionHistory.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.0/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.0/executionHistory/executionHistory.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.0/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.0/fileHashes/fileHashes.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.0/fileHashes/fileHashes.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.0/fileHashes/fileHashes.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/outputFiles.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/outputFiles.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/client/ApiClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/client/ApiClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/client/OfflineQueueManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/client/OfflineQueueManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/AccountStore.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/AuthApi.java" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/AuthApi.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/DriverActivity.java" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/DriverActivity.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/LoginActivity.java" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/LoginActivity.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/OperatorActivity.java" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/OperatorActivity.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/RegisterActivity.java" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/RegisterActivity.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/ShiftStore.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/ShiftSummaryActivity.java" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/ShiftSummaryActivity.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/StaffMember.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/shuttle/mobile/ui/WorkerStore.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/drawable/ic_apple.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/res/layout/activity_login.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/layout/activity_login.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/res/layout/activity_main.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/layout/activity_main.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/res/layout/activity_operator_profile.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/layout/activity_driver_profile.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/res/layout/activity_register.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/layout/activity_register.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/CsvUtil.java" beforeDir="false" afterPath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/CsvUtil.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/Driver.java" beforeDir="false" afterPath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/Driver.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/Operator.java" beforeDir="false" afterPath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/Operator.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/ShiftRecord.java" beforeDir="false" afterPath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/ShiftRecord.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/ShuttleUnit.java" beforeDir="false" afterPath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/ShuttleUnit.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/ValidationUtil.java" beforeDir="false" afterPath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/ValidationUtil.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/Worker.java" beforeDir="false" afterPath="$PROJECT_DIR$/common/src/main/java/com/shuttle/common/Worker.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/API.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/API.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Auth.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Auth.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Crypto.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Crypto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Json.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Json.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Repositories.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/Repositories.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerMain.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ServerMain.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ShuttleServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/ShuttleServer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ApiHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ApiHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/BaseHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/BaseHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/DashboardHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/DashboardHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/InviteHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/InviteHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LiveHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LiveHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LocationHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/LocationHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ScheduleHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ScheduleHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ShiftHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ShiftHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ShuttleLocationHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/ShuttleLocationHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/WorkerHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/handler/WorkerHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/io/CsvTable.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/io/CsvTable.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/FleetService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/FleetService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/RegistrationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/RegistrationService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/ReportService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/ReportService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/ShiftService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/ShiftService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/TrackingService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/TrackingService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/WorkerService.java" beforeDir="false" afterPath="$PROJECT_DIR$/server-backend/src/main/java/com/shuttle/server/service/WorkerService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -497,6 +524,9 @@
   <component name="ExternalProjectsManager">
     <system id="GRADLE">
       <state>
+        <task path="$PROJECT_DIR$">
+          <activation />
+        </task>
         <projects_view>
           <tree_state>
             <expand>
@@ -536,6 +566,9 @@
     &quot;accountId&quot;: &quot;235ed526-2db8-44c6-b381-57a9ecf705d6&quot;
   }
 }</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 7
 }</component>
@@ -550,6 +583,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "Android App.app.executor": "Run",
+    "Gradle.Shuttle-Management-System [test].executor": "Run",
     "GradleDaemonJvmCriteriaMigrationNotification.isNotificationDisabled": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager": "true",
@@ -571,14 +605,14 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
-      <recent name="C:\Users\Roxane Angela Tabo\AndroidStudioProjects\Shuttle-Management-System\server-backend\src\main\java\com\shuttle\server" />
-      <recent name="C:\Users\Roxane Angela Tabo\AndroidStudioProjects\Shuttle-Management-System\server-backend\src\main\java\com\shuttle\server\service" />
-      <recent name="C:\Users\Roxane Angela Tabo\AndroidStudioProjects\Shuttle-Management-System\server-backend\src\main\java\com\shuttle\server\repository" />
       <recent name="C:\Users\Roxane Angela Tabo\AndroidStudioProjects\Shuttle-Management-System\server-backend\src\main\java\com\shuttle\server\handler" />
-      <recent name="C:\Users\Roxane Angela Tabo\AndroidStudioProjects\Shuttle-Management-System\app\src\main\res\font" />
+      <recent name="C:\Users\Roxane Angela Tabo\AndroidStudioProjects\Shuttle-Management-System\server-backend\src\main\java\com\shuttle\server\repository" />
+      <recent name="C:\Users\Roxane Angela Tabo\AndroidStudioProjects\Shuttle-Management-System\server-backend\src\main\java\com\shuttle\server\service" />
+      <recent name="C:\Users\Roxane Angela Tabo\AndroidStudioProjects\Shuttle-Management-System\server-backend\src\main\java\com\shuttle\server" />
+      <recent name="C:\Users\Roxane Angela Tabo\AndroidStudioProjects\Shuttle-Management-System\common\src\main\java\com\shuttle\common" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Android App.app">
     <configuration name="app" type="AndroidRunConfigurationType" factoryName="Android App" activateToolWindowBeforeRun="false">
       <module name="Shuttle-Management-System.app" />
       <option name="ANDROID_RUN_CONFIGURATION_SCHEMA_VERSION" value="1" />
@@ -645,6 +679,36 @@
         <option name="Android.Gradle.BeforeRunTask" enabled="true" />
       </method>
     </configuration>
+    <configuration name="Shuttle-Management-System [test]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="test" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Gradle.Shuttle-Management-System [test]" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
@@ -686,7 +750,15 @@
       <option name="project" value="LOCAL" />
       <updated>1794045980692</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Add login, register, operator and drivers screens.">
+      <option name="closed" value="true" />
+      <created>1794319577139</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1794319577139</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -699,12 +771,12 @@
       <map>
         <entry key="com.shuttle.mobile">
           <value>
-            <CheckInfo lastCheckTimestamp="1794045982415" />
+            <CheckInfo lastCheckTimestamp="1794537671947" />
           </value>
         </entry>
         <entry key="com.shuttle.mobile.test">
           <value>
-            <CheckInfo lastCheckTimestamp="1794045982311" />
+            <CheckInfo lastCheckTimestamp="1794537671947" />
           </value>
         </entry>
       </map>

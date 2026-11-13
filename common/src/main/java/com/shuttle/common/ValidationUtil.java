@@ -16,6 +16,10 @@ public final class ValidationUtil {
         return value != null && !value.trim().isEmpty();
     }
 
+    public static boolean isNotEmpty(String value) {
+        return value != null && !value.isEmpty();
+    }
+
     public static boolean isValidEmail(String email) {
         return email != null && EMAIL_PATTERN.matcher(email.trim()).matches();
     }

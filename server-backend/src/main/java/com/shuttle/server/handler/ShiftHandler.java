@@ -4,13 +4,15 @@ import com.shuttle.common.Role;
 import com.shuttle.common.ShiftRecord;
 import com.shuttle.common.Worker;
 import com.shuttle.server.ApiException;
-import com.shuttle.server.Json;
+import com.shuttle.server.Csv;
 import com.shuttle.server.service.ShiftService;
 
+import java.util.Collections;
 import java.util.Optional;
 
-import static com.shuttle.server.Json.num;
-import static com.shuttle.server.Json.str;
+import static com.shuttle.server.Csv.num;
+import static com.shuttle.server.Csv.str;
+
 public class ShiftHandler extends BaseHandler {
 
     @Override
@@ -20,27 +22,28 @@ public class ShiftHandler extends BaseHandler {
 
         if (r.is("POST") && "start".equals(action)) {
             requireDriver(me);
-            return created(ShiftService.toJson(ShiftService.start(me)));
+            return created(ShiftService.toRow(ShiftService.start(me)));
         }
 
         if (r.is("POST") && "end".equals(action)) {
             requireDriver(me);
             ShiftRecord done = ShiftService.end(me, num(r.body, "distanceKm"),
-                    (int) Json.lng(r.body, "stops"), str(r.body, "route"));
-            return ok(ShiftService.toJson(done));
+                    (int) Csv.lng(r.body, "stops"), str(r.body, "route"));
+            return ok(ShiftService.toRow(done));
         }
 
         if (r.is("GET") && "active".equals(action)) {
             String who = r.isOperator() && r.query.containsKey("driverId") ? r.query.get("driverId") : me.getEmployeeID();
             Optional<ShiftRecord> active = ShiftService.active(who);
+            // one row if a shift is running, otherwise an empty body
             return ok(active.isPresent()
-                    ? Json.obj("active", true, "shift", ShiftService.toJson(active.get()))
-                    : Json.obj("active", false));
+                    ? Collections.singletonList(ShiftService.toRow(active.get()))
+                    : Collections.emptyList());
         }
 
         if (r.is("GET") && action == null) {
             String who = r.isOperator() ? r.query.get("driverId") : me.getEmployeeID();
-            return ok(Json.obj("shifts", ShiftService.toJson(ShiftService.history(who))));
+            return ok(ShiftService.toRow(ShiftService.history(who)));
         }
 
         if (r.is("GET") && action != null) {
@@ -48,7 +51,7 @@ public class ShiftHandler extends BaseHandler {
             if (!r.isOperator() && !shift.getDriverId().equals(me.getEmployeeID())) {
                 throw new ApiException(403, "That shift belongs to someone else");
             }
-            return ok(ShiftService.toJson(shift));
+            return ok(ShiftService.toRow(shift));
         }
 
         throw new ApiException(405, "Method Not Allowed");

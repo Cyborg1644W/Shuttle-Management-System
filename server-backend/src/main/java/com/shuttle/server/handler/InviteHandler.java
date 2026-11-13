@@ -49,8 +49,9 @@ public class InviteHandler extends BaseHandler {
                     name = email.substring(0, email.indexOf('@'));
                 }
             }
-            Worker w = RegistrationService.registerUser(code, name, email, str(r.body, "phone"),
-                    password, str(r.body, "licenseNumber"));
+            Worker w = RegistrationService.registerUser(str(r.body, "role"), name, email,
+                    str(r.body, "phone"), password, str(r.body, "licenseNumber"),
+                    str(r.body, "employeeId"));
             return created(Json.obj("status", "Registration Successful",
                     "employeeId", w.getEmployeeID(), "role", w.getRole().name()));
         }

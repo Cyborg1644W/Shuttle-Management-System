@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-
 public final class CsvTable {
 
     public static final class CsvFormatException extends IOException {

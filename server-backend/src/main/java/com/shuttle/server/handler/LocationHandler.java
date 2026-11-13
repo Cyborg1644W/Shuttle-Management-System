@@ -3,13 +3,14 @@ package com.shuttle.server.handler;
 import com.shuttle.common.Driver;
 import com.shuttle.common.Worker;
 import com.shuttle.server.ApiException;
-import com.shuttle.server.Json;
+import com.shuttle.server.Csv;
 import com.shuttle.server.service.TrackingService;
 
-import static com.shuttle.server.Json.has;
-import static com.shuttle.server.Json.lng;
-import static com.shuttle.server.Json.num;
-import static com.shuttle.server.Json.str;
+import static com.shuttle.server.Csv.filled;
+import static com.shuttle.server.Csv.lng;
+import static com.shuttle.server.Csv.num;
+import static com.shuttle.server.Csv.str;
+
 public class LocationHandler extends BaseHandler {
 
     @Override
@@ -29,11 +30,11 @@ public class LocationHandler extends BaseHandler {
             shuttleId = str(r.body, "shuttleId");
         }
 
-        if (!has(r.body, "latitude") || !has(r.body, "longitude")) {
+        if (!filled(r.body, "latitude") || !filled(r.body, "longitude")) {
             throw new ApiException(400, "latitude and longitude are required");
         }
         TrackingService.updateLocation(shuttleId, num(r.body, "latitude"), num(r.body, "longitude"),
                 num(r.body, "speed"), lng(r.body, "timestamp"));
-        return ok(Json.obj("status", "Location updated"));
+        return ok(Csv.obj("status", "Location updated"));
     }
 }

@@ -53,7 +53,6 @@ public class Auth {
         return userRole.equalsIgnoreCase(requiredRole.trim());
     }
 
-    /** The signed-in worker for this token, or null. */
     public static Worker getWorkerByToken(String token) {
         if (token == null || token.trim().isEmpty()) {
             return null;

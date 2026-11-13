@@ -6,7 +6,7 @@ import com.shuttle.common.ShiftRecord;
 import com.shuttle.common.ShuttleUnit;
 import com.shuttle.common.Worker;
 import com.shuttle.server.ApiException;
-import com.shuttle.server.Json;
+import com.shuttle.server.Csv;
 import com.shuttle.server.Log;
 import com.shuttle.server.Repositories;
 import com.shuttle.server.repository.ShiftRepository;
@@ -132,21 +132,21 @@ public class ShiftService {
         return all;
     }
 
-    public static List<Map<String, Object>> toJson(List<ShiftRecord> shifts) {
+    public static List<Map<String, Object>> toRow(List<ShiftRecord> shifts) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (ShiftRecord s : shifts) {
-            out.add(toJson(s));
+            out.add(toRow(s));
         }
         return out;
     }
 
-    public static Map<String, Object> toJson(ShiftRecord s) {
+    public static Map<String, Object> toRow(ShiftRecord s) {
         long now = System.currentTimeMillis();
         long duration = s.getDurationMillis(now);
         double hours = duration / 3600000.0;
         String driverName = Repositories.workers().findById(s.getDriverId())
                 .map(Worker::getFullName).orElse("");
-        return Json.obj(
+        return Csv.obj(
                 "shiftId", s.getShiftId(),
                 "driverId", s.getDriverId(),
                 "driverName", driverName,

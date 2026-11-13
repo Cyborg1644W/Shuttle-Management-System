@@ -33,7 +33,6 @@ public class LoginActivity extends AppCompatActivity {
     private EditText etPassword;
     private TextView tvError;
     private Button btnContinue;
-    private Button btnApple;
     private Button btnGoogle;
     private TextView tvGoRegister;
 
@@ -57,7 +56,6 @@ public class LoginActivity extends AppCompatActivity {
         etPassword = findViewById(R.id.etPassword);
         tvError = findViewById(R.id.tvError);
         btnContinue = findViewById(R.id.btnContinue);
-        btnApple = findViewById(R.id.btnApple);
         btnGoogle = findViewById(R.id.btnGoogle);
         tvGoRegister = findViewById(R.id.tvGoRegister);
 
@@ -83,8 +81,6 @@ public class LoginActivity extends AppCompatActivity {
 
         btnContinue.setOnClickListener(v -> attemptLogin());
 
-        btnApple.setOnClickListener(v ->
-                Toast.makeText(this, "Apple sign-in coming soon", Toast.LENGTH_SHORT).show());
         btnGoogle.setOnClickListener(v ->
                 Toast.makeText(this, "Google sign-in coming soon", Toast.LENGTH_SHORT).show());
 
