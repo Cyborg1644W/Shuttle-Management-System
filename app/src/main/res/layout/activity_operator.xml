@@ -38,10 +38,10 @@
                 android:text="Shuttle Admin" />
 
             <TextView
+                android:id="@+id/tvPageLabel"
                 style="@style/Fleet.Overline"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/tvPageLabel"
                 android:text="Workers" />
         </LinearLayout>
 
@@ -302,58 +302,58 @@
                 </LinearLayout>
 
                 <!-- Filter chips -->
-                <HorizontalScrollView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:overScrollMode="never"
-                    android:scrollbars="none">
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                    <TextView
+                        android:id="@+id/chipAll"
+                        style="@style/Fleet.Caption"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/tab_selected"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:text="All Roles"
+                        android:textColor="@color/white"
+                        android:textSize="14sp" />
 
-                        <TextView
-                            android:id="@+id/chipAll"
-                            style="@style/Fleet.Caption"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:background="@drawable/tab_selected"
-                            android:gravity="center"
-                            android:paddingStart="20dp"
-                            android:paddingEnd="20dp"
-                            android:text="All Roles"
-                            android:textColor="@color/white"
-                            android:textSize="13sp" />
+                    <TextView
+                        android:id="@+id/chipDrivers"
+                        style="@style/Fleet.Caption"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/tab_unselected"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:text="Drivers"
+                        android:textSize="14sp" />
 
-                        <TextView
-                            android:id="@+id/chipDrivers"
-                            style="@style/Fleet.Caption"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:layout_marginStart="8dp"
-                            android:background="@drawable/tab_unselected"
-                            android:gravity="center"
-                            android:paddingStart="20dp"
-                            android:paddingEnd="20dp"
-                            android:text="Drivers"
-                            android:textSize="13sp" />
-
-                        <TextView
-                            android:id="@+id/chipOperators"
-                            style="@style/Fleet.Caption"
-                            android:layout_width="wrap_content"
-                            android:layout_height="36dp"
-                            android:layout_marginStart="8dp"
-                            android:background="@drawable/tab_unselected"
-                            android:gravity="center"
-                            android:paddingStart="20dp"
-                            android:paddingEnd="20dp"
-                            android:text="Operators"
-                            android:textSize="13sp" />
-                    </LinearLayout>
-                </HorizontalScrollView>
+                    <TextView
+                        android:id="@+id/chipOperators"
+                        style="@style/Fleet.Caption"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/tab_unselected"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:text="Operators"
+                        android:textSize="14sp" />
+                </LinearLayout>
 
                 <!-- Worker cards go here -->
                 <LinearLayout
@@ -430,19 +430,19 @@
             android:orientation="vertical">
 
             <ImageView
+                android:id="@+id/ivNavDashboard"
                 android:layout_width="64dp"
                 android:layout_height="32dp"
                 android:contentDescription="@null"
                 android:padding="5dp"
-                android:id="@+id/ivNavDashboard"
                 android:src="@drawable/ic_home"
                 app:tint="@color/text_secondary" />
 
             <TextView
+                android:id="@+id/tvNavDashboard"
                 style="@style/Fleet.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/tvNavDashboard"
                 android:text="Dashboard"
                 android:textSize="11sp" />
         </LinearLayout>
@@ -458,48 +458,48 @@
             android:orientation="vertical">
 
             <ImageView
+                android:id="@+id/ivNavFleet"
                 android:layout_width="64dp"
                 android:layout_height="32dp"
                 android:contentDescription="@null"
                 android:padding="5dp"
-                android:id="@+id/ivNavFleet"
                 android:src="@drawable/ic_vehicle"
                 app:tint="@color/text_secondary" />
 
             <TextView
+                android:id="@+id/tvNavFleet"
                 style="@style/Fleet.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/tvNavFleet"
                 android:text="Fleet"
                 android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/navWorkers"
-            android:clickable="true"
-            android:focusable="true"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
             android:gravity="center_horizontal"
             android:orientation="vertical">
 
             <ImageView
+                android:id="@+id/ivNavWorkers"
                 android:layout_width="64dp"
                 android:layout_height="32dp"
                 android:background="@drawable/chip_bg"
                 android:contentDescription="@null"
                 android:padding="5dp"
-                android:id="@+id/ivNavWorkers"
                 android:src="@drawable/ic_nav_workers"
                 app:tint="@color/brand_600" />
 
             <TextView
+                android:id="@+id/tvNavWorkers"
                 style="@style/Fleet.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/tvNavWorkers"
                 android:text="Workers"
                 android:textColor="@color/brand_600"
                 android:textSize="11sp" />
@@ -516,19 +516,19 @@
             android:orientation="vertical">
 
             <ImageView
+                android:id="@+id/ivNavSchedule"
                 android:layout_width="64dp"
                 android:layout_height="32dp"
                 android:contentDescription="@null"
                 android:padding="5dp"
-                android:id="@+id/ivNavSchedule"
                 android:src="@drawable/ic_nav_schedule"
                 app:tint="@color/text_secondary" />
 
             <TextView
+                android:id="@+id/tvNavSchedule"
                 style="@style/Fleet.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/tvNavSchedule"
                 android:text="Schedule"
                 android:textSize="11sp" />
         </LinearLayout>

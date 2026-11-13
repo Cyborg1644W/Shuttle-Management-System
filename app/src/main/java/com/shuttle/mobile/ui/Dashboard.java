@@ -6,37 +6,59 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.shuttle.mobile.R;
+import com.shuttle.mobile.client.ApiClient;
+
+import org.json.JSONObject;
 
 public final class Dashboard {
-
-    private static final int TOTAL_SHIFTS = 128;
-    private static final int ACTIVE_UNITS = 6;
-    private static final int INACTIVE_UNITS = 3;
-    private static final int MAINTENANCE_UNITS = 2;
 
     private Dashboard() {
     }
 
     public static View create(Context context, ViewGroup parent) {
         View root = LayoutInflater.from(context)
-                .inflate(R.layout.tab_operator_dashboard, parent, false);
+                .inflate(R.layout.activity_operator_dashboard, parent, false);
 
-        int totalUnits = ACTIVE_UNITS + INACTIVE_UNITS + MAINTENANCE_UNITS;
+        // Show zeros right away, then fill in the real numbers from the server.
+        show(root, 0, 0, 0, 0);
 
-        ((TextView) root.findViewById(R.id.tvTotalShifts)).setText(String.valueOf(TOTAL_SHIFTS));
-        ((TextView) root.findViewById(R.id.tvTotalUnits)).setText(String.valueOf(totalUnits));
+        final Context appContext = context.getApplicationContext();
+        ApiClient.getInstance().getDashboard(new ApiClient.Callback<JSONObject>() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                show(root,
+                        data.optInt("totalShifts"),
+                        data.optInt("activeUnits"),
+                        data.optInt("inactiveUnits"),
+                        data.optInt("maintenanceUnits"));
+            }
 
-        setStatus(root, R.id.tvActiveCount, R.id.tvActivePct, ACTIVE_UNITS, totalUnits);
-        setStatus(root, R.id.tvInactiveCount, R.id.tvInactivePct, INACTIVE_UNITS, totalUnits);
-        setStatus(root, R.id.tvMaintCount, R.id.tvMaintPct, MAINTENANCE_UNITS, totalUnits);
-
-        setBarWeight(root.findViewById(R.id.barActive), ACTIVE_UNITS);
-        setBarWeight(root.findViewById(R.id.barInactive), INACTIVE_UNITS);
-        setBarWeight(root.findViewById(R.id.barMaint), MAINTENANCE_UNITS);
+            @Override
+            public void onError(String message) {
+                Toast.makeText(appContext,
+                        "Could not load dashboard: " + message, Toast.LENGTH_SHORT).show();
+            }
+        });
 
         return root;
+    }
+
+    private static void show(View root, int totalShifts, int active, int inactive, int maintenance) {
+        int totalUnits = active + inactive + maintenance;
+
+        ((TextView) root.findViewById(R.id.tvTotalShifts)).setText(String.valueOf(totalShifts));
+        ((TextView) root.findViewById(R.id.tvTotalUnits)).setText(String.valueOf(totalUnits));
+
+        setStatus(root, R.id.tvActiveCount, R.id.tvActivePct, active, totalUnits);
+        setStatus(root, R.id.tvInactiveCount, R.id.tvInactivePct, inactive, totalUnits);
+        setStatus(root, R.id.tvMaintCount, R.id.tvMaintPct, maintenance, totalUnits);
+
+        setBarWeight(root.findViewById(R.id.barActive), active);
+        setBarWeight(root.findViewById(R.id.barInactive), inactive);
+        setBarWeight(root.findViewById(R.id.barMaint), maintenance);
     }
 
     private static void setStatus(View root, int countId, int pctId, int count, int total) {

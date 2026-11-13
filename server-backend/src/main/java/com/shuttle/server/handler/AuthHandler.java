@@ -25,15 +25,19 @@ public class AuthHandler extends BaseHandler {
 
         if (r.is("POST") && (action == null || action.equals("login"))) {
             String email = str(r.body, "email");
+            String phone = str(r.body, "phone");
             String password = str(r.body, "password");
-            if (email.isEmpty() && password.isEmpty()) { // older clients sent headers
+            if (email.isEmpty() && phone.isEmpty() && password.isEmpty()) { // older clients sent headers
                 email = nz(r.header("X-Email"));
                 password = nz(r.header("X-Password"));
             }
-            if (email.trim().isEmpty() || password.isEmpty()) {
-                throw new ApiException(400, "Email and password are required");
+            boolean byPhone = email.trim().isEmpty() && !phone.trim().isEmpty();
+            if ((email.trim().isEmpty() && phone.trim().isEmpty()) || password.isEmpty()) {
+                throw new ApiException(400, "Email (or mobile number) and password are required");
             }
-            String token = Auth.authenticateUser(email, password);
+            String token = byPhone
+                    ? Auth.authenticateByPhone(phone, password)
+                    : Auth.authenticateUser(email, password);
             if (token == null) {
                 throw new ApiException(401, "Invalid credentials");
             }

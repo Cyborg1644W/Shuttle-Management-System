@@ -106,6 +106,45 @@ public class ApiClient {
         });
     }
 
+    public void getDashboard(Callback<JSONObject> callback) {
+        executor.execute(() -> {
+            try {
+                String body = get("/dashboard");
+                JSONObject obj = new JSONObject(body);
+                mainHandler.post(() -> callback.onSuccess(obj));
+            } catch (Exception e) {
+                final String msg = e.getMessage() == null ? "Network error" : e.getMessage();
+                mainHandler.post(() -> callback.onError(msg));
+            }
+        });
+    }
+
+    public void getWorkers(Callback<JSONArray> callback) {
+        executor.execute(() -> {
+            try {
+                String body = get("/workers");
+                JSONArray arr = new JSONArray(body);
+                mainHandler.post(() -> callback.onSuccess(arr));
+            } catch (Exception e) {
+                final String msg = e.getMessage() == null ? "Network error" : e.getMessage();
+                mainHandler.post(() -> callback.onError(msg));
+            }
+        });
+    }
+
+    public void getShifts(Callback<JSONArray> callback) {
+        executor.execute(() -> {
+            try {
+                String body = get("/shift");
+                JSONArray arr = new JSONArray(body);
+                mainHandler.post(() -> callback.onSuccess(arr));
+            } catch (Exception e) {
+                final String msg = e.getMessage() == null ? "Network error" : e.getMessage();
+                mainHandler.post(() -> callback.onError(msg));
+            }
+        });
+    }
+
     private boolean postJson(String path, String json) {
         HttpURLConnection conn = null;
         try {

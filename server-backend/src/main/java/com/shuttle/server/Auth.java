@@ -1,6 +1,7 @@
 package com.shuttle.server;
 
 import com.shuttle.common.Worker;
+import com.shuttle.server.service.WorkerService;
 
 import java.util.Locale;
 import java.util.Map;
@@ -16,8 +17,32 @@ public class Auth {
         if (email == null || rawPassword == null || email.trim().isEmpty()) {
             return null;
         }
+        return startSession(Repositories.workers().findByEmail(email.trim()), rawPassword);
+    }
 
-        Optional<Worker> found = Repositories.workers().findByEmail(email.trim());
+    public static String authenticateByPhone(String phone, String rawPassword) {
+        if (phone == null || rawPassword == null || phone.trim().isEmpty()) {
+            return null;
+        }
+        String normalized;
+        try {
+            normalized = WorkerService.normalizePhone(phone);
+        } catch (ApiException e) {
+            return null; // not a usable number, so it can't match anyone
+        }
+        return startSession(findByPhone(normalized), rawPassword);
+    }
+
+    private static Optional<Worker> findByPhone(String phone) {
+        for (Worker w : Repositories.workers().getAllWorkers()) {
+            if (phone.equals(w.getPhone()) && !WorkerService.PENDING_HASH.equals(w.getPasswordHash())) {
+                return Optional.of(w);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static String startSession(Optional<Worker> found, String rawPassword) {
         if (!found.isPresent()) {
             return null;
         }

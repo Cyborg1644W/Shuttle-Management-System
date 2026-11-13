@@ -62,10 +62,19 @@ public final class AuthApi {
     }
 
     public static void login(String email, String password, LoginCallback callback) {
+        doLogin("email", email, password, callback);
+    }
+
+    public static void loginWithPhone(String phone, String password, LoginCallback callback) {
+        doLogin("phone", phone, password, callback);
+    }
+
+    private static void doLogin(String idKey, String idValue, String password,
+                                LoginCallback callback) {
         executor.execute(() -> {
             try {
                 Map<String, String> body = new LinkedHashMap<>();
-                body.put("email", email);
+                body.put(idKey, idValue);
                 body.put("password", password);
 
                 Result r = send(LOGIN_PATH, body);

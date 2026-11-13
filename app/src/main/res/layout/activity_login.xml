@@ -179,27 +179,29 @@
                     android:visibility="invisible" />
             </LinearLayout>
 
-            <RelativeLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp">
+                android:layout_marginTop="16dp"
+                android:text="PASSWORD"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Standard carrier text rates apply"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentEnd="true"
-                    android:text="Instant OTP"
-                    android:textColor="@color/brand_600"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
-            </RelativeLayout>
+            <EditText
+                android:id="@+id/etMobilePassword"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/input_bg"
+                android:hint="Enter your password"
+                android:importantForAutofill="no"
+                android:inputType="textPassword"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_tertiary"
+                android:textSize="16sp" />
         </LinearLayout>
 
         <!-- Email section (hidden at first) -->
@@ -278,7 +280,7 @@
             android:elevation="6dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            android:text="Continue with Mobile OTP"
+            android:text="Continue"
             android:textColor="@color/white"
             android:textSize="15sp"
             app:backgroundTint="@color/brand_600"

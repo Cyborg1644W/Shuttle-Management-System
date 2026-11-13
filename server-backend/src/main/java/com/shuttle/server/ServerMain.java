@@ -11,6 +11,7 @@ public class ServerMain {
             }
         } catch (Exception e) {
             Log.error("Failed to start server: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

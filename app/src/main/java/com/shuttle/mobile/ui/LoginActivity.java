@@ -31,6 +31,7 @@ public class LoginActivity extends AppCompatActivity {
     private EditText etPhone;
     private EditText etEmail;
     private EditText etPassword;
+    private EditText etMobilePassword;
     private TextView tvError;
     private Button btnContinue;
     private Button btnGoogle;
@@ -54,6 +55,7 @@ public class LoginActivity extends AppCompatActivity {
         etPhone = findViewById(R.id.etPhone);
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
+        etMobilePassword = findViewById(R.id.etMobilePassword);
         tvError = findViewById(R.id.tvError);
         btnContinue = findViewById(R.id.btnContinue);
         btnGoogle = findViewById(R.id.btnGoogle);
@@ -69,6 +71,10 @@ public class LoginActivity extends AppCompatActivity {
         FieldUi.onChange(etPhone, () -> {
             tvError.setVisibility(View.GONE);
             updatePhone();
+        });
+        FieldUi.onChange(etMobilePassword, () -> {
+            tvError.setVisibility(View.GONE);
+            FieldUi.set(etMobilePassword, FieldUi.NORMAL);
         });
         FieldUi.onChange(etEmail, () -> {
             tvError.setVisibility(View.GONE);
@@ -142,6 +148,7 @@ public class LoginActivity extends AppCompatActivity {
     private void resetEmailAndPassword() {
         FieldUi.set(etEmail, isEmailValid() ? FieldUi.VALID : FieldUi.NORMAL);
         FieldUi.set(etPassword, FieldUi.NORMAL);
+        FieldUi.set(etMobilePassword, FieldUi.NORMAL);
     }
 
     private void selectTab(boolean mobile) {
@@ -155,7 +162,7 @@ public class LoginActivity extends AppCompatActivity {
             tvTabMobile.setTextColor(getResources().getColor(R.color.white));
             tvTabEmail.setBackgroundResource(R.drawable.tab_unselected);
             tvTabEmail.setTextColor(getResources().getColor(R.color.text_secondary));
-            btnContinue.setText("Continue with Mobile OTP");
+            btnContinue.setText("Continue");
         } else {
             layoutMobile.setVisibility(View.GONE);
             layoutEmail.setVisibility(View.VISIBLE);
@@ -176,7 +183,7 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         if (mobileMode) {
-            showError("Mobile sign-in is not available yet. Please use the Email tab.");
+            attemptMobileLogin();
             return;
         }
 
@@ -203,7 +210,39 @@ public class LoginActivity extends AppCompatActivity {
         tvError.setVisibility(View.GONE);
         setLoggingIn(true);
 
-        AuthApi.login(email, password, new AuthApi.LoginCallback() {
+        AuthApi.login(email, password, loginCallback(false));
+    }
+
+    private void attemptMobileLogin() {
+        String digits = getCleanDigits();
+        String password = etMobilePassword.getText().toString();
+
+        if (digits.isEmpty() || password.isEmpty()) {
+            if (digits.isEmpty()) {
+                FieldUi.set(phoneBox, FieldUi.ERROR);
+            }
+            if (password.isEmpty()) {
+                FieldUi.set(etMobilePassword, FieldUi.ERROR);
+            }
+            showError("Please enter your mobile number and password.");
+            return;
+        }
+
+        if (!isPhoneValid()) {
+            FieldUi.set(phoneBox, FieldUi.ERROR);
+            showError("Please enter a complete mobile number.");
+            return;
+        }
+
+        tvError.setVisibility(View.GONE);
+        setLoggingIn(true);
+
+        String fullPhone = tvCountryCode.getText().toString() + digits;
+        AuthApi.loginWithPhone(fullPhone, password, loginCallback(true));
+    }
+
+    private AuthApi.LoginCallback loginCallback(boolean mobile) {
+        return new AuthApi.LoginCallback() {
             @Override
             public void onSuccess(Role role) {
                 if (isFinishing()) {
@@ -219,14 +258,20 @@ public class LoginActivity extends AppCompatActivity {
                 }
                 setLoggingIn(false);
                 if (status == 401) {
-                    FieldUi.set(etEmail, FieldUi.ERROR);
-                    FieldUi.set(etPassword, FieldUi.ERROR);
-                    showError("Wrong email or password.");
+                    if (mobile) {
+                        FieldUi.set(phoneBox, FieldUi.ERROR);
+                        FieldUi.set(etMobilePassword, FieldUi.ERROR);
+                        showError("Wrong mobile number or password.");
+                    } else {
+                        FieldUi.set(etEmail, FieldUi.ERROR);
+                        FieldUi.set(etPassword, FieldUi.ERROR);
+                        showError("Wrong email or password.");
+                    }
                 } else {
                     showError(message);
                 }
             }
-        });
+        };
     }
 
     private void setLoggingIn(boolean busy) {

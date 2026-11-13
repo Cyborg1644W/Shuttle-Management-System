@@ -24,11 +24,6 @@ import com.shuttle.mobile.R;
 
 import java.util.Locale;
 
-/**
- * Styled dialogs for Worker Management: Shift Log, Reassign, and Add/Edit Worker.
- * Self-contained: you pass the data in and get a callback out.
- * Also has helpers for sorting workers and showing the ON BREAK outline.
- */
 public final class WorkerDialogs {
 
     private WorkerDialogs() { }

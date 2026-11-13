@@ -13,4 +13,12 @@
     <string name="start_shift">Start Shift</string>
     <string name="end_shift">End Shift</string>
     <string name="shift_summary">Shift Summary</string>
+    <string name="fleet_title">Fleet</string>
+    <string name="fleet_subtitle">Drivers and their shift duration</string>
+    <string name="fleet_search_hint">Search by name, ID or unit</string>
+    <string name="filter_all">All</string>
+    <string name="filter_on_shift">On shift</string>
+    <string name="filter_off_shift">Off shift</string>
+    <string name="fleet_count_zero">0 drivers</string>
+    <string name="fleet_empty">No drivers found</string>
 </resources>

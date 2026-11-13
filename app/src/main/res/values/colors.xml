@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <color name="mint">#EFF7F4</color>
+    <color name="pill_gray">#EDF1F0</color>
+    <color name="pass_start">#0A5A47</color>
+    <color name="pass_end">#14826A</color>
+
     <color name="primary">#0F6B55</color>
     <color name="primary_dark">#0A4F40</color>
     <color name="accent">#1FA588</color>
@@ -40,4 +45,19 @@
     <color name="break_dot">#C77A14</color>
     <color name="break_text">#4A3414</color>
     <color name="dot_red">#E5484D</color>
+
+    <color name="ff_bg">#F6F8F7</color>
+    <color name="ff_surface">#FFFFFF</color>
+    <color name="ff_border">#E4E8E6</color>
+    <color name="ff_text">#101828</color>
+    <color name="ff_text_muted">#667085</color>
+    <color name="ff_primary">#1F9D61</color>
+    <color name="ff_primary_soft">#E3F5EC</color>
+
+    <color name="ff_active">#1F9D61</color>
+    <color name="ff_active_soft">#E3F5EC</color>
+    <color name="ff_inactive">#8A94A6</color>
+    <color name="ff_inactive_soft">#EEF0F4</color>
+    <color name="ff_maint">#E0900F</color>
+    <color name="ff_maint_soft">#FDF1DC</color>
 </resources>

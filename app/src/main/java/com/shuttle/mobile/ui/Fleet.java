@@ -14,10 +14,16 @@ import android.widget.TextView;
 import androidx.core.content.ContextCompat;
 
 import com.shuttle.mobile.R;
+import com.shuttle.mobile.client.ApiClient;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public final class Fleet {
 
@@ -27,7 +33,7 @@ public final class Fleet {
         final String phone;
         final String unit;
         final boolean onShift;
-        final int minutes;
+        int minutes;
 
         Driver(String name, String empId, String phone, String unit,
                boolean onShift, int minutes) {
@@ -55,24 +61,82 @@ public final class Fleet {
 
     private Fleet(Context context) {
         this.context = context;
-        loadSampleDrivers();
     }
 
     public static View create(Context context, ViewGroup parent) {
         return new Fleet(context).build(parent);
     }
 
-    private void loadSampleDrivers() {
-        drivers.add(new Driver("Juan Dela Cruz", "EMP-1001", "0917 123 4567", "Shuttle 01", true, 385));
-        drivers.add(new Driver("Maria Santos", "EMP-1002", "0918 234 5678", "Shuttle 02", true, 142));
-        drivers.add(new Driver("Pedro Reyes", "EMP-1003", "0919 345 6789", "Shuttle 03", false, 480));
-        drivers.add(new Driver("Ana Garcia", "EMP-1004", "0920 456 7890", "Shuttle 04", true, 55));
-        drivers.add(new Driver("Mark Villanueva", "EMP-1005", "0921 567 8901", "Shuttle 05", false, 455));
-        drivers.add(new Driver("Liza Mendoza", "EMP-1006", "0922 678 9012", "Shuttle 06", false, 390));
+    private void loadDrivers() {
+        final CharSequence emptyText = tvEmpty.getText();
+        tvEmpty.setText("Loading drivers...");
+
+        ApiClient.getInstance().getWorkers(new ApiClient.Callback<JSONArray>() {
+            @Override
+            public void onSuccess(JSONArray result) {
+                drivers.clear();
+                for (int i = 0; i < result.length(); i++) {
+                    JSONObject w = result.optJSONObject(i);
+                    if (w == null || !"DRIVER".equalsIgnoreCase(w.optString("role"))) {
+                        continue;
+                    }
+                    String shuttle = w.optString("shuttleId");
+                    drivers.add(new Driver(
+                            w.optString("fullName"),
+                            w.optString("employeeId"),
+                            w.optString("phoneDisplay"),
+                            shuttle.isEmpty() ? "Unassigned" : shuttle,
+                            "ON_SHIFT".equals(w.optString("shiftStatus")),
+                            -1));
+                }
+                tvEmpty.setText(emptyText);
+                render();
+                loadShifts();
+            }
+
+            @Override
+            public void onError(String message) {
+                tvEmpty.setText("Could not load drivers: " + message);
+                render();
+            }
+        });
+    }
+
+    private void loadShifts() {
+        ApiClient.getInstance().getShifts(new ApiClient.Callback<JSONArray>() {
+            @Override
+            public void onSuccess(JSONArray result) {
+                // The server lists shifts newest first, so the first one found for a
+                // driver is their current shift (if running) or their last one.
+                Set<String> seen = new HashSet<>();
+                for (int i = 0; i < result.length(); i++) {
+                    JSONObject s = result.optJSONObject(i);
+                    if (s == null) {
+                        continue;
+                    }
+                    String driverId = s.optString("driverId");
+                    if (!seen.add(driverId)) {
+                        continue;
+                    }
+                    for (Driver d : drivers) {
+                        if (d.empId.equals(driverId)) {
+                            d.minutes = (int) (s.optLong("durationMs") / 60000L);
+                            break;
+                        }
+                    }
+                }
+                render();
+            }
+
+            @Override
+            public void onError(String message) {
+                // Keep the drivers on screen; durations simply stay as "--".
+            }
+        });
     }
 
     private View build(ViewGroup parent) {
-        View root = LayoutInflater.from(context).inflate(R.layout.tab_operator_fleet, parent, false);
+        View root = LayoutInflater.from(context).inflate(R.layout.activity_operator_fleet, parent, false);
 
         list = root.findViewById(R.id.fleetList);
         tvCount = root.findViewById(R.id.tvFleetCount);
@@ -112,6 +176,7 @@ public final class Fleet {
         });
 
         render();
+        loadDrivers();
         return root;
     }
 
@@ -150,7 +215,7 @@ public final class Fleet {
         ((TextView) item.findViewById(R.id.tvUnit)).setText(d.unit);
         ((TextView) item.findViewById(R.id.tvDurationLabel))
                 .setText(d.onShift ? "Current shift" : "Last shift");
-        ((TextView) item.findViewById(R.id.tvDuration)).setText(formatDuration(d.minutes));
+        ((TextView) item.findViewById(R.id.tvDuration)).setText(d.minutes < 0 ? "--" : formatDuration(d.minutes));
 
         TextView status = item.findViewById(R.id.tvStatus);
         status.setText(d.onShift ? "On shift" : "Off shift");
@@ -163,10 +228,9 @@ public final class Fleet {
     }
 
     private void styleChip(TextView chip, boolean selected) {
-        int bg = ContextCompat.getColor(context, selected ? R.color.ff_primary : R.color.ff_inactive_soft);
-        int text = ContextCompat.getColor(context, selected ? R.color.ff_surface : R.color.ff_text_muted);
-        chip.setBackgroundTintList(ColorStateList.valueOf(bg));
-        chip.setTextColor(text);
+        chip.setBackgroundResource(selected ? R.drawable.tab_selected : R.drawable.tab_unselected);
+        chip.setTextColor(ContextCompat.getColor(context,
+                selected ? R.color.white : R.color.text_secondary));
     }
 
     private static String initials(String name) {
