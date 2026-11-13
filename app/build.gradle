@@ -2,6 +2,24 @@ plugins {
     id 'com.android.application'
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.isFile()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+
+def apiBaseUrl = providers.gradleProperty('shuttleApiBaseUrl')
+        .orElse(providers.environmentVariable('SHUTTLE_API_BASE_URL'))
+        .orElse(localProperties.getProperty('shuttleApiBaseUrl', 'http://10.0.2.2:8080/api/'))
+        .get()
+
+if (!apiBaseUrl.startsWith('http://') && !apiBaseUrl.startsWith('https://')) {
+    throw new GradleException('shuttleApiBaseUrl must start with http:// or https://')
+}
+if (!apiBaseUrl.endsWith('/')) {
+    apiBaseUrl += '/'
+}
+
 android {
     namespace 'com.shuttle.mobile'
     compileSdk 34
@@ -12,6 +30,12 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+
+        buildConfigField 'String', 'API_BASE_URL', "\"${apiBaseUrl}\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     compileOptions {

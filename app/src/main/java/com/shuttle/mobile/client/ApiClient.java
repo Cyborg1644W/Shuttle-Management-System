@@ -3,6 +3,8 @@ package com.shuttle.mobile.client;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.shuttle.mobile.BuildConfig;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,7 +23,11 @@ import java.util.concurrent.Executors;
 
 public class ApiClient {
 
-    public static final String BASE_URL = "http://10.0.2.2:8080/api";
+    /**
+     * Configured at build time from local.properties, a Gradle property, or SHUTTLE_API_BASE_URL.
+     * It always ends in a slash so a request path can be appended safely.
+     */
+    public static final String BASE_URL = BuildConfig.API_BASE_URL;
 
     private static final int TIMEOUT_MS = 8000;
 
@@ -182,7 +188,8 @@ public class ApiClient {
     }
 
     private HttpURLConnection open(String path, String method) throws IOException {
-        HttpURLConnection conn = (HttpURLConnection) new URL(BASE_URL + path).openConnection();
+        String relativePath = path.startsWith("/") ? path.substring(1) : path;
+        HttpURLConnection conn = (HttpURLConnection) new URL(BASE_URL + relativePath).openConnection();
         conn.setRequestMethod(method);
         conn.setConnectTimeout(TIMEOUT_MS);
         conn.setReadTimeout(TIMEOUT_MS);

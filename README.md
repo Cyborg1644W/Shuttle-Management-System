@@ -122,7 +122,7 @@ shuttle-management-system/
 
 ## ⚡ Quick Start
 
-You need **JDK 17+**, the **Android SDK** (with `ANDROID_HOME` set or `sdk.dir` in `local.properties`), and **Git**.
+You need **JDK 17–21**, the **Android SDK** (with `ANDROID_HOME` set or `sdk.dir` in `local.properties`), and **Git**. Ensure `JAVA_HOME` points to that JDK before running Gradle. Android Studio should use the same Gradle JDK to avoid separate incompatible daemons.
 
 **0. Clone the repository**
 
@@ -144,10 +144,10 @@ Copy the files in `sample-data/import/` into the server's `import/` directory so
 **3. Start the server**
 
 ```bash
-./gradlew :server-backend:run --args="--bootstrap-admin you@example.com"
+./run-server.sh
 ```
 
-The server binds to `0.0.0.0:8443` by default and prints a one-time admin invite code to the console. Without a keystore configured (see Security below) it serves plain HTTP, so use it for local testing only.
+On Windows, use `run-server.bat`. The launcher builds an up-to-date installable backend distribution, then starts Java directly rather than leaving a Gradle `run` task attached to Android Studio. The server binds to `0.0.0.0:8080` by default; check `http://127.0.0.1:8080/health`. `./gradlew :server-backend:run` is also valid, but it intentionally remains active while the HTTP server is running.
 
 **4. Install the Android app**
 
@@ -157,7 +157,15 @@ Connect an Android device (or start an emulator) and run:
 ./gradlew :app:installDebug
 ```
 
-The app must be able to reach the server. A physical phone needs your computer's LAN IP; an emulator reaches the host machine at `10.0.2.2`. Android 9+ blocks cleartext HTTP by default, so a debug build talking to a non-TLS server needs a network security config that allows it.
+The app must be able to reach the server. A physical phone needs your computer's LAN IP; an emulator reaches the host machine at `10.0.2.2`. Set the debug endpoint without committing a machine-specific address:
+
+```bash
+# PowerShell for the current shell
+$env:SHUTTLE_API_BASE_URL = 'http://192.168.x.x:8080/api/'
+./gradlew :app:assembleDebug
+```
+
+The Gradle property `-PshuttleApiBaseUrl=http://192.168.x.x:8080/api/` is also supported; keep the trailing slash. A `shuttleApiBaseUrl` entry in `local.properties` is supported for projects where that file is ignored. This checkout tracks `local.properties`, so prefer the environment variable or a user-level Gradle property in `%USERPROFILE%\.gradle\gradle.properties` to avoid committing a LAN address. Cleartext HTTP is enabled only in the debug manifest; release builds keep Android's default HTTPS-only policy.
 
 **5. First login workflow**
 
