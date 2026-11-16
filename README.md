@@ -116,6 +116,7 @@ shuttle-management-system/
     `-- API.md
 ```
 
+
 ## 📷 Screenshot
 
 <img width="1102" height="552" alt="Dispatcher map view showing live shuttle positions" src="https://github.com/user-attachments/assets/d07912a9-52c9-4b2b-876a-9c623ad43d08" />
