@@ -23,6 +23,19 @@
             android:padding="10dp"
             android:src="@drawable/ic_arrow_back" />
 
+        <TextView
+            android:id="@+id/btnServerConnection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:gravity="center"
+            android:padding="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="Server connection"
+            android:textColor="@color/brand_600"
+            android:textSize="14sp" />
+
         <!-- ================= STEP 1: CHOOSE ROLE ================= -->
         <LinearLayout
             android:id="@+id/layoutChooseRole"

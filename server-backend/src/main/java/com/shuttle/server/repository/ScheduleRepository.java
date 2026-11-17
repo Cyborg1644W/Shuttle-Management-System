@@ -3,7 +3,7 @@ package com.shuttle.server.repository;
 import com.shuttle.server.io.CsvTable;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import com.shuttle.server.storage.CsvStorage;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +41,7 @@ public class ScheduleRepository {
 
     private void load() throws IOException {
         List<Entry> fresh = new ArrayList<>();
-        if (!Files.exists(file)) {
+        if (!CsvStorage.exists(file)) {
             new CsvTable(HEADER).save(file);
         } else {
             CsvTable table = CsvTable.load(file, HEADER);

@@ -58,16 +58,16 @@ public class WorkerService {
         if (w instanceof Driver) {
             Driver d = (Driver) w;
             m.put("shuttleId", nz(d.getAssignedShuttleId()));
-            m.put("terminal", nz(d.getAssignedTerminal()));
+            m.put("terminal", TerminalService.getState(w).get("terminalName"));
             m.put("activeShiftId", nz(d.getActiveShiftId()));
             m.put("licenseNumber", nz(d.getLicenseNumber()));
             m.put("value1", nz(d.getAssignedShuttleId()));
-            m.put("value2", nz(d.getAssignedTerminal()));
+            m.put("value2", TerminalService.getState(w).get("terminalName"));
         } else {
             Operator o = (Operator) w;
-            m.put("zone", nz(o.getTerminalZone()));
+            m.put("zone", TerminalService.getState(w).get("terminalName"));
             m.put("shiftTime", nz(o.getShiftTime()));
-            m.put("value1", nz(o.getTerminalZone()));
+            m.put("value1", TerminalService.getState(w).get("terminalName"));
             m.put("value2", nz(o.getShiftTime()));
         }
         return m;
@@ -115,20 +115,19 @@ public class WorkerService {
                 throw new ApiException(409, "This email is already registered");
             }
 
-            Worker w = findPendingByPhone(normalizedPhone, role);
-            if (w == null) {
-                String id = requestedId == null || requestedId.trim().isEmpty()
-                        ? Repositories.workers().nextEmployeeId()
-                        : cleanEmployeeId(requestedId);
-                if (Repositories.workers().existsById(id)) {
-                    throw new ApiException(409, "This employee ID is already used");
-                }
-                if (isPhoneTaken(normalizedPhone)) {
-                    throw new ApiException(409, "This mobile number is already registered");
-                }
-                w = blank(role);
-                w.setEmployeeID(id);
+            // Account registration is independent of operator-created staff records.
+            // Joining a terminal requires accepting its invitation, never just matching a phone number.
+            String id = requestedId == null || requestedId.trim().isEmpty()
+                    ? Repositories.workers().nextEmployeeId()
+                    : cleanEmployeeId(requestedId);
+            if (Repositories.workers().existsById(id)) {
+                throw new ApiException(409, "This employee ID is already used");
             }
+            if (isPhoneTaken(normalizedPhone)) {
+                throw new ApiException(409, "This mobile number is already registered");
+            }
+            Worker w = blank(role);
+            w.setEmployeeID(id);
             w.setFullName(name);
             w.setEmail(cleanEmail);
             w.setPasswordHash(Crypto.hashPassword(password));
@@ -139,15 +138,6 @@ public class WorkerService {
             Repositories.workers().saveWorker(w);
             return w;
         }
-    }
-
-    private static Worker findPendingByPhone(String phone, Role role) {
-        for (Worker w : Repositories.workers().getAllWorkers()) {
-            if (PENDING_HASH.equals(w.getPasswordHash()) && phone.equals(w.getPhone()) && w.getRole() == role) {
-                return w;
-            }
-        }
-        return null;
     }
 
     private static boolean isPhoneTaken(String phone) {
@@ -164,26 +154,8 @@ public class WorkerService {
             Worker w = get(employeeId);
             String id = w.getEmployeeID();
 
-            if (has(body, "employeeId") && byOperator) {
-                String newId = cleanEmployeeId(str(body, "employeeId"));
-                if (!newId.equals(id)) {
-                    if (Repositories.workers().existsById(newId)) {
-                        throw new ApiException(409, "This employee ID is already used");
-                    }
-                    Repositories.workers().renameEmployeeId(id, newId);
-                    List<ShiftRecord> shifts = Repositories.shifts().findByDriverId(id);
-                    for (ShiftRecord s : shifts) {
-                        s.setDriverId(newId);
-                    }
-                    if (!shifts.isEmpty()) {
-                        Repositories.shifts().saveAll(shifts);
-                    }
-                    Repositories.schedule().renameEmployee(id, newId);
-                    Auth.replaceEmployeeId(id, newId);
-                    Log.audit("Employee ID changed: " + id + " -> " + newId);
-                    id = newId;
-                    w = get(id);
-                }
+            if (has(body, "employeeId") && !str(body, "employeeId").trim().equals(id)) {
+                throw new ApiException(400, "Employee IDs cannot be changed after account creation");
             }
 
             if (has(body, "fullName")) {
@@ -227,9 +199,13 @@ public class WorkerService {
                     }
                     d.setAssignedShuttleId(shuttleId);
                 }
+                String name = String.valueOf(TerminalService.getState(w).get("terminalName"));
+                d.setAssignedTerminal(name.isEmpty() ? null : name);
                 if (terminalKey != null) {
-                    String raw = str(body, terminalKey).trim();
-                    d.setAssignedTerminal(raw.isEmpty() || raw.equalsIgnoreCase("Unassigned") ? null : raw);
+                    if (!str(body, terminalKey).trim().equals(name)) {
+                        throw new ApiException(400, "Drivers switch terminals by accepting an invitation");
+                    }
+                    d.setAssignedTerminal(name);
                 }
             } else {
                 Operator o = (Operator) w;

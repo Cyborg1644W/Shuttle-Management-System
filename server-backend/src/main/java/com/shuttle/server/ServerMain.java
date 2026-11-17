@@ -9,9 +9,10 @@ public class ServerMain {
             if (Repositories.workers().count() == 0) {
                 System.out.println("No accounts yet. Register the first one from the app.");
             }
-        } catch (Exception e) {
-            Log.error("Failed to start server: " + e.getMessage());
-            e.printStackTrace();
+        } catch (Throwable e) {
+            // Configuration errors can occur in static initialization. Never advertise a ready server.
+            Log.error("Server startup failed (" + e.getClass().getSimpleName() + "). Check storage configuration and access.");
+            System.exit(1);
         }
     }
 }
