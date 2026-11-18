@@ -1,0 +1,27 @@
+# One free backend instance. Durable state lives in the private R2 object, not Render's disk.
+services:
+  - type: web
+    name: shuttle-server
+    runtime: docker
+    plan: free
+    numInstances: 1
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: DATA_DIR
+        value: /app/data
+      - key: STORAGE_MODE
+        value: r2
+      - key: R2_OBJECT_KEY
+        value: shuttle-state.zip
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false

@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
+import java.net.URI;
 
 public class ServerConfig {
     private static final String CONFIG_FILE = "config.properties";
@@ -14,6 +15,7 @@ public class ServerConfig {
     private static String shuttlesCsv = "sample-data/import/shuttles.csv";
     private static String shiftsCsv = null;     // default: next to workers.csv
     private static String scheduleCsv = null;   // default: next to workers.csv
+    private static String storageMode;
 
     static {
         loadConfig();
@@ -32,8 +34,45 @@ public class ServerConfig {
                 scheduleCsv = props.getProperty("csv.schedule", scheduleCsv);
             }
         } catch (Exception e) {
-            System.out.println("[INFO] Using default system configurations.");
+            throw new IllegalArgumentException("Invalid config.properties", e);
         }
+        storageMode = setting("STORAGE_MODE", "local");
+        if (!storageMode.equals("local") && !storageMode.equals("r2")) {
+            throw new IllegalArgumentException("STORAGE_MODE must be local or r2");
+        }
+        String configuredPort = System.getenv("PORT");
+        if (configuredPort != null && !configuredPort.isBlank()) port = Integer.parseInt(configuredPort);
+        if (port < 1 || port > 65535) throw new IllegalArgumentException("PORT must be between 1 and 65535");
+        String dataDir = System.getenv("DATA_DIR");
+        if (isR2() || (dataDir != null && !dataDir.isBlank())) {
+            Path base = Paths.get(setting("DATA_DIR", "data"));
+            workersCsv = base.resolve("workers.csv").toString();
+            shuttlesCsv = base.resolve("shuttles.csv").toString();
+            shiftsCsv = base.resolve("shifts.csv").toString();
+            scheduleCsv = base.resolve("schedule.csv").toString();
+        }
+        if (isR2()) {
+            getR2Endpoint(); getR2Bucket(); getR2AccessKeyId(); getR2SecretAccessKey();
+        }
+    }
+
+    public static boolean isR2() { return "r2".equals(storageMode); }
+    public static URI getR2Endpoint() { return URI.create(required("R2_ENDPOINT")); }
+    public static String getR2Bucket() { return required("R2_BUCKET"); }
+    public static String getR2ObjectKey() { return setting("R2_OBJECT_KEY", "shuttle-state.zip"); }
+    public static String getR2AccessKeyId() { return required("R2_ACCESS_KEY_ID"); }
+    public static String getR2SecretAccessKey() { return required("R2_SECRET_ACCESS_KEY"); }
+    public static boolean allowInsecureR2Localhost() { return "true".equals(System.getenv("R2_ALLOW_HTTP_LOCALHOST")); }
+
+    private static String required(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) throw new IllegalArgumentException("Missing environment variable: " + name);
+        return value;
+    }
+
+    private static String setting(String name, String fallback) {
+        String value = System.getenv(name);
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     // Getters for server startup & repositories

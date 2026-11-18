@@ -354,6 +354,19 @@
             android:textSize="14sp"
             android:textStyle="bold" />
 
+        <TextView
+            android:id="@+id/btnServerConnection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:gravity="center"
+            android:padding="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="Server connection"
+            android:textColor="@color/brand_600"
+            android:textSize="14sp" />
+
         <!-- Pushes the footer to the bottom -->
         <Space
             android:layout_width="match_parent"

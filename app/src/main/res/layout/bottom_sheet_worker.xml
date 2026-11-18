@@ -244,7 +244,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="14dp"
             android:layout_weight="1"
-            android:text="Deactivate / Remove"
+            android:text="Remove from terminal"
             android:textColor="@color/danger"
             android:textSize="14sp" />
 

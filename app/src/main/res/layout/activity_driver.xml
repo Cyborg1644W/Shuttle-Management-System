@@ -264,6 +264,18 @@
                     </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnTerminal"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:minHeight="48dp"
+                        android:text="Join terminal"
+                        android:textAllCaps="false"
+                        android:textColor="@color/brand_600"
+                        app:cornerRadius="14dp" />
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnShift"
                         style="@style/Fleet.Subtitle"
                         android:layout_width="match_parent"

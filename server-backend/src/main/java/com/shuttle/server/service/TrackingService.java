@@ -93,6 +93,11 @@ public class TrackingService {
         return new HashMap<>(positions);
     }
 
+    public static void restore(Map<String, Position> snapshot) {
+        positions.clear();
+        positions.putAll(snapshot);
+    }
+
     public static Map<String, String> getAllActiveLocations() {
         Map<String, String> out = new HashMap<>();
         for (Position p : positions.values()) {

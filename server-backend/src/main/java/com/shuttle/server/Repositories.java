@@ -4,6 +4,9 @@ import com.shuttle.server.repository.ScheduleRepository;
 import com.shuttle.server.repository.ShiftRepository;
 import com.shuttle.server.repository.ShuttleRepository;
 import com.shuttle.server.repository.WorkerRepository;
+import com.shuttle.server.repository.TerminalRepository;
+import com.shuttle.server.storage.CsvStorage;
+import com.shuttle.server.service.TrackingService;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -18,23 +21,73 @@ public final class Repositories {
     private static ShiftRepository shifts;
     private static ShuttleRepository shuttles;
     private static ScheduleRepository schedule;
+    private static TerminalRepository terminals;
+    private static boolean initialized;
 
     private Repositories() {
     }
 
-    public static synchronized void init() throws IOException {
-        if (workers != null) {
-            return;
+    public static void init() throws IOException {
+        synchronized (LOCK) {
+            if (initialized) return;
+            CsvStorage.configure();
+            CsvStorage.refresh();
+            CsvStorage.begin();
+            try {
+                reload();
+                CsvStorage.commit();
+                initialized = true;
+            } catch (IOException | RuntimeException failure) {
+                CsvStorage.rollback();
+                throw failure;
+            }
         }
+    }
+
+    private static void reload() throws IOException {
         createParent(ServerConfig.getWorkersCsvPath());
         createParent(ServerConfig.getShuttlesCsvPath());
         createParent(ServerConfig.getShiftsCsvPath());
         createParent(ServerConfig.getScheduleCsvPath());
 
-        workers = new WorkerRepository(ServerConfig.getWorkersCsvPath());
-        shuttles = new ShuttleRepository(ServerConfig.getShuttlesCsvPath());
-        shifts = new ShiftRepository(ServerConfig.getShiftsCsvPath());
-        schedule = new ScheduleRepository(ServerConfig.getScheduleCsvPath());
+        WorkerRepository nextWorkers = new WorkerRepository(ServerConfig.getWorkersCsvPath());
+        ShuttleRepository nextShuttles = new ShuttleRepository(ServerConfig.getShuttlesCsvPath());
+        ShiftRepository nextShifts = new ShiftRepository(ServerConfig.getShiftsCsvPath());
+        ScheduleRepository nextSchedule = new ScheduleRepository(ServerConfig.getScheduleCsvPath());
+        TerminalRepository nextTerminals = new TerminalRepository(ServerConfig.getWorkersCsvPath().resolveSibling("terminals.csv"));
+        workers = nextWorkers;
+        shuttles = nextShuttles;
+        shifts = nextShifts;
+        schedule = nextSchedule;
+        terminals = nextTerminals;
+    }
+
+    /** Cloud writes are staged until all validation, mutations and response serialization succeed. */
+    public static <T> T transact(java.util.concurrent.Callable<T> operation) throws Exception {
+        synchronized (LOCK) {
+            if (!CsvStorage.isCloud()) return operation.call();
+            CsvStorage.refresh();
+            CsvStorage.begin();
+            java.util.Map<String, String> sessions = Auth.snapshotSessions();
+            java.util.Map<String, TrackingService.Position> positions = TrackingService.snapshot();
+            Log.beginTransaction();
+            try {
+                reload();
+                T result = operation.call();
+                CsvStorage.commit();
+                Log.commitTransaction();
+                return result;
+            } catch (Exception failure) {
+                CsvStorage.rollback();
+                Auth.restoreSessions(sessions);
+                TrackingService.restore(positions);
+                Log.rollbackTransaction();
+                // Reconstruct the in-memory repositories from the last committed dataset.
+                // Any later request refreshes R2 again, including after an uncertain upload.
+                try { reload(); } catch (Exception recovery) { failure.addSuppressed(recovery); }
+                throw failure;
+            }
+        }
     }
 
     public static WorkerRepository workers() {
@@ -51,6 +104,10 @@ public final class Repositories {
 
     public static ScheduleRepository schedule() {
         return require(schedule);
+    }
+
+    public static TerminalRepository terminals() {
+        return require(terminals);
     }
 
     private static <T> T require(T repo) {

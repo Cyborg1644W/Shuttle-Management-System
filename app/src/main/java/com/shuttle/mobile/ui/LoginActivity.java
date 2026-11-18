@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.shuttle.common.Role;
 import com.shuttle.mobile.R;
+import com.shuttle.mobile.client.ApiClient;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -43,7 +44,11 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ApiClient.initialize(this);
         setContentView(R.layout.activity_login);
+        findViewById(R.id.btnServerConnection).setOnClickListener(v -> {
+            if (!loggingIn) ServerConnectionUi.show(this);
+        });
 
         tvTabMobile = findViewById(R.id.tvTabMobile);
         tvTabEmail = findViewById(R.id.tvTabEmail);
@@ -277,6 +282,8 @@ public class LoginActivity extends AppCompatActivity {
     private void setLoggingIn(boolean busy) {
         loggingIn = busy;
         btnContinue.setEnabled(!busy);
+        findViewById(R.id.btnServerConnection).setEnabled(!busy);
+        tvGoRegister.setEnabled(!busy);
         btnContinue.setText(busy ? "Signing in..." : "Continue");
     }
 

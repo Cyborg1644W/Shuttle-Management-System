@@ -6,6 +6,8 @@ import com.shuttle.server.ApiException;
 import com.shuttle.server.Auth;
 import com.shuttle.server.Csv;
 import com.shuttle.server.Log;
+import com.shuttle.server.Repositories;
+import com.shuttle.server.storage.ObjectStore;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -107,12 +109,20 @@ public abstract class BaseHandler implements HttpHandler {
         Object body;
         try {
             Request r = readRequest(exchange);
-            if (!isPublic(r)) {
-                ApiHandler.requireAuth(r.token);
-            }
-            Response resp = process(r);
+            Response resp = Repositories.transact(() -> {
+                if (!isPublic(r)) ApiHandler.requireAuth(r.token);
+                Response processed = process(r);
+                // Serialize before committing: encoding errors must not acknowledge a partial save.
+                return new Response(processed.status, processed.body == null ? "" : Csv.toCsv(processed.body));
+            });
             status = resp.status;
             body = resp.body;
+        } catch (ObjectStore.ConflictException e) {
+            status = 409;
+            body = Csv.obj("error", "Saved data changed on the server. Refresh before trying this action again.");
+        } catch (IOException e) {
+            status = 503;
+            body = Csv.obj("error", "Storage is unavailable or the save could not be confirmed. Reconnect and refresh before repeating this action.");
         } catch (ApiException e) {
             status = e.getStatusCode();
             body = Csv.obj("error", e.getMessage());
@@ -128,7 +138,7 @@ public abstract class BaseHandler implements HttpHandler {
             status = 500;
             body = Csv.obj("error", "Server error");
         }
-        ApiHandler.sendResponse(exchange, status, body == null ? "" : Csv.toCsv(body));
+        ApiHandler.sendResponse(exchange, status, body == null ? "" : body instanceof String ? (String) body : Csv.toCsv(body));
     }
 
     private static Request readRequest(HttpExchange ex) throws IOException {

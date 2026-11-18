@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.shuttle.common.Role;
 import com.shuttle.mobile.R;
+import com.shuttle.mobile.client.ApiClient;
 
 public class RegisterActivity extends AppCompatActivity {
 
@@ -48,7 +49,11 @@ public class RegisterActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ApiClient.initialize(this);
         setContentView(R.layout.activity_register);
+        findViewById(R.id.btnServerConnection).setOnClickListener(v -> {
+            if (!registering) ServerConnectionUi.show(this);
+        });
 
         layoutChooseRole = findViewById(R.id.layoutChooseRole);
         layoutForm = findViewById(R.id.layoutForm);
@@ -386,6 +391,7 @@ public class RegisterActivity extends AppCompatActivity {
     private void setRegistering(boolean busy) {
         registering = busy;
         btnRegister.setEnabled(!busy);
+        findViewById(R.id.btnServerConnection).setEnabled(!busy);
         btnRegister.setText(busy ? "Creating account..." : "Create Account");
     }
 

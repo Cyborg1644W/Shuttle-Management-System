@@ -51,6 +51,7 @@ public class GpsTrackerService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        ApiClient.initialize(this);
         queue = new OfflineQueueManager(this);
         api = ApiClient.getInstance();
 

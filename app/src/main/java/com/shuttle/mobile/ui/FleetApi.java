@@ -4,7 +4,9 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.shuttle.mobile.client.ApiClient;
+import com.shuttle.mobile.client.ServerReadiness;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -19,6 +21,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -56,23 +61,28 @@ public final class FleetApi {
 
     private static void run(String method, String path, JSONObject body, Callback callback) {
         final String token = Session.getToken();
+        final String baseUrl = ApiClient.getBaseUrl();
 
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
-                conn = (HttpURLConnection) new URL(ApiClient.BASE_URL + path).openConnection();
+                ServerReadiness.ensureReady(baseUrl);
+                if (!baseUrl.equals(ApiClient.getBaseUrl())) {
+                    throw new IOException("The server address changed. Please try again.");
+                }
+                conn = (HttpURLConnection) new URL(baseUrl + path).openConnection();
                 conn.setRequestMethod(method);
                 conn.setConnectTimeout(TIMEOUT_MS);
                 conn.setReadTimeout(TIMEOUT_MS);
-                conn.setRequestProperty("Accept", "application/json");
+                conn.setRequestProperty("Accept", "text/csv");
                 if (token != null) {
                     conn.setRequestProperty("Authorization", "Bearer " + token);
                 }
 
                 if (method.equals("POST") || method.equals("PUT")) {
-                    byte[] data = (body == null ? "{}" : body.toString()).getBytes(StandardCharsets.UTF_8);
+                    byte[] data = csvBody(body).getBytes(StandardCharsets.UTF_8);
                     conn.setDoOutput(true);
-                    conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                    conn.setRequestProperty("Content-Type", "text/csv; charset=utf-8");
                     conn.setFixedLengthStreamingMode(data.length);
                     try (OutputStream os = conn.getOutputStream()) {
                         os.write(data);
@@ -84,7 +94,7 @@ public final class FleetApi {
                 String text = readAll(good ? conn.getInputStream() : conn.getErrorStream());
 
                 if (good) {
-                    final JSONObject json = text.trim().isEmpty() ? new JSONObject() : new JSONObject(text);
+                    final JSONObject json = response(path, method, text);
                     mainHandler.post(() -> {
                         if (callback != null) {
                             callback.onSuccess(json);
@@ -100,9 +110,11 @@ public final class FleetApi {
                     });
                 }
             } catch (IOException e) {
+                final String message = e.getMessage() == null
+                        ? "Cannot reach the server. Check your connection and server address." : e.getMessage();
                 mainHandler.post(() -> {
                     if (callback != null) {
-                        callback.onError(0, "Cannot reach the server. Check that it is running.");
+                        callback.onError(0, message);
                     }
                 });
             } catch (JSONException e) {
@@ -171,13 +183,69 @@ public final class FleetApi {
         return points;
     }
 
+    // Preserve the JSONObject API used by screens while speaking CSV on the wire.
+    static String csvBody(JSONObject body) throws JSONException {
+        if (body == null || body.length() == 0) {
+            return "";
+        }
+        Map<String, String> row = new LinkedHashMap<>();
+        Iterator<String> keys = body.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            Object value = body.get(key);
+            if (value instanceof JSONObject || value instanceof JSONArray) {
+                throw new JSONException("CSV requests must contain scalar fields");
+            }
+            row.put(key, value == JSONObject.NULL ? "" : String.valueOf(value));
+        }
+        return AuthApi.buildCsv(row);
+    }
+
+    static JSONObject response(String path, String method, String text) throws JSONException {
+        List<Map<String, String>> rows = AuthApi.parseCsv(text);
+        JSONArray array = new JSONArray();
+        for (Map<String, String> row : rows) {
+            array.put(new JSONObject(row));
+        }
+        String route = path.split("\\?", 2)[0];
+        if ("GET".equals(method) && "/shift/active".equals(route)) {
+            JSONObject reply = new JSONObject();
+            reply.put("active", array.length() > 0);
+            if (array.length() > 0) {
+                reply.put("shift", array.getJSONObject(0));
+            }
+            return reply;
+        }
+        String listKey = null;
+        if ("GET".equals(method)) {
+            switch (route) {
+                case "/workers": listKey = "workers"; break;
+                case "/shuttles": listKey = "shuttles"; break;
+                case "/shift": listKey = "shifts"; break;
+                case "/schedule": listKey = "schedule"; break;
+                case "/live": listKey = "shuttles"; break;
+                default: break;
+            }
+        }
+        if (listKey != null) {
+            return new JSONObject().put(listKey, array);
+        }
+        if (array.length() == 0) {
+            if (!text.trim().isEmpty()) {
+                throw new JSONException("Expected a CSV row");
+            }
+            return new JSONObject();
+        }
+        return array.getJSONObject(0);
+    }
+
     private static String errorMessage(String text, int code) {
-        try {
-            String message = new JSONObject(text).optString("error", "");
-            if (!message.isEmpty()) {
+        List<Map<String, String>> rows = AuthApi.parseCsv(text);
+        if (!rows.isEmpty()) {
+            String message = rows.get(0).get("error");
+            if (message != null && !message.isEmpty()) {
                 return message;
             }
-        } catch (JSONException ignored) {
         }
         return "Server returned " + code;
     }
@@ -190,7 +258,7 @@ public final class FleetApi {
         try (BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
             String line;
             while ((line = r.readLine()) != null) {
-                sb.append(line);
+                sb.append(line).append('\n');
             }
         }
         return sb.toString();

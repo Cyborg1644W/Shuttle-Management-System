@@ -5,7 +5,7 @@ import com.shuttle.common.ValidationUtil;
 import com.shuttle.server.io.CsvTable;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import com.shuttle.server.storage.CsvStorage;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -288,7 +288,7 @@ public class ShiftRepository {
     }
 
     private Map<String, ShiftRecord> readFromDisk() throws IOException {
-        if (!Files.exists(file)) {
+        if (!CsvStorage.exists(file)) {
             new CsvTable(HEADER).save(file);
             return new LinkedHashMap<>();
         }

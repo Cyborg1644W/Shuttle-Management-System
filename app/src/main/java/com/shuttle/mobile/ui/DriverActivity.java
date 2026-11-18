@@ -61,6 +61,9 @@ public class DriverActivity extends AppCompatActivity {
     private String terminal = "Unassigned";
     private long activeStart = 0;
     private boolean busy = false;
+    private FleetConnectionUi.Membership fleetMembership;
+    private boolean fleetPromptShown;
+    private MaterialButton btnTerminal;
 
     private View pageHome;
     private View pageTrips;
@@ -104,6 +107,15 @@ public class DriverActivity extends AppCompatActivity {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private int currentTab = 0;
+    private final Runnable connectionRefresh = new Runnable() {
+        @Override public void run() {
+            if (Session.isSignedIn()) {
+                refreshMembership(false);
+                syncFromServer();
+            }
+            handler.postDelayed(this, 10000);
+        }
+    };
 
     private final Runnable ticker = new Runnable() {
         @Override
@@ -165,6 +177,9 @@ public class DriverActivity extends AppCompatActivity {
         tvStatStops = findViewById(R.id.tvStatStops);
         tvStatSpeed = findViewById(R.id.tvStatSpeed);
         btnShift = findViewById(R.id.btnShift);
+        btnTerminal = findViewById(R.id.btnTerminal);
+        btnTerminal.setOnClickListener(v -> showTerminalConnection());
+        tvTerminal.setOnClickListener(v -> showTerminalConnection());
         mapView = findViewById(R.id.mapView);
         tvTripsEmpty = findViewById(R.id.tvTripsEmpty);
         listTrips = findViewById(R.id.listTrips);
@@ -253,7 +268,10 @@ public class DriverActivity extends AppCompatActivity {
             return;
         }
         refreshShiftUi();
+        refreshMembership();
         syncFromServer();
+        handler.removeCallbacks(connectionRefresh);
+        handler.postDelayed(connectionRefresh, 10000);
         if (currentTab == 1) {
             renderTrips();
         }
@@ -263,6 +281,7 @@ public class DriverActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         handler.removeCallbacks(ticker);
+        handler.removeCallbacks(connectionRefresh);
     }
 
     @Override
@@ -285,7 +304,49 @@ public class DriverActivity extends AppCompatActivity {
 
     private void setBusy(boolean value) {
         busy = value;
-        btnShift.setEnabled(!value);
+        btnShift.setEnabled(!value && (activeStart > 0 || isFleetJoined()));
+    }
+
+    private boolean isFleetJoined() {
+        return fleetMembership != null && fleetMembership.joined;
+    }
+
+    private void showTerminalConnection() {
+        if (fleetMembership == null) {
+            refreshMembership();
+            Toast.makeText(this, "Checking your terminal connection…", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        FleetConnectionUi.showDriver(this, fleetMembership, () -> {
+            refreshMembership();
+            syncFromServer();
+        });
+    }
+
+    private void refreshMembership() {
+        refreshMembership(true);
+    }
+
+    private void refreshMembership(boolean reportErrors) {
+        FleetApi.get("/fleet", new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject json) {
+                if (isFinishing() || isDestroyed()) return;
+                fleetMembership = new FleetConnectionUi.Membership(json);
+                terminal = isFleetJoined() ? fleetMembership.terminalName : "No terminal yet";
+                btnTerminal.setText(isFleetJoined() ? "Terminal: " + terminal : "Join terminal");
+                refreshShiftUi();
+                if (!isFleetJoined() && !fleetPromptShown) {
+                    fleetPromptShown = true;
+                    showTerminalConnection();
+                }
+            }
+            @Override public void onError(int status, String message) {
+                if (isFinishing() || isDestroyed()) return;
+                btnTerminal.setText("Check terminal connection");
+                refreshShiftUi();
+                if (reportErrors || status == 401) handleError(status, message);
+            }
+        });
     }
 
     private void syncFromServer() {
@@ -307,7 +368,8 @@ public class DriverActivity extends AppCompatActivity {
                 String v = FleetApi.text(w, "shuttleId");
                 String t = FleetApi.text(w, "terminal");
                 vehicle = v.isEmpty() ? "Unassigned" : v;
-                terminal = t.isEmpty() ? "Unassigned" : t;
+                terminal = isFleetJoined() ? fleetMembership.terminalName
+                        : (t.isEmpty() ? "No terminal yet" : t);
                 refreshShiftUi();
             }
 
@@ -776,7 +838,10 @@ public class DriverActivity extends AppCompatActivity {
         boolean active = activeStart > 0;
 
         styleBadge(tvStatusBadge, active ? "ON SHIFT" : "OFF DUTY");
-        tvStatusHint.setText(active ? "Shift in progress" : "Ready to start your shift");
+        tvStatusHint.setText(active ? "Shift in progress" : isFleetJoined()
+                ? "Ready to start your shift" : fleetMembership == null
+                ? "Checking your terminal connection…" : "Join your operator's terminal to start a shift");
+        btnShift.setEnabled(!busy && (active || isFleetJoined()));
 
         if (active) {
             btnShift.setText("End Shift");
@@ -805,6 +870,10 @@ public class DriverActivity extends AppCompatActivity {
         }
 
         if (activeStart <= 0) {
+            if (!isFleetJoined()) {
+                showTerminalConnection();
+                return;
+            }
             startShift();
         } else {
             new MaterialAlertDialogBuilder(this)
