@@ -8,7 +8,7 @@ import com.shuttle.common.Worker;
 import com.shuttle.server.io.CsvTable;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import com.shuttle.server.storage.CsvStorage;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -350,7 +350,7 @@ public class WorkerRepository {
     }
 
     private Map<String, Worker> readFromDisk() throws IOException {
-        if (!Files.exists(file)) {
+        if (!CsvStorage.exists(file)) {
             new CsvTable(HEADER).save(file);
             return new LinkedHashMap<>();
         }

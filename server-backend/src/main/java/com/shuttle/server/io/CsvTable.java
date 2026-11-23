@@ -1,6 +1,7 @@
 package com.shuttle.server.io;
 
 import com.shuttle.common.CsvUtil;
+import com.shuttle.server.storage.CsvStorage;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -86,7 +87,7 @@ public final class CsvTable {
     }
 
     public static CsvTable load(Path filePath, List<String> requiredColumns) throws IOException {
-        String text = AtomicFileWriter.readString(filePath);
+        String text = CsvStorage.read(filePath);
         return parse(text, filePath.toString(), requiredColumns);
     }
 
@@ -183,7 +184,7 @@ public final class CsvTable {
     }
 
     public void save(Path filePath) throws IOException {
-        AtomicFileWriter.writeAtomically(filePath, toCsv());
+        CsvStorage.write(filePath, toCsv());
     }
 
     private static void appendLine(StringBuilder sb, String[] cells) {

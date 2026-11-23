@@ -126,6 +126,18 @@
                     android:text="Registered Staff"
                     android:textColor="@color/text_secondary" />
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnFleetConnection"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:minHeight="48dp"
+                    android:text="Create your terminal"
+                    android:textAllCaps="false"
+                    android:textColor="@color/brand_600"
+                    app:cornerRadius="14dp" />
+
                 <!-- Stat cards -->
                 <LinearLayout
                     android:layout_width="match_parent"

@@ -116,6 +116,7 @@ shuttle-management-system/
     `-- API.md
 ```
 
+
 ## 📷 Screenshot
 
 <img width="1102" height="552" alt="Dispatcher map view showing live shuttle positions" src="https://github.com/user-attachments/assets/d07912a9-52c9-4b2b-876a-9c623ad43d08" />
@@ -134,7 +135,7 @@ cd shuttle-management-system
 **1. Build the project**
 
 ```bash
-./gradlew build
+bash ./gradlew :server-backend:installDist :app:assembleDebug
 ```
 
 **2. Load the sample data (optional)**
@@ -149,37 +150,65 @@ Copy the files in `sample-data/import/` into the server's `import/` directory so
 
 On Windows, use `run-server.bat`. The launcher builds an up-to-date installable backend distribution, then starts Java directly rather than leaving a Gradle `run` task attached to Android Studio. The server binds to `0.0.0.0:8080` by default; check `http://127.0.0.1:8080/health`. `./gradlew :server-backend:run` is also valid, but it intentionally remains active while the HTTP server is running.
 
+By default the server stores its CSVs on the same machine. The Render + R2 deployment below uses private cloud storage. For access from different networks, use the HTTPS address of the hosted server.
+
 **4. Install the Android app**
 
 Connect an Android device (or start an emulator) and run:
 
 ```bash
-./gradlew :app:installDebug
+bash ./gradlew :app:installDebug
 ```
 
-The app must be able to reach the server. A physical phone needs your computer's LAN IP; an emulator reaches the host machine at `10.0.2.2`. Set the debug endpoint without committing a machine-specific address:
+Use **Server connection** on the sign-in or registration screen to set the address on each phone. On the same Wi-Fi, a physical phone can use the LAN IP of the computer, such as http://192.168.1.10:8080. An emulator uses http://10.0.2.2:8080. For a hosted backend, enter its HTTPS address.
 
-```bash
-# PowerShell for the current shell
-$env:SHUTTLE_API_BASE_URL = 'http://192.168.x.x:8080/api/'
-./gradlew :app:assembleDebug
-```
-
-The Gradle property `-PshuttleApiBaseUrl=http://192.168.x.x:8080/api/` is also supported; keep the trailing slash. A `shuttleApiBaseUrl` entry in `local.properties` is supported for projects where that file is ignored. This checkout tracks `local.properties`, so prefer the environment variable or a user-level Gradle property in `%USERPROFILE%\.gradle\gradle.properties` to avoid committing a LAN address. Cleartext HTTP is enabled only in the debug manifest; release builds keep Android's default HTTPS-only policy.
+For debug builds, you can also set the default address through the SHUTTLE_API_BASE_URL environment variable or the shuttleApiBaseUrl Gradle property. A saved address in the app takes precedence. Local HTTP is available in debug builds. Use HTTPS for release builds.
 
 **5. First login workflow**
 
-1. Open the Android app and tap **Register with invite code**.
-2. Enter your email and the invite code from the server console.
-3. Log in as the Admin and use the dashboard to generate an invite code for a Driver.
-4. On a second phone, register the Driver, select a shuttle, and tap **Start Shift**.
-5. The Dispatcher's `PureJavaMapCanvas` will begin showing the Driver's real-time GPS location.
+1. Register independent **Operator** and **Driver** accounts. A driver can sign in before belonging to any terminal.
+2. On the operator's phone, tap **Create your terminal** and enter its name.
+3. Tap **Invite drivers**, then **Invite a driver**. Copy the code or share it through a messaging app.
+4. On the driver's phone, tap **Join terminal**, enter the code, check the terminal and operator, then confirm.
+5. The driver appears in that operator's staff list. Vehicle assignments use the terminal's own shuttles, and shifts require terminal membership and an assigned vehicle.
+
+Each invitation admits one driver and expires after 48 hours. Codes and memberships survive backend restarts; sign in again after restarting because sessions are kept in memory. A driver belongs to one terminal at a time. Accepting another terminal's invitation requires explicit confirmation and finishing any active shift; it clears the old vehicle assignment and schedule while retaining the account and personal trip history. Removing a driver from the staff list disconnects the terminal membership without deleting the driver's account.
+
+Terminal membership, vehicle ownership and invitations are persisted together in `terminals.csv`, next to `workers.csv`. Workers, vehicles, schedules, shift reports and locations are filtered by terminal. Existing CSV records without terminal ownership are not automatically assigned to a newly created terminal; existing drivers should accept invitations, and vehicle ownership needs an explicit data migration. Deleted shuttle IDs remain reserved to their original terminal so historical tracking cannot be exposed through ID reuse.
+
+The invitation feature uses no paid messaging or QR service. It does not provide hosting: both phones still require internet access to the shared backend for joining and live updates.
+
+### Free prototype deployment: Render + R2
+
+See [the deployment guide](docs/DEPLOY_RENDER_R2.md) for the private bucket, server settings, Docker deployment, and two-phone restart checks. The included `render.yaml` selects one Free Docker service and R2 storage; it does not provision services or contain credentials.
+
+Set `STORAGE_MODE=r2` and the documented R2 environment settings on the hosted server. All five CSV tables, including persistent fleet invitations in `terminals.csv`, commit together in a private ZIP object. Conditional writes detect conflicting versions. A failed upload rolls back the request's repository/session changes, and an uncertain upload is checked against the exact saved snapshot before reporting success. Local development still defaults to file storage.
+
+The sign-in, registration and fleet clients check readiness before submitting an action, allowing up to 90 seconds for a sleeping host. Only the health GET is retried; account creation, joining and shift actions are never automatically repeated.
+
+### Integration checks
+
+After building `:server-backend:installDist`, run:
+
+```bash
+python3 -B -m unittest discover -s server-backend/tests -v
+```
+
+The tests launch isolated temporary Java servers and exercise registration, invitations, terminal isolation, switching, concurrent redemption, expiration, and restart persistence. The R2 tests use a local S3-compatible test service that verifies request signatures and injects storage failures, version conflicts and uncertain uploads. They do not use a real bucket or incur cloud charges. For a custom build output location, set `SHUTTLE_SERVER_LIB_DIR` to the generated distribution's `lib` directory.
+
+The Android readiness helper also has standalone JVM tests:
+
+```bash
+mkdir -p /tmp/shuttle-readiness-tests
+javac -d /tmp/shuttle-readiness-tests app/src/main/java/com/shuttle/mobile/client/ServerReadiness.java app/tests/ServerReadinessTest.java
+java -cp /tmp/shuttle-readiness-tests com.shuttle.mobile.client.ServerReadinessTest
+```
 
 ## 🔒 Security & Production Readiness
 
 Before real drivers use this system in production:
 
-1. **Enable HTTPS:** Passwords and session tokens currently travel over plain HTTP. Provide a PKCS12 keystore to the server via JVM arguments (`-Dshuttle.ssl.keystore=...`).
+1. **Enable HTTPS:** Use the hosting provider's HTTPS address for phones. Render terminates HTTPS and forwards to the Java server's internal HTTP port. The local development server serves plain HTTP.
 2. **Data privacy (Philippine Data Privacy Act, RA 10173, and GDPR where applicable):** Drivers are being actively tracked. Obtain explicit consent and set up automated data-retention rules for the GPS CSV files.
 3. **Network accessibility:** For phones on public roads to sync, the server must be reachable from the internet, for example through port forwarding or a secure tunnel such as Cloudflare Tunnel or Tailscale.
 

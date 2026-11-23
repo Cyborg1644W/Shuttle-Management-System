@@ -1,17 +1,25 @@
 package com.shuttle.server.handler;
 
 import com.shuttle.server.ApiException;
+import com.shuttle.server.Repositories;
+import com.shuttle.server.service.TerminalService;
 import com.shuttle.server.service.ReportService;
 
 
 public class DashboardHandler extends BaseHandler {
 
     @Override
-    protected Response process(Request r) {
+    protected Response process(Request r) throws Exception {
+        synchronized (Repositories.LOCK) {
+            return processScoped(r);
+        }
+    }
+
+    private Response processScoped(Request r) throws Exception {
         if (!r.is("GET")) {
             throw new ApiException(405, "Method Not Allowed");
         }
         r.requireOperator();
-        return ok(ReportService.dashboard());
+        return ok(ReportService.dashboard(r.worker()));
     }
 }

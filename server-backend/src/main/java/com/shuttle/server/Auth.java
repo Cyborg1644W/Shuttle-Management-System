@@ -13,6 +13,13 @@ public class Auth {
 
     private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
 
+    static Map<String, String> snapshotSessions() { return new java.util.HashMap<>(activeSessions); }
+
+    static void restoreSessions(Map<String, String> snapshot) {
+        activeSessions.clear();
+        activeSessions.putAll(snapshot);
+    }
+
     public static String authenticateUser(String email, String rawPassword) {
         if (email == null || rawPassword == null || email.trim().isEmpty()) {
             return null;

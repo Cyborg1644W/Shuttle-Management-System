@@ -3,6 +3,8 @@ package com.shuttle.server.handler;
 import com.shuttle.common.Driver;
 import com.shuttle.common.Worker;
 import com.shuttle.server.ApiException;
+import com.shuttle.server.Repositories;
+import com.shuttle.server.service.TerminalService;
 import com.shuttle.server.Csv;
 import com.shuttle.server.service.TrackingService;
 
@@ -14,7 +16,13 @@ import static com.shuttle.server.Csv.str;
 public class LocationHandler extends BaseHandler {
 
     @Override
-    protected Response process(Request r) {
+    protected Response process(Request r) throws Exception {
+        synchronized (Repositories.LOCK) {
+            return processScoped(r);
+        }
+    }
+
+    private Response processScoped(Request r) throws Exception {
         if (!r.is("POST")) {
             throw new ApiException(405, "Method Not Allowed");
         }
@@ -30,6 +38,7 @@ public class LocationHandler extends BaseHandler {
             shuttleId = str(r.body, "shuttleId");
         }
 
+        TerminalService.requireShuttle(me, shuttleId);
         if (!filled(r.body, "latitude") || !filled(r.body, "longitude")) {
             throw new ApiException(400, "latitude and longitude are required");
         }

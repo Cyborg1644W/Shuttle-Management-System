@@ -10,6 +10,7 @@ import com.shuttle.server.handler.ScheduleHandler;
 import com.shuttle.server.handler.ShiftHandler;
 import com.shuttle.server.handler.ShuttleLocationHandler;
 import com.shuttle.server.handler.WorkerHandler;
+import com.shuttle.server.handler.FleetConnectionHandler;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -32,11 +33,18 @@ public class ShuttleServer {
         // Anything that matches no endpoint below gets a plain error instead of an HTML page
         server.createContext("/api", exchange ->
                 ApiHandler.sendError(exchange, 404, "Endpoint Not Found"));
-        server.createContext("/api/health", exchange ->
-                ApiHandler.sendResponse(exchange, 200, "status\nok\n"));
+        server.createContext("/api/health", exchange -> {
+            try {
+                String response = Repositories.transact(() -> "status\nok\n");
+                ApiHandler.sendResponse(exchange, 200, response);
+            } catch (Exception failure) {
+                ApiHandler.sendError(exchange, 503, "Storage is not ready");
+            }
+        });
         server.createContext("/health", exchange ->
                 ApiHandler.sendResponse(exchange, 200, "status\nok\n"));
         server.createContext("/api/auth", new AuthHandler());
+        server.createContext("/api/fleet", new FleetConnectionHandler());
         server.createContext("/api/workers", new WorkerHandler());
         server.createContext("/api/shift", new ShiftHandler());
         server.createContext("/api/location", new LocationHandler());

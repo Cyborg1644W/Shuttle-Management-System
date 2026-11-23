@@ -1,0 +1,14 @@
+# Build context includes only the backend/common Java sources and Dockerfile.
+# In particular, never send local CSV data, snapshots or credentials to the builder.
+**
+!Dockerfile
+!common/
+!common/src/
+!common/src/main/
+!common/src/main/java/
+!common/src/main/java/**
+!server-backend/
+!server-backend/src/
+!server-backend/src/main/
+!server-backend/src/main/java/
+!server-backend/src/main/java/**

@@ -29,6 +29,7 @@ public class ShiftService {
             if (worker.getRole() != Role.DRIVER) {
                 throw new ApiException(403, "Only drivers can start a shift");
             }
+            TerminalService.requireJoined(worker);
             Driver driver = (Driver) Repositories.workers().findById(worker.getEmployeeID())
                     .orElseThrow(() -> new ApiException(404, "Worker not found"));
 
@@ -40,6 +41,7 @@ public class ShiftService {
             if (shuttleId == null || shuttleId.isEmpty()) {
                 throw new ApiException(409, "No vehicle assigned yet. Ask an operator to assign one.");
             }
+            TerminalService.requireShuttle(driver, shuttleId);
             ShuttleUnit shuttle = Repositories.shuttles().findById(shuttleId)
                     .orElseThrow(() -> new ApiException(409, "Your assigned vehicle no longer exists"));
             if (ShuttleRepository.STATUS_MAINTENANCE.equals(shuttle.getCurrentStatus())
@@ -59,7 +61,7 @@ public class ShiftService {
             shift.setStartTime(System.currentTimeMillis());
             shift.setEndTime(0);
             shift.setStatus(ShiftRepository.STATUS_ACTIVE);
-            shift.setTerminal(driver.getAssignedTerminal());
+            shift.setTerminal(String.valueOf(TerminalService.getState(driver).get("terminalName")));
             Repositories.shifts().saveShift(shift);
 
             driver.setActiveShiftId(shift.getShiftId());

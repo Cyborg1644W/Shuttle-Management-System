@@ -1,8 +1,10 @@
 package com.shuttle.mobile.client;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.shuttle.common.CsvUtil;
 import com.shuttle.mobile.BuildConfig;
 
 import org.json.JSONArray;
@@ -18,6 +20,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -25,9 +30,17 @@ public class ApiClient {
 
     /**
      * Configured at build time from local.properties, a Gradle property, or SHUTTLE_API_BASE_URL.
-     * It always ends in a slash so a request path can be appended safely.
+     * Remove the trailing slash because API paths start with a slash.
      */
-    public static final String BASE_URL = BuildConfig.API_BASE_URL;
+    public static final String BASE_URL = BuildConfig.API_BASE_URL.replaceAll("/+$", "");
+
+    public static void initialize(Context context) {
+        ServerConnection.initialize(context);
+    }
+
+    public static String getBaseUrl() {
+        return ServerConnection.getBaseUrl();
+    }
 
     private static final int TIMEOUT_MS = 8000;
 
@@ -40,7 +53,7 @@ public class ApiClient {
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private String authToken; // optional
+    private volatile String authToken; // optional
 
     private ApiClient() { }
 
@@ -88,7 +101,7 @@ public class ApiClient {
         } catch (JSONException e) {
             return true; // corrupt entry: report "handled" so it gets dropped from the queue
         }
-        return postJson("/shuttles/" + encodePathPart(shuttleId) + "/location", json);
+        return postLocationCsv("/shuttles/" + encodePathPart(shuttleId) + "/location", json);
     }
 
     private static String encodePathPart(String value) {
@@ -103,7 +116,7 @@ public class ApiClient {
         executor.execute(() -> {
             try {
                 String body = get("/shuttles");
-                JSONArray arr = new JSONArray(body);
+                JSONArray arr = csvRows(body);
                 mainHandler.post(() -> callback.onSuccess(arr));
             } catch (Exception e) {
                 final String msg = e.getMessage() == null ? "Network error" : e.getMessage();
@@ -116,7 +129,9 @@ public class ApiClient {
         executor.execute(() -> {
             try {
                 String body = get("/dashboard");
-                JSONObject obj = new JSONObject(body);
+                JSONArray rows = csvRows(body);
+                if (rows.length() != 1) throw new IOException("The server sent an unexpected reply.");
+                JSONObject obj = rows.getJSONObject(0);
                 mainHandler.post(() -> callback.onSuccess(obj));
             } catch (Exception e) {
                 final String msg = e.getMessage() == null ? "Network error" : e.getMessage();
@@ -129,7 +144,7 @@ public class ApiClient {
         executor.execute(() -> {
             try {
                 String body = get("/workers");
-                JSONArray arr = new JSONArray(body);
+                JSONArray arr = csvRows(body);
                 mainHandler.post(() -> callback.onSuccess(arr));
             } catch (Exception e) {
                 final String msg = e.getMessage() == null ? "Network error" : e.getMessage();
@@ -142,7 +157,7 @@ public class ApiClient {
         executor.execute(() -> {
             try {
                 String body = get("/shift");
-                JSONArray arr = new JSONArray(body);
+                JSONArray arr = csvRows(body);
                 mainHandler.post(() -> callback.onSuccess(arr));
             } catch (Exception e) {
                 final String msg = e.getMessage() == null ? "Network error" : e.getMessage();
@@ -151,13 +166,13 @@ public class ApiClient {
         });
     }
 
-    private boolean postJson(String path, String json) {
+    private boolean postLocationCsv(String path, String json) {
         HttpURLConnection conn = null;
         try {
             conn = open(path, "POST");
             conn.setDoOutput(true);
-            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-            byte[] data = json.getBytes(StandardCharsets.UTF_8);
+            conn.setRequestProperty("Content-Type", "text/csv; charset=utf-8");
+            byte[] data = csvBody(new JSONObject(json)).getBytes(StandardCharsets.UTF_8);
             conn.setFixedLengthStreamingMode(data.length);
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(data);
@@ -168,7 +183,7 @@ public class ApiClient {
             }
             return code >= 400 && code < 500
                     && code != 401 && code != 404 && code != 408 && code != 429;
-        } catch (IOException e) {
+        } catch (IOException | JSONException e) {
             return false;
         } finally {
             if (conn != null) conn.disconnect();
@@ -178,9 +193,24 @@ public class ApiClient {
     private String get(String path) throws IOException {
         HttpURLConnection conn = null;
         try {
-            conn = open(path, "GET");
+            String baseUrl = getBaseUrl();
+            ServerReadiness.ensureReady(baseUrl);
+            if (!baseUrl.equals(getBaseUrl())) {
+                throw new IOException("The server address changed. Please try again.");
+            }
+            conn = open(baseUrl, path, "GET");
             int code = conn.getResponseCode();
-            if (code < 200 || code >= 300) throw new IOException("Server returned " + code);
+            if (code < 200 || code >= 300) {
+                String message = "Server returned " + code;
+                try {
+                    JSONArray rows = csvRows(readAll(conn.getErrorStream()));
+                    if (rows.length() > 0) {
+                        message = rows.getJSONObject(0).optString("error", message);
+                    }
+                } catch (JSONException ignored) {
+                }
+                throw new IOException(message);
+            }
             return readAll(conn.getInputStream());
         } finally {
             if (conn != null) conn.disconnect();
@@ -188,21 +218,77 @@ public class ApiClient {
     }
 
     private HttpURLConnection open(String path, String method) throws IOException {
-        String relativePath = path.startsWith("/") ? path.substring(1) : path;
-        HttpURLConnection conn = (HttpURLConnection) new URL(BASE_URL + relativePath).openConnection();
+        return open(getBaseUrl(), path, method);
+    }
+
+    private HttpURLConnection open(String baseUrl, String path, String method) throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) new URL(baseUrl + path).openConnection();
         conn.setRequestMethod(method);
         conn.setConnectTimeout(TIMEOUT_MS);
         conn.setReadTimeout(TIMEOUT_MS);
-        conn.setRequestProperty("Accept", "application/json");
+        conn.setRequestProperty("Accept", "text/csv");
         if (authToken != null) conn.setRequestProperty("Authorization", "Bearer " + authToken);
         return conn;
     }
 
+    static String csvBody(JSONObject body) throws JSONException {
+        List<String> header = new ArrayList<>();
+        List<String> values = new ArrayList<>();
+        Iterator<String> keys = body.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            Object value = body.get(key);
+            header.add(key);
+            values.add(value == JSONObject.NULL ? "" : String.valueOf(value));
+        }
+        return CsvUtil.toRow(header.toArray(new String[0])) + "\n"
+                + CsvUtil.toRow(values.toArray(new String[0])) + "\n";
+    }
+
+    static JSONArray csvRows(String text) throws JSONException {
+        JSONArray result = new JSONArray();
+        if (text == null || text.trim().isEmpty()) return result;
+        List<String[]> rows = new ArrayList<>();
+        StringBuilder record = new StringBuilder();
+        boolean quoted = false;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '"') {
+                record.append(c);
+                if (quoted && i + 1 < text.length() && text.charAt(i + 1) == '"') {
+                    record.append(text.charAt(++i));
+                } else {
+                    quoted = !quoted;
+                }
+            } else if (c == '\n' && !quoted) {
+                rows.add(CsvUtil.parseCsvLine(record.toString()));
+                record.setLength(0);
+            } else if (c != '\r' || quoted) {
+                record.append(c);
+            }
+        }
+        if (quoted) throw new JSONException("Unclosed CSV quote");
+        if (record.length() > 0) rows.add(CsvUtil.parseCsvLine(record.toString()));
+        if (rows.isEmpty()) return result;
+        String[] header = rows.get(0);
+        for (int i = 1; i < rows.size(); i++) {
+            String[] cells = rows.get(i);
+            if (cells.length == 1 && cells[0].isEmpty()) continue;
+            if (cells.length != header.length) throw new JSONException("Invalid CSV columns");
+            JSONObject row = new JSONObject();
+            for (int j = 0; j < header.length; j++) row.put(header[j], cells[j]);
+            result.put(row);
+        }
+        if (rows.size() == 1) throw new JSONException("Expected CSV data");
+        return result;
+    }
+
     private String readAll(InputStream in) throws IOException {
+        if (in == null) return "";
         StringBuilder sb = new StringBuilder();
         try (BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
             String line;
-            while ((line = r.readLine()) != null) sb.append(line);
+            while ((line = r.readLine()) != null) sb.append(line).append('\n');
         }
         return sb.toString();
     }

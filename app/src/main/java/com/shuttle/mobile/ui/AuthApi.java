@@ -6,6 +6,7 @@ import android.util.Log;
 
 import com.shuttle.common.Role;
 import com.shuttle.mobile.client.ApiClient;
+import com.shuttle.mobile.client.ServerReadiness;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -71,13 +72,14 @@ public final class AuthApi {
 
     private static void doLogin(String idKey, String idValue, String password,
                                 LoginCallback callback) {
+        final String baseUrl = ApiClient.getBaseUrl();
         executor.execute(() -> {
             try {
                 Map<String, String> body = new LinkedHashMap<>();
                 body.put(idKey, idValue);
                 body.put("password", password);
 
-                Result r = send(LOGIN_PATH, body);
+                Result r = send(baseUrl, LOGIN_PATH, body);
                 if (!r.good()) {
                     final int failCode = r.code;
                     final String message = errorMessage(r.text, r.code);
@@ -93,20 +95,26 @@ public final class AuthApi {
                 }
                 Role role = Role.valueOf(csvGet(user, "role").toUpperCase());
 
-                Session.start(token,
-                        csvGet(user, "employeeId"),
-                        csvGet(user, "fullName"),
-                        csvGet(user, "email"),
-                        csvGet(user, "phone"),
-                        role);
-                ApiClient.getInstance().setAuthToken(token);
-
                 final Role finalRole = role;
-                mainHandler.post(() -> callback.onSuccess(finalRole));
+                mainHandler.post(() -> {
+                    if (!baseUrl.equals(ApiClient.getBaseUrl())) {
+                        callback.onError(0, "The server address changed. Sign in using the selected server.");
+                        return;
+                    }
+                    Session.start(token,
+                            csvGet(user, "employeeId"),
+                            csvGet(user, "fullName"),
+                            csvGet(user, "email"),
+                            csvGet(user, "phone"),
+                            finalRole);
+                    ApiClient.getInstance().setAuthToken(token);
+                    callback.onSuccess(finalRole);
+                });
             } catch (IOException e) {
                 Log.e(TAG, "Network error: " + e, e);
-                mainHandler.post(() -> callback.onError(0,
-                        "Cannot reach the server. Check that it is running."));
+                final String message = e.getMessage() == null
+                        ? "Cannot reach the server. Check your connection and server address." : e.getMessage();
+                mainHandler.post(() -> callback.onError(0, message));
             } catch (IllegalArgumentException e) {
                 mainHandler.post(() -> callback.onError(0,
                         "The server sent an unexpected reply."));
@@ -116,6 +124,7 @@ public final class AuthApi {
 
     public static void register(Role chosenRole, String name, String email, String phone,
                                 String password, RegisterCallback callback) {
+        final String baseUrl = ApiClient.getBaseUrl();
         executor.execute(() -> {
             try {
                 Map<String, String> body = new LinkedHashMap<>();
@@ -125,7 +134,7 @@ public final class AuthApi {
                 body.put("phone", phone);
                 body.put("password", password);
 
-                Result r = send(REGISTER_PATH, body);
+                Result r = send(baseUrl, REGISTER_PATH, body);
                 if (!r.good()) {
                     final int failCode = r.code;
                     final String message = errorMessage(r.text, r.code);
@@ -145,8 +154,9 @@ public final class AuthApi {
                 mainHandler.post(() -> callback.onSuccess(role));
             } catch (IOException e) {
                 Log.e(TAG, "Network error: " + e, e);
-                mainHandler.post(() -> callback.onError(0,
-                        "Cannot reach the server. Check that it is running."));
+                final String message = e.getMessage() == null
+                        ? "Cannot reach the server. Check your connection and server address." : e.getMessage();
+                mainHandler.post(() -> callback.onError(0, message));
             }
         });
     }
@@ -159,12 +169,16 @@ public final class AuthApi {
         return rows.get(0);
     }
 
-    private static Result send(String path, Map<String, String> row) throws IOException {
+    private static Result send(String baseUrl, String path, Map<String, String> row) throws IOException {
         HttpURLConnection conn = null;
         try {
+            ServerReadiness.ensureReady(baseUrl);
+            if (!baseUrl.equals(ApiClient.getBaseUrl())) {
+                throw new IOException("The server address changed. Please try again.");
+            }
             byte[] data = buildCsv(row).getBytes(StandardCharsets.UTF_8);
 
-            conn = (HttpURLConnection) new URL(ApiClient.BASE_URL + path).openConnection();
+            conn = (HttpURLConnection) new URL(baseUrl + path).openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(TIMEOUT_MS);
             conn.setReadTimeout(TIMEOUT_MS);
@@ -179,6 +193,9 @@ public final class AuthApi {
             int code = conn.getResponseCode();
             boolean good = code >= 200 && code < 300;
             String text = readAll(good ? conn.getInputStream() : conn.getErrorStream());
+            if (!baseUrl.equals(ApiClient.getBaseUrl())) {
+                throw new IOException("The server address changed. Check the previous server before repeating this request.");
+            }
             return new Result(code, text);
         } finally {
             if (conn != null) {

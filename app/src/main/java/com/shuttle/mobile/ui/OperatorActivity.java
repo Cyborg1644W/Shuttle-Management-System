@@ -5,6 +5,8 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
@@ -32,6 +34,11 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.shuttle.mobile.R;
+import com.shuttle.mobile.client.ApiClient;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,6 +84,16 @@ public class OperatorActivity extends AppCompatActivity {
 
     private final ArrayList<WorkerItem> workers = new ArrayList<>();
     private String currentFilter = "ALL";
+    private FleetConnectionUi.Membership fleetMembership;
+    private TextView btnFleetConnection;
+    private boolean fleetPromptShown;
+    private final Handler refreshHandler = new Handler(Looper.getMainLooper());
+    private final Runnable staffRefresh = new Runnable() {
+        @Override public void run() {
+            if (fleetMembership != null && fleetMembership.joined) refreshStaff();
+            refreshHandler.postDelayed(this, 10000);
+        }
+    };
 
     private LinearLayout listContainer;
     private EditText etSearch;
@@ -113,9 +130,15 @@ public class OperatorActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (!Session.isSignedIn()) {
+            signOut();
+            return;
+        }
         setContentView(R.layout.activity_operator);
 
         listContainer = findViewById(R.id.listContainer);
+        btnFleetConnection = findViewById(R.id.btnFleetConnection);
+        btnFleetConnection.setOnClickListener(v -> showFleetConnection());
         etSearch = findViewById(R.id.etSearch);
         chipAll = findViewById(R.id.chipAll);
         chipDrivers = findViewById(R.id.chipDrivers);
@@ -160,7 +183,8 @@ public class OperatorActivity extends AppCompatActivity {
 
         findViewById(R.id.flBell).setOnClickListener(v -> showNotifications());
         tvHeaderAvatar.setOnClickListener(v -> showAccountMenu());
-        findViewById(R.id.fabAdd).setOnClickListener(v -> showWorkerForm(null));
+        findViewById(R.id.fabAdd).setContentDescription("Invite a driver");
+        findViewById(R.id.fabAdd).setOnClickListener(v -> showFleetConnection());
 
         navDashboard.setOnClickListener(v -> showTab(TAB_DASHBOARD));
         navFleet.setOnClickListener(v -> showTab(TAB_FLEET));
@@ -171,6 +195,103 @@ public class OperatorActivity extends AppCompatActivity {
 
         updateSummary();
         renderList();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!Session.isSignedIn() || btnFleetConnection == null) return;
+        refreshFleetConnection();
+        refreshHandler.removeCallbacks(staffRefresh);
+        refreshHandler.postDelayed(staffRefresh, 10000);
+    }
+
+    @Override
+    protected void onPause() {
+        refreshHandler.removeCallbacks(staffRefresh);
+        super.onPause();
+    }
+
+    private void showFleetConnection() {
+        if (fleetMembership == null) {
+            refreshFleetConnection();
+            Toast.makeText(this, "Checking your terminal connection…", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        FleetConnectionUi.showOperator(this, fleetMembership, this::refreshFleetConnection);
+    }
+
+    private void refreshFleetConnection() {
+        FleetApi.get("/fleet", new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject json) {
+                if (isFinishing() || isDestroyed()) return;
+                fleetMembership = new FleetConnectionUi.Membership(json);
+                btnFleetConnection.setText(fleetMembership.joined
+                        ? "Invite drivers · " + fleetMembership.terminalName : "Create your terminal");
+                if (fleetMembership.joined) {
+                    refreshStaff();
+                } else {
+                    workers.clear();
+                    updateSummary();
+                    renderList();
+                    if (!fleetPromptShown) {
+                        fleetPromptShown = true;
+                        showFleetConnection();
+                    }
+                }
+            }
+            @Override public void onError(int status, String message) {
+                if (isFinishing() || isDestroyed()) return;
+                handleServerError(status, message);
+            }
+        });
+    }
+
+    private void refreshStaff() {
+        FleetApi.get("/workers", new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject json) {
+                if (isFinishing() || isDestroyed()) return;
+                JSONArray rows = json.optJSONArray("workers");
+                if (rows == null) {
+                    handleServerError(0, "The server sent an unexpected staff list.");
+                    return;
+                }
+                workers.clear();
+                for (int i = 0; i < rows.length(); i++) {
+                    JSONObject row = rows.optJSONObject(i);
+                    if (row == null) continue;
+                    String status = FleetApi.text(row, "shiftStatus").replace('_', ' ');
+                    if (status.equals("OFF SHIFT")) status = "OFF DUTY";
+                    boolean operator = "OPERATOR".equals(FleetApi.text(row, "role"));
+                    String value1 = FleetApi.text(row, "value1");
+                    String value2 = FleetApi.text(row, "value2");
+                    if (fleetMembership != null && fleetMembership.joined) {
+                        if (operator) value1 = fleetMembership.terminalName;
+                        else value2 = fleetMembership.terminalName;
+                    }
+                    workers.add(new WorkerItem(FleetApi.text(row, "fullName"),
+                            FleetApi.text(row, "employeeId"), status, operator,
+                            value1.isEmpty() ? "Unassigned" : value1,
+                            value2.isEmpty() ? "Unassigned" : value2,
+                            FleetApi.text(row, "phoneDisplay")));
+                }
+                updateSummary();
+                renderList();
+            }
+            @Override public void onError(int status, String message) {
+                if (isFinishing() || isDestroyed()) return;
+                handleServerError(status, message);
+            }
+        });
+    }
+
+    private void handleServerError(int status, String message) {
+        if (status == 401) {
+            Toast.makeText(this, "Your session ended. Please sign in again.", Toast.LENGTH_LONG).show();
+            signOut();
+        } else {
+            tvSubtitle.setText(message + " · Reopen this screen to retry");
+        }
     }
 
     @Override
@@ -430,7 +551,9 @@ public class OperatorActivity extends AppCompatActivity {
 
         if (shown == 0) {
             TextView empty = new TextView(this);
-            empty.setText("No staff found.");
+            empty.setText(fleetMembership != null && fleetMembership.joined
+                    ? "No matching staff. Invite a driver to join your terminal."
+                    : "Create your terminal, then invite your drivers to join.");
             empty.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
             empty.setTextSize(14);
             empty.setPadding(0, 32, 0, 32);
@@ -471,6 +594,7 @@ public class OperatorActivity extends AppCompatActivity {
             showReassign(w);
         });
 
+        sheet.findViewById(R.id.rowDeactivate).setVisibility(w.operator ? View.GONE : View.VISIBLE);
         sheet.findViewById(R.id.rowDeactivate).setOnClickListener(v -> {
             dialog.dismiss();
             confirmRemove(w);
@@ -498,43 +622,64 @@ public class OperatorActivity extends AppCompatActivity {
     }
 
     private void showReassign(final WorkerItem w) {
-        final String[] options;
-        String title;
-        String noun;
-        int icon;
-
         if (w.operator) {
-            title = "Reassign station";
-            noun = "station";
-            icon = R.drawable.ic_pin;
-            options = new String[]{"PITX Central Bay", "Ayala Bay B", "One Ayala Hub", "Unassigned"};
-        } else {
-            title = "Reassign vehicle";
-            noun = "vehicle";
-            icon = R.drawable.ic_vehicle;
-            options = new String[]{"Unit SH-1024", "Unit SH-2088", "Unit SH-3150", "Unassigned"};
+            Toast.makeText(this, "This operator manages the connected terminal.", Toast.LENGTH_LONG).show();
+            return;
         }
-
-        WorkerDialogs.showReassign(this, title, "Choose a new " + noun + " for " + w.name,
-                icon, options, w.value1, picked -> {
-                    w.value1 = picked;
-                    renderList();
-                    Toast.makeText(this, w.name + " reassigned to " + picked, Toast.LENGTH_SHORT).show();
-                });
+        FleetApi.get("/shuttles", new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject json) {
+                if (isFinishing() || isDestroyed()) return;
+                JSONArray shuttles = json.optJSONArray("shuttles");
+                if (shuttles == null) {
+                    handleServerError(0, "The server sent an unexpected vehicle list.");
+                    return;
+                }
+                ArrayList<String> options = new ArrayList<>();
+                options.add("Unassigned");
+                for (int i = 0; i < shuttles.length(); i++) {
+                    String id = FleetApi.text(shuttles.optJSONObject(i), "shuttleId");
+                    if (!id.isEmpty()) options.add(id);
+                }
+                WorkerDialogs.showReassign(OperatorActivity.this, "Assign vehicle",
+                        "Choose a vehicle from your terminal for " + w.name,
+                        R.drawable.ic_vehicle, options.toArray(new String[0]), w.value1, picked -> {
+                            JSONObject body = new JSONObject();
+                            try { body.put("shuttleId", picked.equals("Unassigned") ? "" : picked); }
+                            catch (JSONException impossible) { throw new AssertionError(impossible); }
+                            FleetApi.put("/workers/" + FleetApi.encode(w.empId) + "/assign", body,
+                                    staffAction("Vehicle assignment updated"));
+                        });
+            }
+            @Override public void onError(int status, String message) {
+                if (isFinishing() || isDestroyed()) return;
+                handleServerError(status, message);
+            }
+        });
     }
 
     private void confirmRemove(final WorkerItem w) {
         new MaterialAlertDialogBuilder(this)
-                .setTitle("Deactivate / Remove")
-                .setMessage("Remove " + w.name + " (" + w.empId + ") from the staff list?")
-                .setPositiveButton("Remove", (dialog, which) -> {
-                    workers.remove(w);
-                    updateSummary();
-                    renderList();
-                    Toast.makeText(this, w.name + " removed", Toast.LENGTH_SHORT).show();
-                })
+                .setTitle("Remove from terminal?")
+                .setMessage("Disconnect " + w.name + " from your terminal? Their account stays available so they can join another terminal.")
+                .setPositiveButton("Remove", (dialog, which) -> FleetApi.delete(
+                        "/workers/" + FleetApi.encode(w.empId), staffAction("Driver removed from terminal")))
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private FleetApi.Callback staffAction(String success) {
+        return new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject json) {
+                if (isFinishing() || isDestroyed()) return;
+                refreshStaff();
+                Toast.makeText(OperatorActivity.this, success, Toast.LENGTH_SHORT).show();
+            }
+            @Override public void onError(int status, String message) {
+                if (isFinishing() || isDestroyed()) return;
+                handleServerError(status, message);
+                if (status != 401) Toast.makeText(OperatorActivity.this, message, Toast.LENGTH_LONG).show();
+            }
+        };
     }
 
     private void showCallDialog(WorkerItem w) {
@@ -547,41 +692,24 @@ public class OperatorActivity extends AppCompatActivity {
     }
 
     private void showWorkerForm(final WorkerItem existing) {
-        String digits = "";
-        if (existing != null) {
-            digits = existing.phone.replaceAll("[^0-9]", "");
-            if (digits.startsWith("63")) {
-                digits = digits.substring(2);
-            }
+        if (existing == null) {
+            showFleetConnection();
+            return;
         }
-
-        WorkerDialogs.showWorkerForm(this, existing == null,
-                existing == null ? "" : existing.name,
-                existing == null ? "" : existing.empId,
-                digits,
+        String digits = existing.phone.replaceAll("[^0-9]", "");
+        if (digits.startsWith("63")) digits = digits.substring(2);
+        WorkerDialogs.showWorkerForm(this, false, existing.name, existing.empId, digits,
                 (name, emp, phoneDigits, op) -> {
-                    for (WorkerItem other : workers) {
-                        if (other != existing && other.empId.equalsIgnoreCase(emp)) {
-                            return "This ID is already used";
-                        }
+                    if (!existing.empId.equalsIgnoreCase(emp)) {
+                        return "Keep the existing account's employee ID";
                     }
-
-                    String phone = "+63 " + phoneDigits.substring(0, 3) + " "
-                            + phoneDigits.substring(3, 6) + " " + phoneDigits.substring(6);
-
-                    if (existing == null) {
-                        workers.add(new WorkerItem(name, emp, "OFF DUTY", op,
-                                "Unassigned", op ? "Not set" : "Unassigned", phone));
-                        Toast.makeText(this, name + " added", Toast.LENGTH_SHORT).show();
-                    } else {
-                        existing.name = name;
-                        existing.empId = emp;
-                        existing.phone = phone;
-                        Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show();
-                    }
-
-                    updateSummary();
-                    renderList();
+                    JSONObject body = new JSONObject();
+                    try {
+                        body.put("fullName", name);
+                        body.put("phone", "+63" + phoneDigits);
+                    } catch (JSONException impossible) { throw new AssertionError(impossible); }
+                    FleetApi.put("/workers/" + FleetApi.encode(existing.empId), body,
+                            staffAction("Profile updated"));
                     return null;
                 });
     }
@@ -605,12 +733,18 @@ public class OperatorActivity extends AppCompatActivity {
 
     private void showAccountMenu() {
         PopupMenu menu = new PopupMenu(this, tvHeaderAvatar);
+        menu.getMenu().add("Terminal & invitations");
+        menu.getMenu().add("Refresh drivers");
         menu.getMenu().add("My Profile");
         menu.getMenu().add("Sign out");
 
         menu.setOnMenuItemClickListener(item -> {
             if (item.getTitle().toString().equals("Sign out")) {
                 signOut();
+            } else if (item.getTitle().toString().equals("Terminal & invitations")) {
+                showFleetConnection();
+            } else if (item.getTitle().toString().equals("Refresh drivers")) {
+                refreshFleetConnection();
             } else {
                 comingSoon("Profile");
             }
@@ -621,6 +755,10 @@ public class OperatorActivity extends AppCompatActivity {
     }
 
     private void signOut() {
+        refreshHandler.removeCallbacks(staffRefresh);
+        FleetApi.post("/auth/logout", null, null);
+        Session.clear();
+        ApiClient.getInstance().setAuthToken(null);
         Intent intent = new Intent(this, LoginActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
