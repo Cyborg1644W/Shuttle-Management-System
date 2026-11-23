@@ -122,8 +122,10 @@ public class ReportService {
             }
             TerminalService.requireJoined(actor);
             List<ScheduleRepository.Entry> fresh = new ArrayList<>();
+            List<ScheduleRepository.Entry> previous = Repositories.schedule().getAll();
+            var dated = Repositories.datedShifts().all();
             // PUT replaces this terminal's schedule only. Other terminals retain theirs.
-            for (ScheduleRepository.Entry entry : Repositories.schedule().getAll()) {
+            for (ScheduleRepository.Entry entry : previous) {
                 if (!TerminalService.canAccessWorker(actor, entry.employeeId)) {
                     fresh.add(entry);
                 }
@@ -134,7 +136,11 @@ public class ReportService {
                 if (!Repositories.workers().existsById(id)) {
                     throw new ApiException(400, "Unknown employee: " + id);
                 }
-                fresh.add(new ScheduleRepository.Entry(id, (int) Csv.lng(m, "shift"), str(m, "days")));
+                ScheduleRepository.Entry rule = new ScheduleRepository.Entry(id, (int) Csv.lng(m, "shift"), str(m, "days"));
+                boolean unchanged = previous.stream().anyMatch(e ->
+                        e.employeeId.equals(rule.employeeId) && e.shift == rule.shift && e.days.equals(rule.days));
+                if (!unchanged) DatedShiftService.rejectDatedConflict(rule, dated);
+                fresh.add(rule);
             }
             Repositories.schedule().replaceAll(fresh);
             return schedule(actor);

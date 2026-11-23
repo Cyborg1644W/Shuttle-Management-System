@@ -27,9 +27,15 @@
 
         <activity
             android:name="com.shuttle.mobile.ui.LoginActivity"
+            android:windowSoftInputMode="adjustResize"
             android:exported="false" />
         <activity
             android:name="com.shuttle.mobile.ui.RegisterActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false" />
+        <activity
+            android:name="com.shuttle.mobile.ui.AccountActivity"
+            android:windowSoftInputMode="adjustResize"
             android:exported="false" />
         <activity
             android:name="com.shuttle.mobile.ui.DriverActivity"

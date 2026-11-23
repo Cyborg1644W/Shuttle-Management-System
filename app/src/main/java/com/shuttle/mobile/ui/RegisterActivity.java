@@ -2,12 +2,10 @@ package com.shuttle.mobile.ui;
 
 import android.os.Bundle;
 import android.util.Patterns;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,8 +24,6 @@ public class RegisterActivity extends AppCompatActivity {
     private View cardDriver;
     private View cardOperator;
     private View layoutPhoneBox;
-    private View layoutCountry;
-    private TextView tvCountryCode;
     private TextView tvGoLoginChoose;
     private TextView tvRoleLabel;
     private TextView tvChangeRole;
@@ -37,7 +33,6 @@ public class RegisterActivity extends AppCompatActivity {
     private EditText etPassword;
     private EditText etConfirmPassword;
     private ImageView ivPhoneCheck;
-    private ImageView ivBack;
     private TextView tvError;
     private TextView tvGoLogin;
     private Button btnRegister;
@@ -51,17 +46,11 @@ public class RegisterActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         ApiClient.initialize(this);
         setContentView(R.layout.activity_register);
-        findViewById(R.id.btnServerConnection).setOnClickListener(v -> {
-            if (!registering) ServerConnectionUi.show(this);
-        });
-
         layoutChooseRole = findViewById(R.id.layoutChooseRole);
         layoutForm = findViewById(R.id.layoutForm);
         cardDriver = findViewById(R.id.cardDriver);
         cardOperator = findViewById(R.id.cardOperator);
         layoutPhoneBox = findViewById(R.id.layoutPhoneBox);
-        layoutCountry = findViewById(R.id.layoutCountry);
-        tvCountryCode = findViewById(R.id.tvCountryCode);
         tvGoLoginChoose = findViewById(R.id.tvGoLoginChoose);
         tvRoleLabel = findViewById(R.id.tvRoleLabel);
         tvChangeRole = findViewById(R.id.tvChangeRole);
@@ -70,8 +59,9 @@ public class RegisterActivity extends AppCompatActivity {
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
         etConfirmPassword = findViewById(R.id.etConfirmPassword);
+        FieldUi.bindPasswordToggle(etPassword, findViewById(R.id.btnPasswordVisibility));
+        FieldUi.bindPasswordToggle(etConfirmPassword, findViewById(R.id.btnConfirmPasswordVisibility));
         ivPhoneCheck = findViewById(R.id.ivPhoneCheck);
-        ivBack = findViewById(R.id.ivBack);
         tvError = findViewById(R.id.tvError);
         tvGoLogin = findViewById(R.id.tvGoLogin);
         btnRegister = findViewById(R.id.btnRegister);
@@ -79,7 +69,6 @@ public class RegisterActivity extends AppCompatActivity {
         cardDriver.setOnClickListener(v -> showForm(Role.DRIVER));
         cardOperator.setOnClickListener(v -> showForm(Role.OPERATOR));
         tvChangeRole.setOnClickListener(v -> showChooser());
-        layoutCountry.setOnClickListener(v -> showCountryMenu());
 
         FieldUi.onChange(etFullName, () -> {
             hideError();
@@ -87,6 +76,12 @@ public class RegisterActivity extends AppCompatActivity {
         });
         FieldUi.onChange(etPhone, () -> {
             hideError();
+            String phone = getCleanPhone();
+            if (isValidPhone(phone) && !phone.contentEquals(etPhone.getText())) {
+                etPhone.setText(phone);
+                etPhone.setSelection(phone.length());
+                return;
+            }
             applyPhone(false);
         });
         FieldUi.onChange(etEmail, () -> {
@@ -130,7 +125,6 @@ public class RegisterActivity extends AppCompatActivity {
         });
 
         btnRegister.setOnClickListener(v -> attemptRegister());
-        ivBack.setOnClickListener(v -> goBack());
         tvGoLogin.setOnClickListener(v -> finish());
         tvGoLoginChoose.setOnClickListener(v -> finish());
 
@@ -158,14 +152,6 @@ public class RegisterActivity extends AppCompatActivity {
         refreshAll();
     }
 
-    private void goBack() {
-        if (selectedRole != null) {
-            showChooser();
-        } else {
-            finish();
-        }
-    }
-
     @Override
     public void onBackPressed() {
         if (selectedRole != null) {
@@ -185,7 +171,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     private int statePhone(boolean strict) {
         String p = getCleanPhone();
-        if (p.length() == getRequiredDigits()) {
+        if (isValidPhone(p)) {
             return FieldUi.VALID;
         }
         return (strict && !p.isEmpty()) ? FieldUi.ERROR : FieldUi.NORMAL;
@@ -252,42 +238,19 @@ public class RegisterActivity extends AppCompatActivity {
         applyConfirm(false);
     }
 
-    private void showCountryMenu() {
-        PopupMenu menu = new PopupMenu(this, layoutCountry);
-        menu.getMenu().add("+63 Philippines");
-        menu.getMenu().add("+1 United States");
-        menu.getMenu().add("+81 Japan");
-        menu.getMenu().add("+65 Singapore");
-
-        menu.setOnMenuItemClickListener((MenuItem item) -> {
-            String code = item.getTitle().toString().split(" ")[0];
-            tvCountryCode.setText(code);
-            applyPhone(false);
-            return true;
-        });
-
-        menu.show();
-    }
-
     private String getCleanPhone() {
-        String digits = etPhone.getText().toString().replaceAll("[^0-9]", "");
-        String code = tvCountryCode.getText().toString();
-
-        if ((code.equals("+63") || code.equals("+81")) && digits.startsWith("0")) {
-            digits = digits.substring(1);
-        }
+        String digits = etPhone.getText().toString().replaceAll("[\\s().-]", "");
+        if (digits.matches("\\+?639[0-9]{9}")) return digits.substring(digits.length() - 10);
+        if (digits.matches("09[0-9]{9}")) return digits.substring(1);
         return digits;
     }
 
-    private int getRequiredDigits() {
-        if (tvCountryCode.getText().toString().equals("+65")) {
-            return 8;
-        }
-        return 10;
+    private boolean isValidPhone(String digits) {
+        return digits.matches("9[0-9]{9}");
     }
 
     private void updateCheck() {
-        if (getCleanPhone().length() == getRequiredDigits()) {
+        if (isValidPhone(getCleanPhone())) {
             ivPhoneCheck.setVisibility(View.VISIBLE);
         } else {
             ivPhoneCheck.setVisibility(View.INVISIBLE);
@@ -312,7 +275,7 @@ public class RegisterActivity extends AppCompatActivity {
         String email = etEmail.getText().toString().trim();
         String password = etPassword.getText().toString();
         String confirm = etConfirmPassword.getText().toString();
-        String fullPhone = tvCountryCode.getText().toString() + phone;
+        String fullPhone = "+63" + phone;
 
         boolean anyEmpty = fullName.isEmpty() || phone.isEmpty()
                 || email.isEmpty() || password.isEmpty() || confirm.isEmpty();
@@ -321,8 +284,8 @@ public class RegisterActivity extends AppCompatActivity {
             fail(etFullName, "Please enter your full name.");
         }
 
-        if (phone.length() != getRequiredDigits()) {
-            fail(layoutPhoneBox, "Please enter a complete mobile number.");
+        if (!isValidPhone(phone)) {
+            fail(layoutPhoneBox, "Enter 10 digits starting with 9 after +63.");
         }
 
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
@@ -391,7 +354,6 @@ public class RegisterActivity extends AppCompatActivity {
     private void setRegistering(boolean busy) {
         registering = busy;
         btnRegister.setEnabled(!busy);
-        findViewById(R.id.btnServerConnection).setEnabled(!busy);
         btnRegister.setText(busy ? "Creating account..." : "Create Account");
     }
 

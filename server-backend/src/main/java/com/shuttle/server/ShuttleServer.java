@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer;
 import com.shuttle.server.handler.ApiHandler;
 import com.shuttle.server.handler.AuthHandler;
 import com.shuttle.server.handler.DashboardHandler;
+import com.shuttle.server.handler.DatedShiftHandler;
 import com.shuttle.server.handler.LiveHandler;
 import com.shuttle.server.handler.LocationHandler;
 import com.shuttle.server.handler.ScheduleHandler;
@@ -52,6 +53,7 @@ public class ShuttleServer {
         server.createContext("/api/shuttles", new ShuttleLocationHandler());
         server.createContext("/api/dashboard", new DashboardHandler());
         server.createContext("/api/schedule", new ScheduleHandler());
+        server.createContext("/api/scheduled-shifts", new DatedShiftHandler());
 
         server.start();
         Log.info("ShuttleServer listening on " + host + ":" + port + " (health: /health)");

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content">
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="20dp" android:focusableInTouchMode="true">
+        <View android:layout_width="36dp" android:layout_height="4dp"
+            android:layout_gravity="center_horizontal" android:background="@drawable/chip_bg" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
+            android:layout_marginTop="8dp" android:gravity="center_vertical" android:orientation="horizontal">
+            <TextView android:id="@+id/tvShiftPickerTitle" style="@style/Fleet.Title"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:textSize="18sp" />
+            <ImageButton android:id="@+id/btnCloseShiftPicker"
+                android:layout_width="48dp" android:layout_height="48dp" android:padding="14dp"
+                android:src="@drawable/ic_close" android:contentDescription="Close"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
+        <EditText android:id="@+id/etShiftPickerSearch" style="@style/Fleet.AuthField"
+            android:layout_marginTop="10dp" android:visibility="gone"
+            android:drawableStart="@drawable/ic_search" android:drawablePadding="8dp"
+            android:inputType="text" android:imeOptions="actionDone" android:importantForAutofill="no" />
+        <LinearLayout android:id="@+id/shiftPickerBody"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:orientation="vertical" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnConfirmShiftPicker"
+            style="@style/Fleet.AuthButton" />
+    </LinearLayout>
+</ScrollView>

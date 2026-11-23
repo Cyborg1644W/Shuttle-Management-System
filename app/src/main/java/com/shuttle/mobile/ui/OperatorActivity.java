@@ -85,8 +85,9 @@ public class OperatorActivity extends AppCompatActivity {
     private final ArrayList<WorkerItem> workers = new ArrayList<>();
     private String currentFilter = "ALL";
     private FleetConnectionUi.Membership fleetMembership;
+    private boolean workersLoaded;
+    private String workerError;
     private TextView btnFleetConnection;
-    private boolean fleetPromptShown;
     private final Handler refreshHandler = new Handler(Looper.getMainLooper());
     private final Runnable staffRefresh = new Runnable() {
         @Override public void run() {
@@ -100,12 +101,7 @@ public class OperatorActivity extends AppCompatActivity {
     private TextView chipAll;
     private TextView chipDrivers;
     private TextView chipOperators;
-    private TextView tvSubtitle;
-    private TextView tvStatDrivers;
-    private TextView tvStatDriversTotal;
-    private TextView tvStatOperators;
-    private TextView tvStatStandby;
-    private TextView tvHeaderAvatar;
+    private ImageView tvHeaderAvatar;
     private View viewDot;
 
     private static final int TAB_WORKERS = 0;
@@ -117,15 +113,13 @@ public class OperatorActivity extends AppCompatActivity {
     private View pageSchedule;
     private View pageDashboard;
     private View pageFleet;
-    private View fabAdd;
-    private TextView tvPageLabel;
     private ImageView ivNavWorkers;
     private ImageView ivNavSchedule;
     private TextView tvNavWorkers;
     private TextView tvNavSchedule;
     private View navDashboard;
     private View navFleet;
-    private int currentTab = TAB_WORKERS;
+    private int currentTab = TAB_DASHBOARD;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -143,17 +137,10 @@ public class OperatorActivity extends AppCompatActivity {
         chipAll = findViewById(R.id.chipAll);
         chipDrivers = findViewById(R.id.chipDrivers);
         chipOperators = findViewById(R.id.chipOperators);
-        tvSubtitle = findViewById(R.id.tvSubtitle);
-        tvStatDrivers = findViewById(R.id.tvStatDrivers);
-        tvStatDriversTotal = findViewById(R.id.tvStatDriversTotal);
-        tvStatOperators = findViewById(R.id.tvStatOperators);
-        tvStatStandby = findViewById(R.id.tvStatStandby);
         tvHeaderAvatar = findViewById(R.id.tvHeaderAvatar);
         viewDot = findViewById(R.id.viewDot);
         pageWorkers = findViewById(R.id.pageWorkers);
         pageSchedule = findViewById(R.id.pageSchedule);
-        fabAdd = findViewById(R.id.fabAdd);
-        tvPageLabel = findViewById(R.id.tvPageLabel);
         ivNavWorkers = findViewById(R.id.ivNavWorkers);
         ivNavSchedule = findViewById(R.id.ivNavSchedule);
         tvNavWorkers = findViewById(R.id.tvNavWorkers);
@@ -163,8 +150,8 @@ public class OperatorActivity extends AppCompatActivity {
 
 
         chipAll.setOnClickListener(v -> selectFilter("ALL"));
-        chipDrivers.setOnClickListener(v -> selectFilter("DRIVER"));
-        chipOperators.setOnClickListener(v -> selectFilter("OPERATOR"));
+        chipDrivers.setOnClickListener(v -> selectFilter("ON"));
+        chipOperators.setOnClickListener(v -> selectFilter("OFF"));
 
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override
@@ -183,8 +170,6 @@ public class OperatorActivity extends AppCompatActivity {
 
         findViewById(R.id.flBell).setOnClickListener(v -> showNotifications());
         tvHeaderAvatar.setOnClickListener(v -> showAccountMenu());
-        findViewById(R.id.fabAdd).setContentDescription("Invite a driver");
-        findViewById(R.id.fabAdd).setOnClickListener(v -> showFleetConnection());
 
         navDashboard.setOnClickListener(v -> showTab(TAB_DASHBOARD));
         navFleet.setOnClickListener(v -> showTab(TAB_FLEET));
@@ -194,13 +179,17 @@ public class OperatorActivity extends AppCompatActivity {
         SchedulePage.bind(this, pageSchedule);
 
         updateSummary();
-        renderList();
+        selectFilter("ALL");
+        viewDot.setVisibility(View.GONE);
+        showTab(TAB_DASHBOARD);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (!Session.isSignedIn() || btnFleetConnection == null) return;
+        tvHeaderAvatar.setContentDescription("Account menu for " + Session.getName());
+        if (pageDashboard != null && currentTab == TAB_DASHBOARD) Dashboard.refresh(pageDashboard);
         refreshFleetConnection();
         refreshHandler.removeCallbacks(staffRefresh);
         refreshHandler.postDelayed(staffRefresh, 10000);
@@ -226,18 +215,14 @@ public class OperatorActivity extends AppCompatActivity {
             @Override public void onSuccess(JSONObject json) {
                 if (isFinishing() || isDestroyed()) return;
                 fleetMembership = new FleetConnectionUi.Membership(json);
-                btnFleetConnection.setText(fleetMembership.joined
-                        ? "Invite drivers · " + fleetMembership.terminalName : "Create your terminal");
                 if (fleetMembership.joined) {
                     refreshStaff();
                 } else {
                     workers.clear();
+                    workersLoaded = true;
+                    workerError = null;
                     updateSummary();
                     renderList();
-                    if (!fleetPromptShown) {
-                        fleetPromptShown = true;
-                        showFleetConnection();
-                    }
                 }
             }
             @Override public void onError(int status, String message) {
@@ -257,9 +242,12 @@ public class OperatorActivity extends AppCompatActivity {
                     return;
                 }
                 workers.clear();
+                workersLoaded = true;
+                workerError = null;
                 for (int i = 0; i < rows.length(); i++) {
                     JSONObject row = rows.optJSONObject(i);
-                    if (row == null) continue;
+                    if (row == null || java.util.Objects.equals(Session.getEmployeeId(),
+                            FleetApi.text(row, "employeeId"))) continue;
                     String status = FleetApi.text(row, "shiftStatus").replace('_', ' ');
                     if (status.equals("OFF SHIFT")) status = "OFF DUTY";
                     boolean operator = "OPERATOR".equals(FleetApi.text(row, "role"));
@@ -290,14 +278,15 @@ public class OperatorActivity extends AppCompatActivity {
             Toast.makeText(this, "Your session ended. Please sign in again.", Toast.LENGTH_LONG).show();
             signOut();
         } else {
-            tvSubtitle.setText(message + " · Reopen this screen to retry");
+            workerError = message;
+            renderList();
         }
     }
 
     @Override
     public void onBackPressed() {
-        if (currentTab != TAB_WORKERS) {
-            showTab(TAB_WORKERS);
+        if (currentTab != TAB_DASHBOARD) {
+            showTab(TAB_DASHBOARD);
         } else {
             super.onBackPressed();
         }
@@ -305,14 +294,19 @@ public class OperatorActivity extends AppCompatActivity {
 
     private void showTab(int tab) {
         currentTab = tab;
+        boolean dashboardCreated = false;
 
         if (tab == TAB_DASHBOARD && pageDashboard == null) {
             ViewGroup parent = (ViewGroup) pageSchedule.getParent();
             pageDashboard = addPage(Dashboard.create(this, parent));
+            pageDashboard.findViewById(R.id.btnDashboardViewFleet).setOnClickListener(v -> showTab(TAB_FLEET));
+            dashboardCreated = true;
         }
+        boolean fleetCreated = false;
         if (tab == TAB_FLEET && pageFleet == null) {
             ViewGroup parent = (ViewGroup) pageSchedule.getParent();
             pageFleet = addPage(Fleet.create(this, parent));
+            fleetCreated = true;
         }
 
         pageWorkers.setVisibility(tab == TAB_WORKERS ? View.VISIBLE : View.GONE);
@@ -324,22 +318,15 @@ public class OperatorActivity extends AppCompatActivity {
             pageFleet.setVisibility(tab == TAB_FLEET ? View.VISIBLE : View.GONE);
         }
 
-        fabAdd.setVisibility(tab == TAB_WORKERS ? View.VISIBLE : View.GONE);
 
-        String label = "Workers";
-        if (tab == TAB_SCHEDULE) {
-            label = "Schedule";
-        } else if (tab == TAB_DASHBOARD) {
-            label = "Dashboard";
-        } else if (tab == TAB_FLEET) {
-            label = "Fleet";
-        }
-        tvPageLabel.setText(label);
 
         styleNav(ivNavWorkers, tvNavWorkers, tab == TAB_WORKERS);
         styleNav(ivNavSchedule, tvNavSchedule, tab == TAB_SCHEDULE);
         styleNavGroup(navDashboard, tab == TAB_DASHBOARD);
         styleNavGroup(navFleet, tab == TAB_FLEET);
+        if (tab == TAB_DASHBOARD && !dashboardCreated) Dashboard.refresh(pageDashboard);
+        if (tab == TAB_FLEET && !fleetCreated) Fleet.refresh(pageFleet);
+        if (tab == TAB_SCHEDULE) SchedulePage.refresh(pageSchedule);
     }
 
     private View addPage(View page) {
@@ -400,50 +387,22 @@ public class OperatorActivity extends AppCompatActivity {
 
 
     private void updateSummary() {
-        int total = workers.size();
+        int total = 0;
         int onDuty = 0;
-        int drivers = 0;
-        int driversActive = 0;
-        int operators = 0;
-        int standby = 0;
-
-        for (WorkerItem w : workers) {
-            if (w.isOnline()) {
-                onDuty++;
-            }
-            if (w.operator) {
-                operators++;
-            } else {
-                drivers++;
-                if (w.isOnline()) {
-                    driversActive++;
-                }
-            }
-            if (w.status.equals("OFF DUTY") || w.status.equals("ON BREAK")) {
-                standby++;
-            }
+        for (WorkerItem worker : workers) {
+            total++;
+            if (worker.isOnline()) onDuty++;
         }
-
-        SpannableStringBuilder sub = new SpannableStringBuilder();
-        sub.append("● ");
-        sub.setSpan(new ForegroundColorSpan(ContextCompat.getColor(this, R.color.brand_600)),
-                0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        sub.setSpan(new RelativeSizeSpan(0.7f), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        sub.append(total + " Registered Staff • " + onDuty + " On Duty");
-        tvSubtitle.setText(sub);
-
-        tvStatDrivers.setText(String.valueOf(driversActive));
-        tvStatDriversTotal.setText("/" + drivers);
-        tvStatOperators.setText(String.valueOf(operators));
-        tvStatStandby.setText(String.valueOf(standby));
-        chipAll.setText("All Roles  " + total);
+        chipAll.setText("All (" + total + ")");
+        chipDrivers.setText("On Duty (" + onDuty + ")");
+        chipOperators.setText("Off Duty (" + (total - onDuty) + ")");
     }
 
     private void selectFilter(String filter) {
         currentFilter = filter;
         styleChip(chipAll, filter.equals("ALL"));
-        styleChip(chipDrivers, filter.equals("DRIVER"));
-        styleChip(chipOperators, filter.equals("OPERATOR"));
+        styleChip(chipDrivers, filter.equals("ON"));
+        styleChip(chipOperators, filter.equals("OFF"));
         renderList();
     }
 
@@ -458,13 +417,8 @@ public class OperatorActivity extends AppCompatActivity {
     }
 
     private boolean matches(WorkerItem w) {
-        if (currentFilter.equals("DRIVER") && w.operator) {
-            return false;
-        }
-        if (currentFilter.equals("OPERATOR") && !w.operator) {
-            return false;
-        }
-
+        if (currentFilter.equals("ON") && !w.isOnline()) return false;
+        if (currentFilter.equals("OFF") && w.isOnline()) return false;
         String query = etSearch.getText().toString().trim().toLowerCase();
         if (query.isEmpty()) {
             return true;
@@ -488,78 +442,78 @@ public class OperatorActivity extends AppCompatActivity {
 
             View card = LayoutInflater.from(this).inflate(R.layout.item_worker_card, listContainer, false);
 
-            TextView tvAvatar = card.findViewById(R.id.tvAvatar);
-            tvAvatar.setText(initials(w.name));
-            if (w.isOnline()) {
-                tvAvatar.setBackgroundResource(R.drawable.avatar_ring_bg);
-                card.findViewById(R.id.viewOnline).setVisibility(View.VISIBLE);
-            } else if (WorkerDialogs.isBreak(w.status)) {
-                tvAvatar.setBackgroundResource(R.drawable.avatar_ring_break);
-                View dot = card.findViewById(R.id.viewOnline);
-                dot.setBackgroundResource(R.drawable.dot_break);
-                dot.setVisibility(View.VISIBLE);
-            } else {
-                tvAvatar.setBackgroundResource(R.drawable.icon_circle_bg);
-                card.findViewById(R.id.viewOnline).setVisibility(View.GONE);
-            }
-
             ((TextView) card.findViewById(R.id.tvName)).setText(w.name);
-            ((TextView) card.findViewById(R.id.tvMeta)).setText(w.empId + " • " + w.role());
-            styleBadge((TextView) card.findViewById(R.id.tvBadge), w.status);
-
-            ((TextView) card.findViewById(R.id.tvLabel1)).setText(w.label1());
+            ((TextView) card.findViewById(R.id.tvMeta)).setText(w.empId + " · " + w.role());
             ((TextView) card.findViewById(R.id.tvValue1)).setText(w.value1);
-            ((TextView) card.findViewById(R.id.tvLabel2)).setText(w.label2());
-            ((TextView) card.findViewById(R.id.tvValue2)).setText(w.value2);
-            ((TextView) card.findViewById(R.id.tvPhone)).setText(w.phone);
-
-            ImageView ivIcon1 = card.findViewById(R.id.ivIcon1);
-            ImageView ivIcon2 = card.findViewById(R.id.ivIcon2);
-            View btnAction = card.findViewById(R.id.btnAction);
-            ImageView ivActionIcon = card.findViewById(R.id.ivActionIcon);
-            TextView tvAction = card.findViewById(R.id.tvAction);
-
-            if (w.operator) {
-                ivIcon1.setImageResource(R.drawable.ic_pin);
-                ivIcon2.setImageResource(R.drawable.ic_clock);
-                btnAction.setBackgroundResource(R.drawable.btn_intercom_bg);
-                ivActionIcon.setImageResource(R.drawable.ic_headset);
-                ivActionIcon.setColorFilter(ContextCompat.getColor(this, R.color.intercom_text));
-                tvAction.setText("Intercom");
-                tvAction.setTextColor(ContextCompat.getColor(this, R.color.intercom_text));
-            } else {
-                ivIcon1.setImageResource(R.drawable.ic_vehicle);
-                ivIcon2.setImageResource(R.drawable.ic_pin);
-                btnAction.setBackgroundResource(R.drawable.btn_radio_bg);
-                ivActionIcon.setImageResource(R.drawable.ic_radio);
-                ivActionIcon.setColorFilter(ContextCompat.getColor(this, R.color.radio_text));
-                tvAction.setText("Radio");
-                tvAction.setTextColor(ContextCompat.getColor(this, R.color.radio_text));
-            }
-
-            card.setOnClickListener(v -> openSheet(w));
-
-            card.findViewById(R.id.btnCall).setOnClickListener(v -> {
-                String number = w.phone.replace(" ", "");
-                startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + number)));
-            });
-
-            btnAction.setOnClickListener(v -> showCallDialog(w));
-
+            styleBadge((TextView) card.findViewById(R.id.tvBadge), w.status);
+            card.setOnClickListener(v -> showWorkerDetails(w));
             listContainer.addView(card);
         }
 
-        if (shown == 0) {
-            TextView empty = new TextView(this);
-            empty.setText(fleetMembership != null && fleetMembership.joined
-                    ? "No matching staff. Invite a driver to join your terminal."
-                    : "Create your terminal, then invite your drivers to join.");
-            empty.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
-            empty.setTextSize(14);
-            empty.setPadding(0, 32, 0, 32);
-            empty.setGravity(Gravity.CENTER);
+        if (shown == 0 || workerError != null) {
+            View empty = LayoutInflater.from(this).inflate(R.layout.view_empty_state, listContainer, false);
+            ((ImageView) empty.findViewById(R.id.ivEmptyState)).setImageResource(R.drawable.ic_nav_workers);
+            TextView title = empty.findViewById(R.id.tvEmptyTitle);
+            TextView description = empty.findViewById(R.id.tvEmptyDescription);
+            if (workerError != null) {
+                title.setText("Could not load workers");
+                description.setText(workerError + " · Tap to retry");
+                empty.setOnClickListener(v -> refreshFleetConnection());
+            } else if (!workersLoaded) {
+                title.setText("Loading workers…");
+                description.setVisibility(View.GONE);
+            } else if (workers.isEmpty()) {
+                title.setText("No workers yet");
+                description.setText(fleetMembership != null && fleetMembership.joined
+                        ? "Invite a worker to get started." : "Create a terminal to invite workers.");
+            } else {
+                title.setText("No matching workers");
+                description.setText("Try a different search or duty filter.");
+            }
             listContainer.addView(empty);
         }
+    }
+
+    private void showWorkerDetails(final WorkerItem worker) {
+        LinearLayout content = WorkerDialogs.detailContent(this);
+        LinearLayout identity = WorkerDialogs.detailSection(this, content, "");
+        ImageView avatar = new ImageView(this);
+        avatar.setImageResource(R.drawable.ic_person);
+        avatar.setBackgroundResource(R.drawable.avatar_header_bg);
+        int size = Math.round(64 * getResources().getDisplayMetrics().density);
+        int inset = Math.round(18 * getResources().getDisplayMetrics().density);
+        avatar.setPadding(inset, inset, inset, inset);
+        LinearLayout.LayoutParams avatarLayout = new LinearLayout.LayoutParams(size, size);
+        avatarLayout.gravity = Gravity.CENTER_HORIZONTAL;
+        identity.addView(avatar, avatarLayout);
+        TextView name = WorkerDialogs.detailText(this, worker.name, 18, true);
+        name.setGravity(Gravity.CENTER);
+        identity.addView(name);
+        TextView meta = WorkerDialogs.detailText(this, worker.role() + " · " + worker.empId, 11, false);
+        meta.setGravity(Gravity.CENTER);
+        identity.addView(meta);
+        LinearLayout information = WorkerDialogs.detailSection(this, content, "Personal Information");
+        WorkerDialogs.informationRow(this, information, "Worker ID", worker.empId);
+        WorkerDialogs.informationRow(this, information, "Full Name", worker.name);
+        WorkerDialogs.informationRow(this, information, "Mobile Number", worker.phone);
+        LinearLayout assignment = WorkerDialogs.detailSection(this, content,
+                worker.operator ? "Terminal assignment" : "Assigned vehicle");
+        WorkerDialogs.informationRow(this, assignment, worker.label1(), worker.value1);
+        WorkerDialogs.informationRow(this, assignment, worker.label2(), worker.value2);
+        WorkerDialogs.informationRow(this, assignment, "Duty status", worker.status.replace('_', ' '));
+        com.google.android.material.button.MaterialButton actions =
+                new com.google.android.material.button.MaterialButton(this);
+        actions.setText("More actions");
+        content.addView(actions, new LinearLayout.LayoutParams(-1, -2));
+        actions.setOnClickListener(v -> openSheet(worker));
+        if (!worker.phone.isEmpty()) {
+            com.google.android.material.button.MaterialButton call =
+                    new com.google.android.material.button.MaterialButton(this);
+            call.setText("Call worker");
+            content.addView(call, new LinearLayout.LayoutParams(-1, -2));
+            call.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + worker.phone))));
+        }
+        WorkerDialogs.showDetailPage(this, "Worker Details", content);
     }
 
     private void openSheet(final WorkerItem w) {
@@ -607,18 +561,40 @@ public class OperatorActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private void showShiftLog(WorkerItem w) {
-        if (w.operator) {
-            WorkerDialogs.showShiftLog(this, w.name, w.role(), w.status, R.drawable.ic_pin,
-                    new String[]{"14", "Dispatches today", "8", "Terminal checks"},
-                    new String[]{"Shift", w.value2, "Station", w.value1, "Last activity", "2 min ago"});
-        } else {
-            WorkerDialogs.showShiftLog(this, w.name, w.role(), w.status, R.drawable.ic_vehicle,
-                    new String[]{"84 km", "Distance", "31 km/h", "Avg. speed"},
-                    new String[]{"Shift start", "06:02",
-                            "Vehicle", w.value1 + " • " + w.value2,
-                            "Stops • last GPS ping", "12 stops • 1 min ago"});
-        }
+    private void showShiftLog(WorkerItem worker) {
+        LinearLayout content = WorkerDialogs.detailContent(this);
+        TextView state = WorkerDialogs.detailText(this, "Loading recorded shifts…", 13, false);
+        content.addView(state);
+        android.app.Dialog page = WorkerDialogs.showDetailPage(this, "Shift Log · " + worker.name, content);
+        FleetApi.get("/shift", new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject reply) {
+                if (isFinishing() || isDestroyed() || !page.isShowing()) return;
+                JSONArray shifts = reply.optJSONArray("shifts");
+                if (shifts == null) { state.setText("The shift list could not be read."); return; }
+                content.removeAllViews();
+                int shown = 0;
+                java.text.SimpleDateFormat format = new java.text.SimpleDateFormat("EEE, MMM d · h:mm a", java.util.Locale.getDefault());
+                for (int i = 0; i < shifts.length(); i++) {
+                    JSONObject shift = shifts.optJSONObject(i);
+                    if (shift == null || !worker.empId.equals(shift.optString("driverId"))) continue;
+                    LinearLayout card = WorkerDialogs.detailSection(OperatorActivity.this, content,
+                            format.format(new java.util.Date(shift.optLong("startTime"))));
+                    WorkerDialogs.informationRow(OperatorActivity.this, card, "Vehicle", shift.optString("shuttleId"));
+                    WorkerDialogs.informationRow(OperatorActivity.this, card, "Duration",
+                            FleetApi.formatDuration(shift.optLong("durationMs")));
+                    WorkerDialogs.informationRow(OperatorActivity.this, card, "Distance",
+                            shift.has("distanceKm") ? shift.optString("distanceKm") + " km" : "Not recorded");
+                    shown++;
+                }
+                if (shown == 0) {
+                    state.setText("No recorded shifts for this worker.");
+                    content.addView(state);
+                }
+            }
+            @Override public void onError(int status, String message) {
+                if (!isFinishing() && page.isShowing()) state.setText(message);
+            }
+        });
     }
 
     private void showReassign(final WorkerItem w) {
@@ -682,15 +658,6 @@ public class OperatorActivity extends AppCompatActivity {
         };
     }
 
-    private void showCallDialog(WorkerItem w) {
-        String type = w.operator ? "Intercom" : "Radio";
-        new MaterialAlertDialogBuilder(this)
-                .setTitle(type + " • " + w.name)
-                .setMessage("Connecting on channel 3...\n\n(Demo only: voice is not connected yet.)")
-                .setPositiveButton("End call", null)
-                .show();
-    }
-
     private void showWorkerForm(final WorkerItem existing) {
         if (existing == null) {
             showFleetConnection();
@@ -716,37 +683,19 @@ public class OperatorActivity extends AppCompatActivity {
 
     private void showNotifications() {
         viewDot.setVisibility(View.GONE);
-
-        String[] items = {
-                "Unit SH-1024 reached Terminal 3 Bay A",
-                "Marco Santos clocked out",
-                "Shift change at 14:00",
-                "Lea Ramos started a break"
-        };
-
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Notifications")
-                .setItems(items, null)
-                .setPositiveButton("Close", null)
-                .show();
+        startActivity(new Intent(this, AccountActivity.class).putExtra("notifications", true));
     }
 
     private void showAccountMenu() {
         PopupMenu menu = new PopupMenu(this, tvHeaderAvatar);
-        menu.getMenu().add("Terminal & invitations");
-        menu.getMenu().add("Refresh drivers");
         menu.getMenu().add("My Profile");
         menu.getMenu().add("Sign out");
 
         menu.setOnMenuItemClickListener(item -> {
             if (item.getTitle().toString().equals("Sign out")) {
-                signOut();
-            } else if (item.getTitle().toString().equals("Terminal & invitations")) {
-                showFleetConnection();
-            } else if (item.getTitle().toString().equals("Refresh drivers")) {
-                refreshFleetConnection();
+                AccountActivity.confirmSignOut(this, this::signOut);
             } else {
-                comingSoon("Profile");
+                startActivity(new Intent(this, AccountActivity.class));
             }
             return true;
         });
@@ -783,7 +732,7 @@ public class OperatorActivity extends AppCompatActivity {
             text = R.color.brand_600;
         }
 
-        SpannableString s = new SpannableString("● " + status);
+        SpannableString s = new SpannableString("● " + (status.equals("OFF DUTY") ? "Off Duty" : status.equals("ON BREAK") ? "On Break" : "On Duty"));
         s.setSpan(new ForegroundColorSpan(ContextCompat.getColor(this, dot)),
                 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         s.setSpan(new ForegroundColorSpan(ContextCompat.getColor(this, text)),

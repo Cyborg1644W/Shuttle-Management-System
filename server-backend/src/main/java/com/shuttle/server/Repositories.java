@@ -1,6 +1,7 @@
 package com.shuttle.server;
 
 import com.shuttle.server.repository.ScheduleRepository;
+import com.shuttle.server.repository.DatedShiftRepository;
 import com.shuttle.server.repository.ShiftRepository;
 import com.shuttle.server.repository.ShuttleRepository;
 import com.shuttle.server.repository.WorkerRepository;
@@ -21,6 +22,7 @@ public final class Repositories {
     private static ShiftRepository shifts;
     private static ShuttleRepository shuttles;
     private static ScheduleRepository schedule;
+    private static DatedShiftRepository datedShifts;
     private static TerminalRepository terminals;
     private static boolean initialized;
 
@@ -54,11 +56,13 @@ public final class Repositories {
         ShuttleRepository nextShuttles = new ShuttleRepository(ServerConfig.getShuttlesCsvPath());
         ShiftRepository nextShifts = new ShiftRepository(ServerConfig.getShiftsCsvPath());
         ScheduleRepository nextSchedule = new ScheduleRepository(ServerConfig.getScheduleCsvPath());
+        DatedShiftRepository nextDated = new DatedShiftRepository(ServerConfig.getDatedShiftsCsvPath());
         TerminalRepository nextTerminals = new TerminalRepository(ServerConfig.getWorkersCsvPath().resolveSibling("terminals.csv"));
         workers = nextWorkers;
         shuttles = nextShuttles;
         shifts = nextShifts;
         schedule = nextSchedule;
+        datedShifts = nextDated;
         terminals = nextTerminals;
     }
 
@@ -104,6 +108,10 @@ public final class Repositories {
 
     public static ScheduleRepository schedule() {
         return require(schedule);
+    }
+
+    public static DatedShiftRepository datedShifts() {
+        return require(datedShifts);
     }
 
     public static TerminalRepository terminals() {

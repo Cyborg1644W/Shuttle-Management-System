@@ -16,6 +16,66 @@ import java.util.Date;
 import java.util.Locale;
 
 public class ShiftSummaryActivity extends AppCompatActivity {
+    /** Compact trip details retain access to the existing full route summary. */
+    public static void showDetails(android.app.Activity activity, String shiftId) {
+        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(activity);
+        android.widget.LinearLayout content = WorkerDialogs.detailContent(activity);
+        int pad = Math.round(24 * activity.getResources().getDisplayMetrics().density);
+        content.setPadding(pad, pad, pad, pad);
+        TextView title = WorkerDialogs.detailText(activity, "Trip Details", 18, true);
+        content.addView(title);
+        TextView state = WorkerDialogs.detailText(activity, "Loading trip…", 12, false);
+        content.addView(state);
+        android.widget.LinearLayout rows = WorkerDialogs.detailContent(activity);
+        content.addView(rows);
+        com.google.android.material.button.MaterialButton route =
+                new com.google.android.material.button.MaterialButton(activity);
+        route.setText("View recorded route");
+        route.setVisibility(android.view.View.GONE);
+        content.addView(route, new android.widget.LinearLayout.LayoutParams(-1, -2));
+        com.google.android.material.button.MaterialButton done =
+                new com.google.android.material.button.MaterialButton(activity);
+        done.setText("Done");
+        content.addView(done, new android.widget.LinearLayout.LayoutParams(-1, -2));
+        done.setOnClickListener(v -> sheet.dismiss());
+        route.setOnClickListener(v -> {
+            sheet.dismiss();
+            activity.startActivity(new android.content.Intent(activity, ShiftSummaryActivity.class)
+                    .putExtra("shiftId", shiftId));
+        });
+        sheet.setContentView(content);
+        sheet.show();
+        String token = Session.getToken();
+        FleetApi.get("/shift/" + FleetApi.encode(shiftId), new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject trip) {
+                if (activity.isFinishing() || activity.isDestroyed() || !sheet.isShowing()
+                        || !java.util.Objects.equals(token, Session.getToken())) return;
+                long start = trip.optLong("startTime");
+                long end = trip.optLong("endTime");
+                SimpleDateFormat date = new SimpleDateFormat("EEE, MMM d", Locale.getDefault());
+                SimpleDateFormat time = new SimpleDateFormat("h:mm a", Locale.getDefault());
+                String status = FleetApi.text(trip, "status").replace('_', ' ');
+                state.setText(date.format(new Date(start)) + (status.isEmpty() ? "" : " · " + status));
+                WorkerDialogs.informationRow(activity, rows, "Vehicle", trip.optString("shuttleId"));
+                WorkerDialogs.informationRow(activity, rows, "Terminal", trip.optString("terminal"));
+                WorkerDialogs.informationRow(activity, rows, "Shift", time.format(new Date(start)) + " – "
+                        + (end > 0 ? time.format(new Date(end)) : "In progress"));
+                WorkerDialogs.informationRow(activity, rows, "Duration",
+                        FleetApi.formatDuration(trip.optLong("durationMs", Math.max(0, end - start))));
+                WorkerDialogs.informationRow(activity, rows, "Distance",
+                        trip.has("distanceKm") ? trip.optString("distanceKm") + " km" : "Not recorded");
+                WorkerDialogs.informationRow(activity, rows, "Stops",
+                        trip.has("stops") ? trip.optString("stops") : "Not recorded");
+                route.setVisibility(android.view.View.VISIBLE);
+                route.setEnabled(!FleetApi.text(trip, "route").isEmpty());
+            }
+            @Override public void onError(int status, String message) {
+                if (!activity.isFinishing() && sheet.isShowing()) state.setText(message);
+            }
+        });
+    }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

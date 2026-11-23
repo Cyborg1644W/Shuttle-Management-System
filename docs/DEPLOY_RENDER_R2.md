@@ -39,7 +39,7 @@ Skip this section for a new system. If you already have accounts and fleet data 
      -cp /app/shuttle-server.jar com.shuttle.server.storage.StorageAdmin validate /import
    ```
 
-   The one-shot administration container uses UID 0 to read private local files through a read-only mount; the deployed web service continues to run as UID 10001. Successful validation reports that five CSV tables were validated and no files changed. If validation fails, keep the original data and investigate its schemas and references before uploading.
+   The one-shot administration container uses UID 0 to read private local files through a read-only mount; the deployed web service continues to run as UID 10001. Successful validation reports the number of CSV tables it checked. Include `dated-shifts.csv` from the same stopped installation if it exists. If validation fails, keep the original data and investigate its schemas and references before uploading.
 
 4. Create a private environment file **outside the Git checkout**, for example `/absolute/private/r2.env`, and restrict access to your own user. Enter your actual R2 settings locally, replacing these placeholders:
 
@@ -131,7 +131,7 @@ An open port, a successful Docker build, or the presence of an R2 object alone d
 
 ## Storage, backups, and limits
 
-The server saves `workers.csv`, `shuttles.csv`, `shifts.csv`, `schedule.csv`, and `terminals.csv` together in one private ZIP snapshot, with an automatically generated `commit.txt` marker. R2 conditional writes compare the object's ETag, preventing two running instances from silently overwriting one another's state. The backend refreshes cloud state before handling a request and checks storage as part of readiness. Keep exactly one instance. If storage cannot be read, written, or safely updated, investigate the error; do not overwrite the object or start a second writer as a workaround. The prototype limits both the snapshot and its expanded contents to 32 MiB; it is not intended as an unlimited history archive.
+The server saves `workers.csv`, `shuttles.csv`, `shifts.csv`, `schedule.csv`, and `terminals.csv` together in one private ZIP snapshot, with an automatically generated `commit.txt` marker. The optional `dated-shifts.csv` joins the same snapshot after a dated assignment is saved. The current server reads snapshots with or without that table. Deploy the scheduling-capable server before updating the Android clients. Once a dated shift is saved to R2, older server builds cannot read the new snapshot. Keep a private snapshot backup before rolling out the scheduling change. R2 conditional writes compare the object's ETag, preventing two running instances from silently overwriting one another's state. The backend refreshes cloud state before handling a request and checks storage as part of readiness. Keep exactly one instance. If storage cannot be read, written, or safely updated, investigate the error; do not overwrite the object or start a second writer as a workaround. The prototype limits both the snapshot and its expanded contents to 32 MiB; it is not intended as an unlimited history archive.
 
 A failed or uncertain write can return HTTP 503 or 409. Refresh to inspect the saved result before submitting the action again; do not automatically replay a registration, invitation redemption, or other state-changing request after a timeout.
 

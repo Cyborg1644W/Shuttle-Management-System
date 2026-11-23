@@ -59,7 +59,22 @@ public final class FleetApi {
         run("DELETE", path, null, callback);
     }
 
+    /** Sends a multi-row CSV table to an existing table endpoint. */
+    public static void putTable(String path, List<Map<String, String>> rows, Callback callback) {
+        StringBuilder csv = new StringBuilder();
+        for (Map<String, String> row : rows) {
+            String encoded = AuthApi.buildCsv(row);
+            if (csv.length() == 0) csv.append(encoded);
+            else csv.append(encoded.substring(encoded.indexOf('\n') + 1));
+        }
+        run("PUT", path, null, csv.toString(), callback);
+    }
+
     private static void run(String method, String path, JSONObject body, Callback callback) {
+        run(method, path, body, null, callback);
+    }
+
+    private static void run(String method, String path, JSONObject body, String table, Callback callback) {
         final String token = Session.getToken();
         final String baseUrl = ApiClient.getBaseUrl();
 
@@ -80,7 +95,7 @@ public final class FleetApi {
                 }
 
                 if (method.equals("POST") || method.equals("PUT")) {
-                    byte[] data = csvBody(body).getBytes(StandardCharsets.UTF_8);
+                    byte[] data = (table == null ? csvBody(body) : table).getBytes(StandardCharsets.UTF_8);
                     conn.setDoOutput(true);
                     conn.setRequestProperty("Content-Type", "text/csv; charset=utf-8");
                     conn.setFixedLengthStreamingMode(data.length);
@@ -223,6 +238,7 @@ public final class FleetApi {
                 case "/shuttles": listKey = "shuttles"; break;
                 case "/shift": listKey = "shifts"; break;
                 case "/schedule": listKey = "schedule"; break;
+                case "/scheduled-shifts": listKey = "assignments"; break;
                 case "/live": listKey = "shuttles"; break;
                 default: break;
             }

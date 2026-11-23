@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/accountRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/background">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp">
+        <ImageButton android:id="@+id/btnAccountBack" android:layout_width="40dp" android:layout_height="48dp" android:padding="12dp" android:src="@drawable/ic_arrow_back" android:contentDescription="Back" android:background="?attr/selectableItemBackgroundBorderless" />
+        <TextView android:id="@+id/tvAccountTitle" style="@style/Fleet.Title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/profile_details_title" android:textSize="18sp" />
+    </LinearLayout>
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/border" />
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="28dp">
+            <LinearLayout android:id="@+id/layoutAccountProfile" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <LinearLayout android:id="@+id/layoutProfileIdentity" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_ff_card" android:padding="16dp" android:gravity="center" android:orientation="vertical">
+                    <ImageView android:layout_width="64dp" android:layout_height="64dp" android:background="@drawable/avatar_header_bg" android:src="@drawable/ic_person" android:padding="18dp" android:contentDescription="@null" />
+                    <TextView android:id="@+id/tvAccountName" style="@style/Fleet.Subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center" />
+                    <TextView android:id="@+id/tvAccountRole" style="@style/Fleet.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/chip_bg" android:textColor="@color/primary" android:textSize="10sp" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="4dp" android:paddingBottom="4dp" />
+                </LinearLayout>
+                <LinearLayout android:id="@+id/layoutProfileDetails" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="24dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical">
+                        <TextView style="@style/Fleet.Subtitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Personal Information" android:textSize="13sp" />
+                        <TextView android:id="@+id/btnAccountEdit" style="@style/Fleet.AuthLink" android:text="✎ Edit" />
+                    </LinearLayout>
+                    <LinearLayout android:id="@+id/layoutProfileRows" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_ff_card" android:paddingStart="12dp" android:paddingEnd="12dp" />
+                </LinearLayout>
+                <LinearLayout android:id="@+id/layoutProfileForm" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="20dp" android:visibility="gone">
+                    <TextView style="@style/Fleet.AuthLabel" android:text="FIRST NAME" android:textSize="10sp" />
+                    <EditText android:id="@+id/etAccountFirstName" style="@style/Fleet.AuthField" android:inputType="textPersonName" android:autofillHints="personGivenName" />
+                    <TextView style="@style/Fleet.AuthLabel" android:text="LAST NAME" android:textSize="10sp" />
+                    <EditText android:id="@+id/etAccountLastName" style="@style/Fleet.AuthField" android:inputType="textPersonName" android:autofillHints="personFamilyName" />
+                    <TextView style="@style/Fleet.AuthLabel" android:text="EMAIL ADDRESS" android:textSize="10sp" />
+                    <EditText android:id="@+id/etAccountEmail" style="@style/Fleet.AuthField" android:inputType="textEmailAddress" android:autofillHints="emailAddress" />
+                    <TextView style="@style/Fleet.AuthLabel" android:text="MOBILE NUMBER" android:textSize="10sp" />
+                    <EditText android:id="@+id/etAccountPhone" style="@style/Fleet.AuthField" android:inputType="phone" android:autofillHints="phone" />
+                    <TextView style="@style/Fleet.AuthLabel" android:text="ACCOUNT ID" android:textSize="10sp" />
+                    <TextView android:id="@+id/tvAccountFormId" style="@style/Fleet.AuthReadOnlyField"
+                        android:textIsSelectable="true" />
+                    <TextView style="@style/Fleet.AuthLabel" android:text="ACCOUNT ROLE" android:textSize="10sp" />
+                    <TextView android:id="@+id/tvAccountFormRole" style="@style/Fleet.AuthReadOnlyField" />
+                    <TextView android:id="@+id/tvAccountError" style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:textColor="@color/error" android:accessibilityLiveRegion="polite" android:visibility="gone" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btnAccountSave" style="@style/Fleet.AuthButton" android:text="Save Changes" />
+                    <TextView android:id="@+id/btnAccountCancel" style="@style/Fleet.AuthLink" android:layout_gravity="center_horizontal" android:text="Cancel" />
+                </LinearLayout>
+                <TextView android:id="@+id/tvAccountSaved" style="@style/Fleet.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:padding="16dp" android:background="@drawable/bg_ff_card" android:textColor="@color/success" android:text="✓ Changes saved successfully.\nProfile information has been updated." android:textSize="12sp" android:visibility="gone" android:accessibilityLiveRegion="polite" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/layoutAccountNotifications" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+                    <TextView android:id="@+id/btnNotificationsAll" style="@style/Fleet.AuthLink" android:minWidth="96dp" android:minHeight="48dp" android:textSize="13sp" android:text="All" android:background="@drawable/tab_selected" android:textColor="@color/white" android:paddingStart="20dp" android:paddingEnd="20dp" />
+                    <TextView android:id="@+id/btnNotificationsUnread" style="@style/Fleet.AuthLink" android:minWidth="96dp" android:minHeight="48dp" android:textSize="13sp" android:text="Unread" android:layout_marginStart="8dp" android:background="@drawable/tab_unselected" android:paddingStart="20dp" android:paddingEnd="20dp" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="80dp" android:orientation="vertical" android:gravity="center">
+                    <ImageView android:layout_width="64dp" android:layout_height="64dp" android:src="@drawable/ic_bell" android:contentDescription="@null" android:padding="18dp" android:background="@drawable/empty_icon_bg" app:tint="@color/primary" />
+                    <TextView android:id="@+id/tvNotificationsEmpty" android:gravity="center" android:accessibilityLiveRegion="polite" style="@style/Fleet.Subtitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="@string/no_notifications" />
+                    <TextView android:id="@+id/tvNotificationsDescription" style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:layout_marginTop="8dp" android:textSize="13sp" android:text="@string/no_notifications_detail" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

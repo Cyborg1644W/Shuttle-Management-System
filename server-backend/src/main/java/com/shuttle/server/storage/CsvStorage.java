@@ -2,6 +2,7 @@ package com.shuttle.server.storage;
 
 import com.shuttle.server.ServerConfig;
 import com.shuttle.server.io.AtomicFileWriter;
+import com.shuttle.server.repository.DatedShiftRepository;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -46,6 +47,7 @@ public final class CsvStorage {
             paths.put(normalize(ServerConfig.getShuttlesCsvPath()), "shuttles.csv");
             paths.put(normalize(ServerConfig.getShiftsCsvPath()), "shifts.csv");
             paths.put(normalize(ServerConfig.getScheduleCsvPath()), "schedule.csv");
+            paths.put(normalize(ServerConfig.getDatedShiftsCsvPath()), DatedShiftRepository.FILE_NAME);
             paths.put(normalize(ServerConfig.getWorkersCsvPath().resolveSibling("terminals.csv")), "terminals.csv");
             managed = paths;
         }
@@ -82,7 +84,7 @@ public final class CsvStorage {
         requireOwner();
         try {
             if (staged.equals(committed)) return;
-            if (!staged.keySet().equals(new java.util.HashSet<>(TABLES))) {
+            if (!complete(staged)) {
                 throw new IOException("Refusing an incomplete cloud state");
             }
             byte[] snapshot = encode(staged);
@@ -151,10 +153,21 @@ public final class CsvStorage {
 
     private static Path normalize(Path path) { return path.toAbsolutePath().normalize(); }
 
+    private static boolean isTable(String name) {
+        return TABLES.contains(name) || DatedShiftRepository.FILE_NAME.equals(name);
+    }
+
+    private static boolean complete(Map<String, String> tables) {
+        return tables.keySet().containsAll(TABLES) && tables.keySet().stream().allMatch(CsvStorage::isTable);
+    }
+
     public static byte[] encode(Map<String, String> tables) throws IOException {
+        if (!complete(tables)) throw new IOException("Incomplete or unexpected cloud state");
+        List<String> entries = new java.util.ArrayList<>(TABLES);
+        if (tables.containsKey(DatedShiftRepository.FILE_NAME)) entries.add(DatedShiftRepository.FILE_NAME);
         String commitId = UUID.randomUUID().toString();
         long expandedBytes = commitId.getBytes(StandardCharsets.UTF_8).length;
-        for (String name : TABLES) {
+        for (String name : entries) {
             String text = tables.get(name);
             if (text == null) throw new IOException("Missing table: " + name);
             expandedBytes += text.getBytes(StandardCharsets.UTF_8).length;
@@ -162,7 +175,7 @@ public final class CsvStorage {
         }
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
-            for (String name : TABLES) {
+            for (String name : entries) {
                 String text = tables.get(name);
                 if (text == null) throw new IOException("Missing table: " + name);
                 zip.putNextEntry(new ZipEntry(name));
@@ -186,13 +199,13 @@ public final class CsvStorage {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 String name = entry.getName();
-                if ((!TABLES.contains(name) && !COMMIT_ENTRY.equals(name)) || !seen.add(name) || entry.isDirectory()) {
+                if ((!isTable(name) && !COMMIT_ENTRY.equals(name)) || !seen.add(name) || entry.isDirectory()) {
                     throw new IOException("Unexpected or duplicate entry in cloud state");
                 }
                 byte[] data = zip.readNBytes(MAX_SNAPSHOT_BYTES + 1);
                 total += data.length;
                 if (total > MAX_SNAPSHOT_BYTES) throw new IOException("Expanded cloud state too large");
-                if (TABLES.contains(name)) {
+                if (isTable(name)) {
                     String text = StandardCharsets.UTF_8.newDecoder()
                             .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
                             .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
@@ -201,7 +214,7 @@ public final class CsvStorage {
                 }
             }
         }
-        if (!tables.keySet().equals(new java.util.HashSet<>(TABLES))) throw new IOException("Incomplete cloud state");
+        if (!complete(tables)) throw new IOException("Incomplete cloud state");
         return tables;
     }
 }

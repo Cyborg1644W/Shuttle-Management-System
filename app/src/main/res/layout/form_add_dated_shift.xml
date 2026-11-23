@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="vertical" android:focusableInTouchMode="true">
+    <TextView style="@style/Fleet.Body"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Assign a worker and shuttle to a shift." android:textColor="@color/text_secondary" />
+    <TextView style="@style/Fleet.ShiftFieldLabel" android:labelFor="@+id/btnShiftDate"
+        android:text="SHIFT DATE *" />
+    <TextView android:id="@id/btnShiftDate" style="@style/Fleet.ShiftPickerField"
+        android:drawableEnd="@drawable/ic_nav_schedule" android:text="Select date" />
+    <TextView style="@style/Fleet.ShiftFieldLabel" android:labelFor="@+id/btnShiftWorker"
+        android:text="ASSIGNED WORKER *" />
+    <TextView android:id="@id/btnShiftWorker" style="@style/Fleet.ShiftPickerField"
+        android:drawableEnd="@drawable/ic_chevron_down" android:text="Select worker" />
+    <TextView style="@style/Fleet.ShiftFieldLabel" android:labelFor="@+id/btnShiftShuttle"
+        android:text="SHUTTLE UNIT *" />
+    <TextView android:id="@id/btnShiftShuttle" style="@style/Fleet.ShiftPickerField"
+        android:drawableEnd="@drawable/ic_chevron_down" android:text="Select shuttle unit" />
+    <TextView style="@style/Fleet.ShiftFieldLabel" android:labelFor="@+id/btnShiftStart"
+        android:text="START TIME *" />
+    <TextView android:id="@id/btnShiftStart" style="@style/Fleet.ShiftPickerField"
+        android:drawableEnd="@drawable/ic_clock" android:text="Select time" />
+    <TextView style="@style/Fleet.ShiftFieldLabel" android:labelFor="@+id/btnShiftEnd"
+        android:text="END TIME *" />
+    <TextView android:id="@id/btnShiftEnd" style="@style/Fleet.ShiftPickerField"
+        android:drawableEnd="@drawable/ic_clock" android:text="Select time" />
+    <TextView style="@style/Fleet.ShiftFieldLabel" android:labelFor="@+id/etShiftNotes"
+        android:text="ADDITIONAL NOTES FOR WORKER" />
+    <EditText android:id="@id/etShiftNotes" style="@style/Fleet.AuthField"
+        android:layout_height="wrap_content" android:minHeight="84dp"
+        android:singleLine="false" android:inputType="textCapSentences|textMultiLine"
+        android:gravity="top|start" android:paddingTop="12dp" android:paddingBottom="12dp"
+        android:hint="Add instructions (optional)" android:maxLength="1000" />
+    <TextView android:id="@+id/tvAddShiftError" style="@style/Fleet.Caption"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="12dp" android:textColor="@color/error"
+        android:visibility="gone" android:accessibilityLiveRegion="polite" />
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSaveDatedShift" style="@style/Fleet.AuthButton"
+        android:layout_marginTop="12dp" android:text="Add Shift" />
+</LinearLayout>

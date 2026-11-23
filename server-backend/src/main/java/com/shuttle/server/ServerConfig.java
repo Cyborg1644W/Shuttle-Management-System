@@ -114,6 +114,10 @@ public class ServerConfig {
         return scheduleCsv != null ? Paths.get(scheduleCsv) : sibling("schedule.csv");
     }
 
+    public static Path getDatedShiftsCsvPath() {
+        return getScheduleCsvPath().resolveSibling(com.shuttle.server.repository.DatedShiftRepository.FILE_NAME);
+    }
+
     private static Path sibling(String name) {
         Path parent = getWorkersCsvPath().getParent();
         return parent == null ? Paths.get(name) : parent.resolve(name);

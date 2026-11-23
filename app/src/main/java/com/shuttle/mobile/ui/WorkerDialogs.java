@@ -1,14 +1,10 @@
 package com.shuttle.mobile.ui;
 
 import android.content.Context;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.InsetDrawable;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.ForegroundColorSpan;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
@@ -25,6 +21,61 @@ import com.shuttle.mobile.R;
 import java.util.Locale;
 
 public final class WorkerDialogs {
+    public static LinearLayout detailContent(Context context) {
+        LinearLayout content = new LinearLayout(context);
+        content.setOrientation(LinearLayout.VERTICAL);
+        return content;
+    }
+
+    public static TextView detailText(Context context, String text, int size, boolean bold) {
+        TextView view = new TextView(context);
+        view.setText(text);
+        view.setTextSize(size);
+        view.setTextColor(ContextCompat.getColor(context, R.color.text_primary));
+        if (bold) view.setTypeface(view.getTypeface(), android.graphics.Typeface.BOLD);
+        return view;
+    }
+
+    public static LinearLayout detailSection(Context context, LinearLayout parent, String title) {
+        int padding = Math.round(16 * context.getResources().getDisplayMetrics().density);
+        if (title != null && !title.isEmpty()) {
+            TextView heading = detailText(context, title, 13, true);
+            heading.setPadding(0, padding, 0, padding / 2);
+            parent.addView(heading);
+        }
+        LinearLayout card = detailContent(context);
+        card.setPadding(padding, padding / 2, padding, padding / 2);
+        card.setBackgroundResource(R.drawable.bg_ff_card);
+        parent.addView(card, new LinearLayout.LayoutParams(-1, -2));
+        return card;
+    }
+
+    public static TextView informationRow(Context context, LinearLayout parent, String label, String value) {
+        LinearLayout row = new LinearLayout(context);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        int padding = Math.round(12 * context.getResources().getDisplayMetrics().density);
+        row.setPadding(0, padding, 0, padding);
+        TextView caption = detailText(context, label, 11, false);
+        caption.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
+        row.addView(caption, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView text = detailText(context, value == null || value.isEmpty() ? "Not provided" : value, 12, false);
+        text.setGravity(android.view.Gravity.END);
+        row.addView(text, new LinearLayout.LayoutParams(0, -2, 1.5f));
+        parent.addView(row);
+        return text;
+    }
+    /** Presents an existing form/detail view as a native page without another Activity. */
+    public static android.app.Dialog showDetailPage(Context context, String title, View content) {
+        android.app.Dialog dialog = new android.app.Dialog(context, R.style.Theme_Shuttle);
+        View page = LayoutInflater.from(context).inflate(R.layout.view_detail_page, null);
+        ((TextView) page.findViewById(R.id.tvDetailTitle)).setText(title);
+        ((android.widget.FrameLayout) page.findViewById(R.id.detailPageContent)).addView(content);
+        page.findViewById(R.id.btnDetailBack).setOnClickListener(v -> dialog.dismiss());
+        dialog.setContentView(page);
+        dialog.show();
+        if (dialog.getWindow() != null) dialog.getWindow().setLayout(-1, -1);
+        return dialog;
+    }
 
     private WorkerDialogs() { }
 
@@ -48,40 +99,6 @@ public final class WorkerDialogs {
 
     public static boolean isBreak(String status) {
         return statusRank(status) == 1;
-    }
-
-    // 1) Shift log
-    /**
-     * @param stats {value1, label1, value2, label2}  - the two big numbers
-     * @param rows  {label1, value1, label2, value2, label3, value3} - the three detail rows
-     * @param row2IconRes icon for the 2nd row (e.g. R.drawable.ic_pin or R.drawable.ic_vehicle)
-     */
-    public static void showShiftLog(Context c, String name, String role, String status,
-                                    int row2IconRes, String[] stats, String[] rows) {
-        View v = inflate(c, R.layout.dialog_shift_log);
-        AlertDialog d = build(c, v);
-
-        ((TextView) v.findViewById(R.id.tvSlAvatar)).setText(initials(name));
-        ((TextView) v.findViewById(R.id.tvSlName)).setText(name);
-        ((TextView) v.findViewById(R.id.tvSlRole)).setText(role);
-        styleStatus(c, (TextView) v.findViewById(R.id.tvSlStatus), status);
-
-        ((TextView) v.findViewById(R.id.tvSlStat1)).setText(stats[0]);
-        ((TextView) v.findViewById(R.id.tvSlStat1Label)).setText(stats[1]);
-        ((TextView) v.findViewById(R.id.tvSlStat2)).setText(stats[2]);
-        ((TextView) v.findViewById(R.id.tvSlStat2Label)).setText(stats[3]);
-
-        ((TextView) v.findViewById(R.id.tvSlRow1Label)).setText(rows[0]);
-        ((TextView) v.findViewById(R.id.tvSlRow1)).setText(rows[1]);
-        ((TextView) v.findViewById(R.id.tvSlRow2Label)).setText(rows[2]);
-        ((TextView) v.findViewById(R.id.tvSlRow2)).setText(rows[3]);
-        ((TextView) v.findViewById(R.id.tvSlRow3Label)).setText(rows[4]);
-        ((TextView) v.findViewById(R.id.tvSlRow3)).setText(rows[5]);
-        ((ImageView) v.findViewById(R.id.ivSlRow2Icon)).setImageResource(row2IconRes);
-
-        v.findViewById(R.id.btnSlClose).setOnClickListener(x -> d.dismiss());
-        v.findViewById(R.id.ivSlClose).setOnClickListener(x -> d.dismiss());
-        d.show();
     }
 
     // 2) Reassign (station or vehicle)
@@ -222,39 +239,4 @@ public final class WorkerDialogs {
         return d;
     }
 
-    private static void styleStatus(Context c, TextView badge, String status) {
-        int bg;
-        int dot;
-        int text;
-        if (isBreak(status)) {
-            bg = R.color.badge_break_bg;
-            dot = R.color.break_dot;
-            text = R.color.break_text;
-        } else if (statusRank(status) == 0) {
-            bg = R.color.badge_on_bg;
-            dot = R.color.brand_600;
-            text = R.color.brand_600;
-        } else {
-            bg = R.color.badge_off_bg;
-            dot = R.color.text_secondary;
-            text = R.color.text_secondary;
-        }
-
-        SpannableString s = new SpannableString("● " + status.toUpperCase(Locale.ROOT));
-        s.setSpan(new ForegroundColorSpan(ContextCompat.getColor(c, dot)),
-                0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        s.setSpan(new ForegroundColorSpan(ContextCompat.getColor(c, text)),
-                1, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        badge.setText(s);
-        badge.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(c, bg)));
-    }
-
-    static String initials(String name) {
-        String[] parts = name.trim().split("\\s+");
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < parts.length && i < 2; i++) {
-            if (!parts[i].isEmpty()) sb.append(parts[i].substring(0, 1).toUpperCase(Locale.ROOT));
-        }
-        return sb.length() == 0 ? "?" : sb.toString();
-    }
 }

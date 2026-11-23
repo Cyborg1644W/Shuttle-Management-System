@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="24dp" android:orientation="vertical">
+    <View android:layout_width="36dp" android:layout_height="4dp" android:layout_gravity="center_horizontal" android:background="@color/border" android:layout_marginBottom="14dp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/tvInviteSheetTitle" style="@style/Fleet.Title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textSize="18sp" />
+        <ImageButton android:id="@+id/btnInviteSheetClose" android:layout_width="40dp" android:layout_height="40dp" android:padding="12dp" android:src="@drawable/ic_close" android:contentDescription="Close" android:background="?attr/selectableItemBackgroundBorderless" />
+    </LinearLayout>
+    <TextView android:id="@+id/tvInviteSheetDescription" style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp" />
+    <TextView style="@style/Fleet.AuthLabel" android:text="INVITATION CODE" android:textSize="10sp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical" android:background="@drawable/input_bg" android:paddingStart="8dp" android:paddingEnd="8dp">
+        <EditText android:id="@+id/etInviteSheetCode" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@null" android:textSize="14sp" android:singleLine="true" android:inputType="textCapCharacters" android:importantForAutofill="no" android:hint="Invitation code" />
+        <ImageButton android:id="@+id/btnInviteSheetReveal" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:src="@drawable/ic_eye" android:contentDescription="Show invitation code" android:background="?attr/selectableItemBackgroundBorderless" />
+        <ImageButton android:id="@+id/btnInviteSheetCopy" android:layout_width="48dp"
+            android:layout_height="48dp" android:padding="13dp"
+            android:src="@drawable/ic_copy" android:contentDescription="Copy invitation code"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+    </LinearLayout>
+    <TextView android:id="@+id/tvInviteSheetError" style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textColor="@color/error" android:visibility="gone" android:accessibilityLiveRegion="polite" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/btnInviteSheetAction" style="@style/Fleet.AuthButton" android:text="Join" />
+</LinearLayout>

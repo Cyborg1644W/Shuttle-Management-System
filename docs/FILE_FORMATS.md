@@ -108,8 +108,25 @@ The backend validates every imported row. Invalid rows are reported as errors, e
 6. `AtomicFileWriter` safely writes the complete updated CSV file. A temporary file is used first so the original data is less likely to be damaged if saving is interrupted.
 7. The server then returns the result of the operation to the Android app.
 
-In short: the Android app does not directly open these CSV files. It communicates with the Java server through HTTP, and the server manages the CSV data locally.
+In short: the Android app does not directly open these CSV files. It communicates with the Java server through HTTP, and the server manages the CSV data using its configured storage.
 
 ## Important note
 
 Do not edit `.lock` files. The backend creates them automatically while it safely saves CSV data.
+
+## Dated shift assignments
+
+`dated-shifts.csv` is created when the first dated assignment is saved. It lives beside `schedule.csv` in local mode and joins the same private snapshot in R2 mode.
+
+```csv
+id,terminalId,employeeId,shuttleId,shiftDate,startTime,endTime,notesBase64
+```
+
+- `id` is a UUID. Repeating the same save with the same ID returns the saved assignment rather than creating a duplicate.
+- `terminalId`, `employeeId`, and `shuttleId` refer to the terminal and its assigned driver and vehicle.
+- Dates use `YYYY-MM-DD` and times use 24-hour `HH:mm`, interpreted in Philippine time. The end time must be later than the start time on the same date.
+- `notesBase64` contains the UTF-8 notes encoded as Base64 so line breaks, commas, and quotes survive the CSV format. An empty field means the operator left no notes. Base64 does not encrypt the notes.
+
+The Android client uses authenticated `GET /api/scheduled-shifts?from=YYYY-MM-DD&to=YYYY-MM-DD` to load a calendar period and operator-only `POST /api/scheduled-shifts` to save one assignment. Operators can read assignments for their terminal. Drivers can read their own assignments in their current terminal.
+
+`schedule.csv` continues to hold existing weekly rules, and `shifts.csv` continues to hold actual trip history. The server checks dated assignments for worker and shuttle overlap, worker overlap with weekly rules, and ineligible vehicles.

@@ -62,15 +62,13 @@ public class DriverActivity extends AppCompatActivity {
     private long activeStart = 0;
     private boolean busy = false;
     private FleetConnectionUi.Membership fleetMembership;
-    private boolean fleetPromptShown;
     private MaterialButton btnTerminal;
 
     private View pageHome;
     private View pageTrips;
-    private View pageProfile;
+    private View pageSchedule;
     private View layoutHeaderTitle;
     private View viewDot;
-    private TextView tvPageLabel;
     private TextView tvHello;
     private TextView tvStatusBadge;
     private TextView tvTimer;
@@ -82,23 +80,15 @@ public class DriverActivity extends AppCompatActivity {
     private TextView tvStatSpeed;
     private MaterialButton btnShift;
     private PureJavaMapCanvas mapView;
-    private TextView tvTripsEmpty;
+    private View tripsEmpty;
+    private TextView tripsEmptyTitle, tripsEmptyDescription;
     private LinearLayout listTrips;
 
-    private TextView tvProfileAvatar;
-    private TextView tvProfileName;
-    private TextView tvProfileRole;
-    private TextView tvProfileEmail;
-    private TextView tvProfilePhone;
-    private TextView tvGateSub;
-    private SwitchMaterial switchGate;
 
     private ImageView ivNavHome;
     private ImageView ivNavTrips;
-    private ImageView ivNavProfile;
     private TextView tvNavHome;
     private TextView tvNavTrips;
-    private TextView tvNavProfile;
 
     private final ArrayList<double[]> liveTrail = new ArrayList<>();
     private double liveDistanceKm = 0;
@@ -163,10 +153,10 @@ public class DriverActivity extends AppCompatActivity {
 
         pageHome = findViewById(R.id.pageHome);
         pageTrips = findViewById(R.id.pageTrips);
-        pageProfile = findViewById(R.id.pageProfile);
+        pageSchedule = findViewById(R.id.pageDriverSchedule);
+        SchedulePage.bind(this, pageSchedule);
         layoutHeaderTitle = findViewById(R.id.layoutHeaderTitle);
         viewDot = findViewById(R.id.viewDot);
-        tvPageLabel = findViewById(R.id.tvPageLabel);
         tvHello = findViewById(R.id.tvHello);
         tvStatusBadge = findViewById(R.id.tvStatusBadge);
         tvTimer = findViewById(R.id.tvTimer);
@@ -179,25 +169,18 @@ public class DriverActivity extends AppCompatActivity {
         btnShift = findViewById(R.id.btnShift);
         btnTerminal = findViewById(R.id.btnTerminal);
         btnTerminal.setOnClickListener(v -> showTerminalConnection());
-        tvTerminal.setOnClickListener(v -> showTerminalConnection());
         mapView = findViewById(R.id.mapView);
-        tvTripsEmpty = findViewById(R.id.tvTripsEmpty);
+        tripsEmpty = findViewById(R.id.tripsEmptyState);
+        tripsEmptyTitle = tripsEmpty.findViewById(R.id.tvEmptyTitle);
+        tripsEmptyDescription = tripsEmpty.findViewById(R.id.tvEmptyDescription);
+        ((ImageView) tripsEmpty.findViewById(R.id.ivEmptyState)).setImageResource(R.drawable.ic_vehicle);
         listTrips = findViewById(R.id.listTrips);
 
-        tvProfileAvatar = findViewById(R.id.tvProfileAvatar);
-        tvProfileName = findViewById(R.id.tvProfileName);
-        tvProfileRole = findViewById(R.id.tvProfileRole);
-        tvProfileEmail = findViewById(R.id.tvProfileEmail);
-        tvProfilePhone = findViewById(R.id.tvProfilePhone);
-        tvGateSub = findViewById(R.id.tvGateSub);
-        switchGate = findViewById(R.id.switchGate);
 
         ivNavHome = findViewById(R.id.ivNavHome);
         ivNavTrips = findViewById(R.id.ivNavTrips);
-        ivNavProfile = findViewById(R.id.ivNavProfile);
         tvNavHome = findViewById(R.id.tvNavHome);
         tvNavTrips = findViewById(R.id.tvNavTrips);
-        tvNavProfile = findViewById(R.id.tvNavProfile);
 
         int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         TextView tvGreeting = findViewById(R.id.tvGreeting);
@@ -211,26 +194,16 @@ public class DriverActivity extends AppCompatActivity {
 
         fillProfile();
 
-        final SharedPreferences settings = getSharedPreferences("fleetflow_settings", Context.MODE_PRIVATE);
-        switchGate.setChecked(settings.getBoolean("gate_alerts", true));
-        updateGateText();
-        switchGate.setOnCheckedChangeListener((button, checked) -> {
-            settings.edit().putBoolean("gate_alerts", checked).apply();
-            updateGateText();
-        });
 
         findViewById(R.id.navHome).setOnClickListener(v -> setTab(0));
+        findViewById(R.id.navDriverSchedule).setOnClickListener(v -> setTab(2));
         findViewById(R.id.navTrips).setOnClickListener(v -> setTab(1));
-        findViewById(R.id.navProfile).setOnClickListener(v -> setTab(2));
         findViewById(R.id.flBell).setOnClickListener(v -> showNotifications());
+        viewDot.setVisibility(View.GONE);
+        findViewById(R.id.btnDriverProfile).setOnClickListener(v -> showAccountMenu());
+        findViewById(R.id.btnJoinTerminal).setOnClickListener(v -> showTerminalConnection());
         btnShift.setOnClickListener(v -> onShiftButton());
 
-        findViewById(R.id.btnEditProfile).setOnClickListener(v -> showEditName());
-        findViewById(R.id.btnManagePass).setOnClickListener(v -> showManagePass());
-        findViewById(R.id.cardPass).setOnClickListener(v -> showPassCode());
-        findViewById(R.id.rowEmergency).setOnClickListener(v -> showEmergency());
-        findViewById(R.id.rowLegal).setOnClickListener(v -> showLegal());
-        findViewById(R.id.btnSignOut).setOnClickListener(v -> signOut());
 
         setTab(0);
     }
@@ -264,6 +237,11 @@ public class DriverActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (Session.isSignedIn() && tvHello != null) {
+            driverName = Session.getName() == null ? "" : Session.getName();
+            email = Session.getEmail() == null ? "" : Session.getEmail();
+            fillProfile();
+        }
         if (!Session.isSignedIn()) {
             return;
         }
@@ -304,7 +282,7 @@ public class DriverActivity extends AppCompatActivity {
 
     private void setBusy(boolean value) {
         busy = value;
-        btnShift.setEnabled(!value && (activeStart > 0 || isFleetJoined()));
+        refreshShiftUi();
     }
 
     private boolean isFleetJoined() {
@@ -333,12 +311,9 @@ public class DriverActivity extends AppCompatActivity {
                 if (isFinishing() || isDestroyed()) return;
                 fleetMembership = new FleetConnectionUi.Membership(json);
                 terminal = isFleetJoined() ? fleetMembership.terminalName : "No terminal yet";
-                btnTerminal.setText(isFleetJoined() ? "Terminal: " + terminal : "Join terminal");
+                btnTerminal.setText(isFleetJoined() ? "View Terminal →" : "Join terminal");
                 refreshShiftUi();
-                if (!isFleetJoined() && !fleetPromptShown) {
-                    fleetPromptShown = true;
-                    showTerminalConnection();
-                }
+
             }
             @Override public void onError(int status, String message) {
                 if (isFinishing() || isDestroyed()) return;
@@ -508,6 +483,8 @@ public class DriverActivity extends AppCompatActivity {
         if (mapView != null) {
             mapView.setTraveled(liveTrail);
             mapView.setCurrent(p);
+            mapView.setVisibility(View.VISIBLE);
+            findViewById(R.id.tvDriverRouteEmpty).setVisibility(View.GONE);
         }
     }
 
@@ -515,16 +492,14 @@ public class DriverActivity extends AppCompatActivity {
         currentTab = tab;
         pageHome.setVisibility(tab == 0 ? View.VISIBLE : View.GONE);
         pageTrips.setVisibility(tab == 1 ? View.VISIBLE : View.GONE);
-        pageProfile.setVisibility(tab == 2 ? View.VISIBLE : View.GONE);
+        pageSchedule.setVisibility(tab == 2 ? View.VISIBLE : View.GONE);
+        if (tab == 2) SchedulePage.refresh(pageSchedule);
 
-        layoutHeaderTitle.setVisibility(tab == 2 ? View.GONE : View.VISIBLE);
-
-        String[] labels = {"Home", "Trips", "Profile"};
-        tvPageLabel.setText(labels[tab]);
+        layoutHeaderTitle.setVisibility(View.VISIBLE);
 
         styleNav(ivNavHome, tvNavHome, tab == 0);
         styleNav(ivNavTrips, tvNavTrips, tab == 1);
-        styleNav(ivNavProfile, tvNavProfile, tab == 2);
+        styleNav(findViewById(R.id.ivNavDriverSchedule), findViewById(R.id.tvNavDriverSchedule), tab == 2);
 
         if (tab == 1) {
             renderTrips();
@@ -543,295 +518,28 @@ public class DriverActivity extends AppCompatActivity {
     }
 
     private void fillProfile() {
-        String first = driverName.trim().split("\\s+")[0];
-        tvHello.setText("Hi, " + first);
-
-        tvProfileAvatar.setText(initials(driverName));
-        tvProfileName.setText(driverName);
-        tvProfileRole.setText("Driver • " + employeeId);
-
-        tvProfileEmail.setText(email.isEmpty() ? "No email on file" : email);
-        tvProfilePhone.setText(findPhone());
-    }
-
-    private String findPhone() {
-        String p = Session.getPhone();
-        if (p == null || p.isEmpty()) {
-            return "No phone on file";
-        }
-        if (p.matches("\\+63[0-9]{10}")) {
-            return "+63 " + p.substring(3, 6) + " " + p.substring(6, 9) + " " + p.substring(9);
-        }
-        return p;
-    }
-
-    private void updateGateText() {
-        if (switchGate.isChecked()) {
-            tvGateSub.setText("Active • live notifications");
-            tvGateSub.setTextColor(ContextCompat.getColor(this, R.color.brand_600));
-        } else {
-            tvGateSub.setText("Paused • notifications off");
-            tvGateSub.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
-        }
-    }
-
-    private void showEditName() {
-        final EditText input = new EditText(this);
-        input.setText(driverName);
-        input.setSelection(input.getText().length());
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS);
-        input.setBackgroundResource(R.drawable.input_bg);
-        int pad = dp(16);
-        input.setPadding(pad, 0, pad, 0);
-
-        FrameLayout box = new FrameLayout(this);
-        box.setPadding(dp(24), dp(8), dp(24), 0);
-        box.addView(input, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, dp(52)));
-
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Edit name")
-                .setView(box)
-                .setPositiveButton("Save", (dialog, which) -> {
-                    final String newName = input.getText().toString().trim();
-                    if (newName.length() < 2) {
-                        Toast.makeText(this, "Please enter your full name", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    JSONObject body = new JSONObject();
-                    try {
-                        body.put("fullName", newName);
-                    } catch (JSONException e) {
-                        return;
-                    }
-
-                    FleetApi.put("/workers/" + FleetApi.encode(Session.getEmployeeId()), body,
-                            new FleetApi.Callback() {
-                                @Override
-                                public void onSuccess(JSONObject json) {
-                                    if (isFinishing()) {
-                                        return;
-                                    }
-                                    Session.setName(newName);
-                                    driverName = newName;
-                                    fillProfile();
-                                    Toast.makeText(DriverActivity.this, "Profile updated",
-                                            Toast.LENGTH_SHORT).show();
-                                }
-
-                                @Override
-                                public void onError(int status, String message) {
-                                    if (isFinishing()) {
-                                        return;
-                                    }
-                                    handleError(status, message);
-                                }
-                            });
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void showManagePass() {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Payment & Transit Passes")
-                .setMessage("Terminal Gate FastPass\nStatus: Active\n\n(No payment methods yet. Coming soon.)")
-                .setPositiveButton("Close", null)
-                .show();
-    }
-
-    private void showPassCode() {
-        int brand = ContextCompat.getColor(this, R.color.brand_600);
-
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setGravity(Gravity.CENTER_HORIZONTAL);
-        box.setPadding(dp(24), dp(24), dp(24), dp(4));
-
-        TextView pill = new TextView(this);
-        pill.setText("● ACTIVE");
-        pill.setTextColor(brand);
-        pill.setTextSize(11);
-        pill.setTypeface(null, Typeface.BOLD);
-        pill.setLetterSpacing(0.08f);
-        pill.setPadding(dp(12), dp(5), dp(12), dp(5));
-        GradientDrawable pillBg = new GradientDrawable();
-        pillBg.setColor(ContextCompat.getColor(this, R.color.badge_on_bg));
-        pillBg.setCornerRadius(dp(20));
-        pill.setBackground(pillBg);
-        box.addView(pill, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView title = new TextView(this);
-        title.setText("Terminal Gate FastPass");
-        title.setTextSize(20);
-        title.setTypeface(null, Typeface.BOLD);
-        title.setTextColor(ContextCompat.getColor(this, R.color.text_primary));
-        title.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        titleParams.topMargin = dp(14);
-        box.addView(title, titleParams);
-
-        TextView who = new TextView(this);
-        who.setText(driverName + " • " + employeeId);
-        who.setTextSize(14);
-        who.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
-        who.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams whoParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        whoParams.topMargin = dp(2);
-        box.addView(who, whoParams);
-
-        FrameLayout card = new FrameLayout(this);
-        card.setBackgroundResource(R.drawable.pass_tile_bg);
-        card.setPadding(dp(16), dp(16), dp(16), dp(16));
-
-        QrCodeView qr = new QrCodeView(this);
-        qr.setSeed(driverName + employeeId);
-        card.addView(qr, new FrameLayout.LayoutParams(dp(200), dp(200)));
-
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        cardParams.topMargin = dp(20);
-        box.addView(card, cardParams);
-
-        TextView note = new TextView(this);
-        note.setText("Demo code only. It can't be scanned at a gate yet.");
-        note.setGravity(Gravity.CENTER);
-        note.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
-        note.setTextSize(12);
-        LinearLayout.LayoutParams noteParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        noteParams.topMargin = dp(16);
-        box.addView(note, noteParams);
-
-        new MaterialAlertDialogBuilder(this)
-                .setView(box)
-                .setPositiveButton("Done", null)
-                .show();
-    }
-
-    private void showEmergency() {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("Emergency Share Location")
-                .setMessage("Send your live location to dispatch right now?")
-                .setPositiveButton("Share", (dialog, which) ->
-                        Toast.makeText(this, "Location shared with dispatch (demo)", Toast.LENGTH_LONG).show())
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void showLegal() {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("FleetFlow Terms of Carriage v4.2")
-                .setMessage("Legal, transit rules and privacy information goes here.\n\n(Placeholder text.)")
-                .setPositiveButton("Close", null)
-                .show();
+        String name = driverName == null ? "" : driverName.trim();
+        String first = name.isEmpty() ? "Driver" : name.split("\\s+")[0];
+        tvHello.setText(new java.text.SimpleDateFormat("'As of' EEEE, MMM d, yyyy",
+                java.util.Locale.getDefault()).format(new java.util.Date()));
+        ((TextView) findViewById(R.id.tvGreeting)).setText(getString(R.string.welcome_name, first));
     }
 
     private void showNotifications() {
         viewDot.setVisibility(View.GONE);
-
-        int brand = ContextCompat.getColor(this, R.color.brand_600);
-
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(24), dp(24), dp(24), dp(4));
-
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView title = new TextView(this);
-        title.setText("Notifications");
-        title.setTextSize(20);
-        title.setTypeface(null, Typeface.BOLD);
-        title.setTextColor(ContextCompat.getColor(this, R.color.text_primary));
-        header.addView(title, new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-
-        TextView pill = new TextView(this);
-        pill.setText("3 new");
-        pill.setTextColor(brand);
-        pill.setTextSize(11);
-        pill.setTypeface(null, Typeface.BOLD);
-        pill.setPadding(dp(12), dp(5), dp(12), dp(5));
-        GradientDrawable pillBg = new GradientDrawable();
-        pillBg.setColor(ContextCompat.getColor(this, R.color.badge_on_bg));
-        pillBg.setCornerRadius(dp(20));
-        pill.setBackground(pillBg);
-        header.addView(pill, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        box.addView(header, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        addNotificationRow(box, R.drawable.ic_clock,
-                "Shift change at 14:00", "Schedule update");
-        addNotificationRow(box, R.drawable.ic_pin,
-                "Terminal 3 Bay A: gate delay of 5 min", "Terminal alert");
-        addNotificationRow(box, R.drawable.ic_vehicle,
-                "Your vehicle inspection is due this week", "Maintenance reminder");
-
-        new MaterialAlertDialogBuilder(this)
-                .setView(box)
-                .setPositiveButton("Done", null)
-                .show();
+        startActivity(new Intent(this, AccountActivity.class).putExtra("notifications", true));
     }
 
-    private void addNotificationRow(LinearLayout parent, int iconRes, String text, String label) {
-        boolean first = parent.getChildCount() == 1;
-
-        if (!first) {
-            View line = new View(this);
-            line.setBackgroundColor(ContextCompat.getColor(this, R.color.border));
-            LinearLayout.LayoutParams lineParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, dp(1));
-            lineParams.topMargin = dp(12);
-            parent.addView(line, lineParams);
-        }
-
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-
-        ImageView icon = new ImageView(this);
-        icon.setBackgroundResource(R.drawable.icon_circle_bg);
-        icon.setImageResource(iconRes);
-        icon.setColorFilter(ContextCompat.getColor(this, R.color.brand_600));
-        icon.setPadding(dp(11), dp(11), dp(11), dp(11));
-        row.addView(icon, new LinearLayout.LayoutParams(dp(44), dp(44)));
-
-        LinearLayout texts = new LinearLayout(this);
-        texts.setOrientation(LinearLayout.VERTICAL);
-
-        TextView tvText = new TextView(this);
-        tvText.setText(text);
-        tvText.setTextSize(14);
-        tvText.setTypeface(null, Typeface.BOLD);
-        tvText.setTextColor(ContextCompat.getColor(this, R.color.text_primary));
-        texts.addView(tvText);
-
-        TextView tvLabel = new TextView(this);
-        tvLabel.setText(label);
-        tvLabel.setTextSize(12);
-        tvLabel.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
-        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        labelParams.topMargin = dp(2);
-        texts.addView(tvLabel, labelParams);
-
-        LinearLayout.LayoutParams textsParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        textsParams.leftMargin = dp(14);
-        row.addView(texts, textsParams);
-
-        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        rowParams.topMargin = first ? dp(20) : dp(12);
-        parent.addView(row, rowParams);
+    private void showAccountMenu() {
+        android.widget.PopupMenu menu = new android.widget.PopupMenu(this, findViewById(R.id.btnDriverProfile));
+        menu.getMenu().add("My Profile");
+        menu.getMenu().add("Sign out");
+        menu.setOnMenuItemClickListener(item -> {
+            if ("My Profile".contentEquals(item.getTitle())) startActivity(new Intent(this, AccountActivity.class));
+            else AccountActivity.confirmSignOut(this, this::signOut);
+            return true;
+        });
+        menu.show();
     }
 
     private void refreshShiftUi() {
@@ -841,14 +549,23 @@ public class DriverActivity extends AppCompatActivity {
         tvStatusHint.setText(active ? "Shift in progress" : isFleetJoined()
                 ? "Ready to start your shift" : fleetMembership == null
                 ? "Checking your terminal connection…" : "Join your operator's terminal to start a shift");
-        btnShift.setEnabled(!busy && (active || isFleetJoined()));
+        boolean assigned = !vehicle.isEmpty() && !"Unassigned".equalsIgnoreCase(vehicle);
+        btnShift.setEnabled(!busy && (active || (isFleetJoined() && assigned)));
+        btnShift.setVisibility(active || isFleetJoined() ? View.VISIBLE : View.GONE);
+        btnTerminal.setVisibility(isFleetJoined() || fleetMembership == null ? View.VISIBLE : View.GONE);
+        findViewById(R.id.layoutDriverNoTerminal).setVisibility(fleetMembership != null && !isFleetJoined() ? View.VISIBLE : View.GONE);
+        tvTimer.setVisibility(active ? View.VISIBLE : View.GONE);
+        if (!active && isFleetJoined() && !assigned) tvStatusHint.setText("Your operator must assign a vehicle before you can start.");
+        mapView.setVisibility(liveTrail.isEmpty() ? View.GONE : View.VISIBLE);
+        findViewById(R.id.tvDriverRouteEmpty).setVisibility(liveTrail.isEmpty() ? View.VISIBLE : View.GONE);
+        findViewById(R.id.layoutDriverLiveStats).setVisibility(active || !liveTrail.isEmpty() ? View.VISIBLE : View.GONE);
 
         if (active) {
-            btnShift.setText("End Shift");
+            btnShift.setText("□ End Shift");
             btnShift.setBackgroundTintList(ColorStateList.valueOf(
                     ContextCompat.getColor(this, R.color.danger)));
         } else {
-            btnShift.setText("Start Shift");
+            btnShift.setText("▷ Start Shift");
             btnShift.setBackgroundTintList(ColorStateList.valueOf(
                     ContextCompat.getColor(this, R.color.brand_600)));
         }
@@ -964,12 +681,8 @@ public class DriverActivity extends AppCompatActivity {
                 activeStart = 0;
                 refreshShiftUi();
 
-                String shiftId = FleetApi.text(json, "shiftId");
-                if (!shiftId.isEmpty()) {
-                    Intent intent = new Intent(DriverActivity.this, ShiftSummaryActivity.class);
-                    intent.putExtra("shiftId", shiftId);
-                    startActivity(intent);
-                }
+                com.google.android.material.snackbar.Snackbar.make(pageHome,
+                        "Shift ended. Trip saved. View it in Fleet.", 5000).show();
             }
 
             @Override
@@ -993,7 +706,7 @@ public class DriverActivity extends AppCompatActivity {
         if (activeStart <= 0) {
             tvTimer.setText("00:00:00");
             tvStatDistance.setText("0.0");
-            tvStatStops.setText("0");
+            tvStatStops.setText("—");
             tvStatSpeed.setText("0");
             mapView.setTraveled(new ArrayList<double[]>());
             mapView.setCurrent(null);
@@ -1004,7 +717,7 @@ public class DriverActivity extends AppCompatActivity {
 
         tvTimer.setText(FleetApi.formatDuration(elapsed));
         tvStatDistance.setText(String.format(Locale.US, "%.1f", liveDistanceKm));
-        tvStatStops.setText("0");
+        tvStatStops.setText("—");
         tvStatSpeed.setText(String.format(Locale.US, "%.0f", liveSpeedKmh));
 
         if (!liveTrail.isEmpty()) {
@@ -1024,6 +737,9 @@ public class DriverActivity extends AppCompatActivity {
     }
 
     private void renderTrips() {
+        if (listTrips.getChildCount() == 0) {
+            showTripsState("Loading recent trips…", "", false);
+        }
         FleetApi.get("/shift", new FleetApi.Callback() {
             @Override
             public void onSuccess(JSONObject json) {
@@ -1038,6 +754,7 @@ public class DriverActivity extends AppCompatActivity {
                 if (isFinishing()) {
                     return;
                 }
+                showTripsState("Could not load recent trips", message + " · Tap to retry", true);
                 handleError(status, message);
             }
         });
@@ -1067,22 +784,31 @@ public class DriverActivity extends AppCompatActivity {
             ((TextView) row.findViewById(R.id.tvTripDate)).setText(dateFmt.format(new Date(start)));
             ((TextView) row.findViewById(R.id.tvTripTime)).setText(
                     timeFmt.format(new Date(start)) + " - " + timeFmt.format(new Date(end)));
+            TextView tripVehicle = row.findViewById(R.id.tvTripVehicle);
+            String shuttleId = FleetApi.text(e, "shuttleId");
+            tripVehicle.setText(shuttleId.isEmpty() ? "Vehicle not recorded" : "Vehicle · " + shuttleId);
             ((TextView) row.findViewById(R.id.tvTripDuration)).setText(
                     FleetApi.formatDuration(e.optLong("durationMs", end - start)));
             ((TextView) row.findViewById(R.id.tvTripDistance)).setText(
                     String.format(Locale.US, "%.1f km", e.optDouble("distanceKm", 0)));
 
-            row.setOnClickListener(v -> {
-                Intent intent = new Intent(this, ShiftSummaryActivity.class);
-                intent.putExtra("shiftId", shiftId);
-                startActivity(intent);
-            });
+            row.setOnClickListener(v -> ShiftSummaryActivity.showDetails(this, shiftId));
 
             listTrips.addView(row);
             shown++;
         }
 
-        tvTripsEmpty.setVisibility(shown == 0 ? View.VISIBLE : View.GONE);
+        if (shown == 0) showTripsState("No recent trips yet", "Your completed trips will appear here.", false);
+        else tripsEmpty.setVisibility(View.GONE);
+    }
+
+    private void showTripsState(String title, String description, boolean retry) {
+        tripsEmpty.setVisibility(View.VISIBLE);
+        tripsEmptyTitle.setText(title);
+        tripsEmptyDescription.setText(description);
+        tripsEmptyDescription.setVisibility(description.isEmpty() ? View.GONE : View.VISIBLE);
+        tripsEmpty.setOnClickListener(retry ? v -> renderTrips() : null);
+        tripsEmpty.setClickable(retry);
     }
 
     private void signOut() {

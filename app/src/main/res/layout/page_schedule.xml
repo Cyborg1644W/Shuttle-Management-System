@@ -1,56 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fillViewport="true"
-    android:scrollbars="none">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <!-- Week strip (filled in code) -->
-        <LinearLayout
-            android:id="@+id/layoutDays"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:weightSum="7" />
-
-        <TextView
-            android:id="@+id/tvSchDate"
-            style="@style/Fleet.Title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="Today" />
-
-        <TextView
-            android:id="@+id/tvSchSummary"
-            style="@style/Fleet.Caption"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="0 scheduled" />
-
-        <!-- Shift groups + worker rows (filled in code) -->
-        <LinearLayout
-            android:id="@+id/layoutSchedule"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="vertical" />
-
-        <TextView
-            android:id="@+id/tvSchEmpty"
-            style="@style/Fleet.Caption"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:gravity="center"
-            android:text="No one is scheduled for this day."
-            android:visibility="gone" />
-    </LinearLayout>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
+ <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="20dp" android:orientation="vertical">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical">
+   <TextView style="@style/Fleet.Display" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Schedule" />
+   <com.google.android.material.button.MaterialButton android:id="@+id/btnScheduleAdd"
+       style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+       android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="112dp"
+       android:insetTop="2dp" android:insetBottom="2dp" android:text="+ Add Shift"
+       android:textSize="13sp" android:textAllCaps="false"
+       app:backgroundTint="@color/brand_tint" app:strokeColor="@color/border" app:cornerRadius="10dp" />
+  </LinearLayout>
+  <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="12dp" android:gravity="center_vertical">
+   <TextView style="@style/Fleet.Subtitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Calendar" android:textSize="13sp" />
+   <TextView android:id="@+id/btnScheduleWeek" style="@style/Fleet.AuthLink" android:text="Week" android:textSize="11sp" android:minHeight="44dp" android:paddingStart="16dp" android:paddingEnd="16dp" />
+   <TextView android:id="@+id/btnScheduleMonth" style="@style/Fleet.AuthLink" android:text="Month" android:textSize="11sp" android:minHeight="44dp" android:paddingStart="16dp" android:paddingEnd="16dp" />
+  </LinearLayout>
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:padding="10dp" android:background="@drawable/bg_ff_card" android:orientation="vertical">
+   <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:gravity="center_vertical">
+    <TextView android:id="@+id/btnSchedulePrevious" style="@style/Fleet.AuthLink" android:layout_width="44dp" android:text="‹" android:textSize="22sp" android:contentDescription="Previous calendar period" />
+    <TextView android:id="@+id/tvSchedulePeriod" style="@style/Fleet.Caption" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textStyle="bold" />
+    <TextView android:id="@+id/btnScheduleNext" style="@style/Fleet.AuthLink" android:layout_width="44dp" android:text="›" android:textSize="22sp" android:contentDescription="Next calendar period" />
+   </LinearLayout>
+   <LinearLayout android:id="@+id/layoutScheduleWeek" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+    <LinearLayout android:id="@+id/layoutDays" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="7" />
+   </LinearLayout>
+   <GridLayout android:id="@+id/calendarScheduleMonth" android:layout_width="match_parent" android:layout_height="wrap_content" android:columnCount="7" android:visibility="gone" />
+  </LinearLayout>
+  <TextView android:id="@+id/tvSchDate" style="@style/Fleet.Subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:textSize="14sp" />
+  <TextView android:id="@+id/tvSchSummary" style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:textSize="11sp" />
+  <TextView android:id="@+id/tvScheduleLoadError" style="@style/Fleet.Caption"
+      android:layout_width="match_parent" android:layout_height="wrap_content"
+      android:minHeight="44dp" android:gravity="center_vertical" android:textColor="@color/error"
+      android:accessibilityLiveRegion="polite" android:visibility="gone" />
+  <LinearLayout android:id="@+id/layoutSchedule" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="vertical" />
+  <include android:id="@+id/scheduleEmptyState" layout="@layout/view_empty_state" android:visibility="gone" />
+ </LinearLayout>
 </ScrollView>

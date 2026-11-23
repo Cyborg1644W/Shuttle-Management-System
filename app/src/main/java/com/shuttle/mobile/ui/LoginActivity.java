@@ -3,13 +3,9 @@ package com.shuttle.mobile.ui;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Patterns;
-import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
-import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,24 +17,13 @@ import com.shuttle.mobile.client.ApiClient;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private TextView tvTabMobile;
-    private TextView tvTabEmail;
-    private View layoutMobile;
-    private View layoutEmail;
-    private View layoutCountry;
-    private View phoneBox;
-    private TextView tvCountryCode;
-    private ImageView ivPhoneCheck;
-    private EditText etPhone;
     private EditText etEmail;
     private EditText etPassword;
-    private EditText etMobilePassword;
     private TextView tvError;
     private Button btnContinue;
     private Button btnGoogle;
     private TextView tvGoRegister;
 
-    private boolean mobileMode = true;
     private boolean loggingIn = false;
 
     @Override
@@ -50,37 +35,14 @@ public class LoginActivity extends AppCompatActivity {
             if (!loggingIn) ServerConnectionUi.show(this);
         });
 
-        tvTabMobile = findViewById(R.id.tvTabMobile);
-        tvTabEmail = findViewById(R.id.tvTabEmail);
-        layoutMobile = findViewById(R.id.layoutMobile);
-        layoutEmail = findViewById(R.id.layoutEmail);
-        layoutCountry = findViewById(R.id.layoutCountry);
-        tvCountryCode = findViewById(R.id.tvCountryCode);
-        ivPhoneCheck = findViewById(R.id.ivPhoneCheck);
-        etPhone = findViewById(R.id.etPhone);
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
-        etMobilePassword = findViewById(R.id.etMobilePassword);
+        FieldUi.bindPasswordToggle(etPassword, findViewById(R.id.btnPasswordVisibility));
         tvError = findViewById(R.id.tvError);
         btnContinue = findViewById(R.id.btnContinue);
         btnGoogle = findViewById(R.id.btnGoogle);
         tvGoRegister = findViewById(R.id.tvGoRegister);
 
-        phoneBox = (View) etPhone.getParent();
-        ((ViewGroup) phoneBox).setAddStatesFromChildren(true);
-
-        tvTabMobile.setOnClickListener(v -> selectTab(true));
-        tvTabEmail.setOnClickListener(v -> selectTab(false));
-        layoutCountry.setOnClickListener(v -> showCountryMenu());
-
-        FieldUi.onChange(etPhone, () -> {
-            tvError.setVisibility(View.GONE);
-            updatePhone();
-        });
-        FieldUi.onChange(etMobilePassword, () -> {
-            tvError.setVisibility(View.GONE);
-            FieldUi.set(etMobilePassword, FieldUi.NORMAL);
-        });
         FieldUi.onChange(etEmail, () -> {
             tvError.setVisibility(View.GONE);
             resetEmailAndPassword();
@@ -98,52 +60,6 @@ public class LoginActivity extends AppCompatActivity {
         tvGoRegister.setOnClickListener(v ->
                 startActivity(new Intent(this, RegisterActivity.class)));
 
-        updatePhone();
-        resetEmailAndPassword();
-    }
-
-    private String getCleanDigits() {
-        String digits = etPhone.getText().toString().replaceAll("[^0-9]", "");
-        String code = tvCountryCode.getText().toString();
-
-        if ((code.equals("+63") || code.equals("+81")) && digits.startsWith("0")) {
-            digits = digits.substring(1);
-        }
-        return digits;
-    }
-
-    private int getRequiredDigits() {
-        if (tvCountryCode.getText().toString().equals("+65")) {
-            return 8;
-        }
-        return 10;
-    }
-
-    private boolean isPhoneValid() {
-        return getCleanDigits().length() == getRequiredDigits();
-    }
-
-    private void updatePhone() {
-        boolean valid = isPhoneValid();
-        ivPhoneCheck.setVisibility(valid ? View.VISIBLE : View.INVISIBLE);
-        FieldUi.set(phoneBox, valid ? FieldUi.VALID : FieldUi.NORMAL);
-    }
-
-    private void showCountryMenu() {
-        PopupMenu menu = new PopupMenu(this, layoutCountry);
-        menu.getMenu().add("+63 Philippines");
-        menu.getMenu().add("+1 United States");
-        menu.getMenu().add("+81 Japan");
-        menu.getMenu().add("+65 Singapore");
-
-        menu.setOnMenuItemClickListener((MenuItem item) -> {
-            String code = item.getTitle().toString().split(" ")[0];
-            tvCountryCode.setText(code);
-            updatePhone();
-            return true;
-        });
-
-        menu.show();
     }
 
     private boolean isEmailValid() {
@@ -153,42 +69,10 @@ public class LoginActivity extends AppCompatActivity {
     private void resetEmailAndPassword() {
         FieldUi.set(etEmail, isEmailValid() ? FieldUi.VALID : FieldUi.NORMAL);
         FieldUi.set(etPassword, FieldUi.NORMAL);
-        FieldUi.set(etMobilePassword, FieldUi.NORMAL);
-    }
-
-    private void selectTab(boolean mobile) {
-        mobileMode = mobile;
-        tvError.setVisibility(View.GONE);
-
-        if (mobile) {
-            layoutMobile.setVisibility(View.VISIBLE);
-            layoutEmail.setVisibility(View.GONE);
-            tvTabMobile.setBackgroundResource(R.drawable.tab_selected);
-            tvTabMobile.setTextColor(getResources().getColor(R.color.white));
-            tvTabEmail.setBackgroundResource(R.drawable.tab_unselected);
-            tvTabEmail.setTextColor(getResources().getColor(R.color.text_secondary));
-            btnContinue.setText("Continue");
-        } else {
-            layoutMobile.setVisibility(View.GONE);
-            layoutEmail.setVisibility(View.VISIBLE);
-            tvTabEmail.setBackgroundResource(R.drawable.tab_selected);
-            tvTabEmail.setTextColor(getResources().getColor(R.color.white));
-            tvTabMobile.setBackgroundResource(R.drawable.tab_unselected);
-            tvTabMobile.setTextColor(getResources().getColor(R.color.text_secondary));
-            btnContinue.setText("Continue");
-        }
-
-        updatePhone();
-        resetEmailAndPassword();
     }
 
     private void attemptLogin() {
         if (loggingIn) {
-            return;
-        }
-
-        if (mobileMode) {
-            attemptMobileLogin();
             return;
         }
 
@@ -215,38 +99,10 @@ public class LoginActivity extends AppCompatActivity {
         tvError.setVisibility(View.GONE);
         setLoggingIn(true);
 
-        AuthApi.login(email, password, loginCallback(false));
+        AuthApi.login(email, password, loginCallback());
     }
 
-    private void attemptMobileLogin() {
-        String digits = getCleanDigits();
-        String password = etMobilePassword.getText().toString();
-
-        if (digits.isEmpty() || password.isEmpty()) {
-            if (digits.isEmpty()) {
-                FieldUi.set(phoneBox, FieldUi.ERROR);
-            }
-            if (password.isEmpty()) {
-                FieldUi.set(etMobilePassword, FieldUi.ERROR);
-            }
-            showError("Please enter your mobile number and password.");
-            return;
-        }
-
-        if (!isPhoneValid()) {
-            FieldUi.set(phoneBox, FieldUi.ERROR);
-            showError("Please enter a complete mobile number.");
-            return;
-        }
-
-        tvError.setVisibility(View.GONE);
-        setLoggingIn(true);
-
-        String fullPhone = tvCountryCode.getText().toString() + digits;
-        AuthApi.loginWithPhone(fullPhone, password, loginCallback(true));
-    }
-
-    private AuthApi.LoginCallback loginCallback(boolean mobile) {
+    private AuthApi.LoginCallback loginCallback() {
         return new AuthApi.LoginCallback() {
             @Override
             public void onSuccess(Role role) {
@@ -263,15 +119,9 @@ public class LoginActivity extends AppCompatActivity {
                 }
                 setLoggingIn(false);
                 if (status == 401) {
-                    if (mobile) {
-                        FieldUi.set(phoneBox, FieldUi.ERROR);
-                        FieldUi.set(etMobilePassword, FieldUi.ERROR);
-                        showError("Wrong mobile number or password.");
-                    } else {
-                        FieldUi.set(etEmail, FieldUi.ERROR);
-                        FieldUi.set(etPassword, FieldUi.ERROR);
-                        showError("Wrong email or password.");
-                    }
+                    FieldUi.set(etEmail, FieldUi.ERROR);
+                    FieldUi.set(etPassword, FieldUi.ERROR);
+                    showError("Wrong email or password.");
                 } else {
                     showError(message);
                 }
@@ -284,7 +134,7 @@ public class LoginActivity extends AppCompatActivity {
         btnContinue.setEnabled(!busy);
         findViewById(R.id.btnServerConnection).setEnabled(!busy);
         tvGoRegister.setEnabled(!busy);
-        btnContinue.setText(busy ? "Signing in..." : "Continue");
+        btnContinue.setText(busy ? "Signing in..." : getString(R.string.sign_in));
     }
 
     private void openHomeScreen(Role role) {
