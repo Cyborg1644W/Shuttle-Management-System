@@ -5,6 +5,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,16 +21,26 @@ import com.shuttle.mobile.client.ServerConnection;
 final class ServerConnectionUi {
     private ServerConnectionUi() { }
 
-    static void show(AppCompatActivity activity) {
+    static void show(AppCompatActivity activity, Runnable onSaved) {
         if (Session.isSignedIn()) {
             Toast.makeText(activity, "Sign out before changing servers.", Toast.LENGTH_SHORT).show();
             return;
         }
 
         View content = activity.getLayoutInflater().inflate(R.layout.dialog_server_connection, null);
+        RadioGroup mode = content.findViewById(R.id.serverMode);
+        TextView automatic = content.findViewById(R.id.serverAutomatic);
+        automatic.setText(activity.getString(R.string.server_mode_address,
+                activity.getString(R.string.server_automatic), ServerConnection.DEFAULT_URL));
         EditText address = content.findViewById(R.id.etServerAddress);
-        address.setText(ApiClient.getBaseUrl());
+        address.setText(ServerConnection.rememberedAddress(activity));
         TextView error = content.findViewById(R.id.tvServerAddressError);
+        mode.setOnCheckedChangeListener((group, checkedId) -> {
+            address.setVisibility(checkedId == R.id.serverCustom ? View.VISIBLE : View.GONE);
+            error.setVisibility(View.GONE);
+            FieldUi.set(address, FieldUi.NORMAL);
+        });
+        mode.check(ServerConnection.DEFAULT_URL.equals(ApiClient.getBaseUrl()) ? R.id.serverAutomatic : R.id.serverCustom);
         FieldUi.onChange(address, () -> {
             error.setVisibility(View.GONE);
             FieldUi.set(address, FieldUi.NORMAL);
@@ -40,8 +51,13 @@ final class ServerConnectionUi {
         content.findViewById(R.id.btnCancelServerAddress).setOnClickListener(v -> dialog.dismiss());
         save.setOnClickListener(v -> {
             try {
-                ServerConnection.save(activity, address.getText().toString());
+                if (mode.getCheckedRadioButtonId() == R.id.serverAutomatic) {
+                    ServerConnection.useAutomatic(activity);
+                } else {
+                    ServerConnection.save(activity, address.getText().toString());
+                }
                 ApiClient.getInstance().setAuthToken(null);
+                onSaved.run();
                 Toast.makeText(activity, R.string.server_address_saved, Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
             } catch (IllegalArgumentException e) {

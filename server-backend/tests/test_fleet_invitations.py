@@ -11,6 +11,7 @@ or running development server is reused, and all child processes are stopped.
 
 import concurrent.futures
 import csv
+from datetime import date, timedelta
 import io
 import os
 from pathlib import Path
@@ -23,6 +24,7 @@ import time
 import unittest
 import urllib.error
 import urllib.request
+import uuid
 
 
 class FleetInvitationTests(unittest.TestCase):
@@ -51,8 +53,8 @@ class FleetInvitationTests(unittest.TestCase):
             reservation.bind(("127.0.0.1", 0))
             self.port = reservation.getsockname()[1]
         (self.workdir / "config.properties").write_text(
-            f"server.port={self.port}\ncsv.workers=data/workers.csv\n"
-            "csv.shuttles=data/shuttles.csv\n",
+            f"server.port={self.port}\ncsv.workers=data/workers.txt\n"
+            "csv.shuttles=data/shuttles.txt\n",
             encoding="utf-8",
         )
         self.base_url = f"http://127.0.0.1:{self.port}/api"
@@ -277,6 +279,48 @@ class FleetInvitationTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/shift?driverId=" + d["employeeId"], b), [])
         self.assertEqual(len(self.request("GET", "/shift", d)), 1)
 
+    def test_unassign_clears_vehicle_and_preserves_membership_after_restart(self):
+        operator, _, driver, _ = self.linked_fleets()
+        self.shuttle(operator, "CENTRAL-1")
+        profile = "/workers/" + driver["employeeId"]
+        assign = profile + "/assign"
+        self.request("PUT", assign, operator, {"shuttleId": "CENTRAL-1"})
+        self.request("POST", "/shift/start", driver, {}, expected=201)
+        self.request("PUT", assign, operator, {"shuttleId": ""}, expected=409)
+        self.request("POST", "/shift/end", driver, {"distanceKm": 0, "stops": 0})
+        self.request("PUT", assign, operator, expected=400)
+        cleared = self.one(self.request("PUT", assign, operator, {"shuttleId": ""}))
+        self.assertEqual(cleared["shuttleId"], "")
+        self.restart_server()
+        self.assertEqual(self.one(self.request("GET", profile, driver))["shuttleId"], "")
+        self.assertEqual(self.one(self.request("GET", "/fleet", driver))["joined"], "true")
+        self.request("POST", "/shift/start", driver, {}, expected=409)
+        self.request("PUT", assign, operator, {"shuttleId": "CENTRAL-1"})
+
+    def test_add_shift_survives_legacy_file_upgrade_and_retry(self):
+        operator, _, driver, _ = self.linked_fleets()
+        self.shuttle(operator, "CENTRAL-1")
+        day = (date.today() + timedelta(days=7)).isoformat()
+        shift = {"id": str(uuid.uuid4()), "shiftDate": day, "employeeId": driver["employeeId"],
+                 "shuttleId": "CENTRAL-1", "startTime": "08:00", "endTime": "10:00", "notesBase64": ""}
+        self.request("POST", "/scheduled-shifts", driver, shift, expected=403)
+        saved = self.one(self.request("POST", "/scheduled-shifts", operator, shift, expected=201))
+        self.assertEqual(saved["id"], shift["id"])
+        self.stop_server()
+        data = self.workdir / "data"
+        tables = {p.name: p.read_bytes() for p in data.glob("*.txt")}
+        self.assertIn("dated-shifts.txt", tables)
+        for name in tables:
+            (data / name).rename((data / name).with_suffix(".csv"))
+        config = self.workdir / "config.properties"
+        config.write_text(config.read_text().replace(".txt", ".csv"), encoding="utf-8")
+        self.restart_server()
+        self.assertEqual({p.name: p.read_bytes() for p in data.glob("*.txt")}, tables)
+        self.assertFalse(list(data.glob("*.csv")))
+        self.request("POST", "/scheduled-shifts", operator, shift, expected=201)
+        self.assertEqual(self.request("GET", f"/scheduled-shifts?from={day}&to={day}", driver), [saved])
+        self.assertEqual(self.request("GET", "/schedule", driver), [])
+
     def test_removing_driver_detaches_membership_without_deleting_account(self):
         a, _, d, _ = self.linked_fleets()
         self.request("DELETE", "/workers/" + d["employeeId"], a)
@@ -330,7 +374,7 @@ class FleetInvitationTests(unittest.TestCase):
         code = self.invite(a)["inviteCode"]
         self.stop_server()
         changed = False
-        for path in self.workdir.rglob("*.csv"):
+        for path in self.workdir.rglob("*.txt"):
             with path.open(newline="", encoding="utf-8") as stream:
                 reader = csv.DictReader(stream)
                 fields, rows = reader.fieldnames, list(reader)

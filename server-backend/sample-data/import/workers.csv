@@ -1,0 +1,1 @@
+employeeID,fullName,email,passwordHash,role,employmentStatus,shiftStatus,phone,licenseNumber,licenseExpirationDate,assignedShuttleId,assignedTerminal,activeShiftId,terminalZone,shiftTime,permissionsMask,managedShuttleIds

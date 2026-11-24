@@ -274,8 +274,8 @@ final class AddShiftForm {
             @Override public void onError(int status, String message) {
                 if (!active()) return;
                 setSaving(false);
-                showError(status == 404 && "Endpoint Not Found".equalsIgnoreCase(message)
-                        ? "Update and restart your Java server to add dated shifts." : message);
+                boolean unsupported = status == 405 || (status == 404 && "Endpoint Not Found".equalsIgnoreCase(message));
+                showError(unsupported ? "This server does not support Add Shift. Deploy the updated backend." : message);
             }
         });
     }

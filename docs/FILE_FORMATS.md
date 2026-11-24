@@ -1,10 +1,8 @@
-# CSV File Formats
+# TXT Database File Formats
 
-This document explains the CSV files used by the Shuttle Management System backend.
+The backend stores each table in a UTF-8 `.txt` file using the existing CSV format. The first row contains the column names. Each subsequent line contains one record with comma-separated fields.
 
-All CSV files use a header on the first row, commas to separate columns, one record per line, and UTF-8 text encoding.
-
-## workers.csv
+## workers.txt
 
 Stores drivers and operators.
 
@@ -32,7 +30,7 @@ Example:
 EMP-0001,Alex Reyes,alex.reyes@example.test,password-hash,DRIVER,ACTIVE,OFF_SHIFT,09170000001,D1234567,2028-12-31,SH-001,Main Terminal,,,,0,
 ```
 
-## shuttles.csv
+## shuttles.txt
 
 Stores shuttle vehicle information.
 
@@ -51,7 +49,7 @@ Example:
 SH-001,ABC-1234,20,AVAILABLE
 ```
 
-## shifts.csv
+## shifts.txt
 
 Stores active, completed, and timed-out driver shifts.
 
@@ -73,7 +71,7 @@ Example:
 SHF-000001,EMP-0001,SH-001,1735689600000,1735722000000,COMPLETED,18.5,6,Main Terminal,Campus Loop
 ```
 
-## schedule.csv
+## schedule.txt
 
 Stores weekly work schedules.
 
@@ -102,7 +100,7 @@ The backend validates every imported row. Invalid rows are reported as errors, e
 
 1. The backend starts and is given the location of its CSV files.
 2. When the Android app sends an HTTP request, the Java server receives it.
-3. The appropriate repository reads the needed data from its CSV file, such as `workers.csv` or `shuttles.csv`.
+3. The appropriate repository reads the needed data from its CSV file, such as `workers.txt` or `shuttles.txt`.
 4. The server checks the data and sends a response back to the Android app.
 5. If the request adds, edits, or removes data, the repository validates the change first.
 6. `AtomicFileWriter` safely writes the complete updated CSV file. A temporary file is used first so the original data is less likely to be damaged if saving is interrupted.
@@ -116,7 +114,7 @@ Do not edit `.lock` files. The backend creates them automatically while it safel
 
 ## Dated shift assignments
 
-`dated-shifts.csv` is created when the first dated assignment is saved. It lives beside `schedule.csv` in local mode and joins the same private snapshot in R2 mode.
+`dated-shifts.txt` is created when the first dated assignment is saved. It lives beside `schedule.txt` in local mode and joins the same private snapshot in R2 mode.
 
 ```csv
 id,terminalId,employeeId,shuttleId,shiftDate,startTime,endTime,notesBase64
@@ -129,4 +127,4 @@ id,terminalId,employeeId,shuttleId,shiftDate,startTime,endTime,notesBase64
 
 The Android client uses authenticated `GET /api/scheduled-shifts?from=YYYY-MM-DD&to=YYYY-MM-DD` to load a calendar period and operator-only `POST /api/scheduled-shifts` to save one assignment. Operators can read assignments for their terminal. Drivers can read their own assignments in their current terminal.
 
-`schedule.csv` continues to hold existing weekly rules, and `shifts.csv` continues to hold actual trip history. The server checks dated assignments for worker and shuttle overlap, worker overlap with weekly rules, and ineligible vehicles.
+`schedule.txt` continues to hold existing weekly rules, and `shifts.txt` continues to hold actual trip history. The server checks dated assignments for worker and shuttle overlap, worker overlap with weekly rules, and ineligible vehicles.

@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.shuttle.common.Role;
 import com.shuttle.mobile.R;
 import com.shuttle.mobile.client.ApiClient;
+import com.shuttle.mobile.client.ServerConnection;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -23,6 +24,7 @@ public class LoginActivity extends AppCompatActivity {
     private Button btnContinue;
     private Button btnGoogle;
     private TextView tvGoRegister;
+    private TextView serverConnection;
 
     private boolean loggingIn = false;
 
@@ -31,8 +33,13 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         ApiClient.initialize(this);
         setContentView(R.layout.activity_login);
-        findViewById(R.id.btnServerConnection).setOnClickListener(v -> {
-            if (!loggingIn) ServerConnectionUi.show(this);
+        serverConnection = findViewById(R.id.btnServerConnection);
+        showSelectedServer();
+        serverConnection.setOnClickListener(v -> {
+            if (!loggingIn) ServerConnectionUi.show(this, () -> {
+                showSelectedServer();
+                tvError.setVisibility(View.GONE);
+            });
         });
 
         etEmail = findViewById(R.id.etEmail);
@@ -64,6 +71,12 @@ public class LoginActivity extends AppCompatActivity {
 
     private boolean isEmailValid() {
         return Patterns.EMAIL_ADDRESS.matcher(etEmail.getText().toString().trim()).matches();
+    }
+
+    private void showSelectedServer() {
+        String url = ApiClient.getBaseUrl();
+        int mode = url.equals(ServerConnection.DEFAULT_URL) ? R.string.server_automatic : R.string.server_custom;
+        serverConnection.setText(getString(R.string.server_connection_status, getString(mode), url));
     }
 
     private void resetEmailAndPassword() {

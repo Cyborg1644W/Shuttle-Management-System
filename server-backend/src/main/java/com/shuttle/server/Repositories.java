@@ -57,7 +57,7 @@ public final class Repositories {
         ShiftRepository nextShifts = new ShiftRepository(ServerConfig.getShiftsCsvPath());
         ScheduleRepository nextSchedule = new ScheduleRepository(ServerConfig.getScheduleCsvPath());
         DatedShiftRepository nextDated = new DatedShiftRepository(ServerConfig.getDatedShiftsCsvPath());
-        TerminalRepository nextTerminals = new TerminalRepository(ServerConfig.getWorkersCsvPath().resolveSibling("terminals.csv"));
+        TerminalRepository nextTerminals = new TerminalRepository(ServerConfig.getWorkersCsvPath().resolveSibling("terminals.txt"));
         workers = nextWorkers;
         shuttles = nextShuttles;
         shifts = nextShifts;

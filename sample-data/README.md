@@ -1,6 +1,6 @@
 # Sample development data
 
-The CSV files in `import/` contain fictional data for local development and demonstrations.
+The comma-separated `.txt` files in `import/` contain fictional data for local development and demonstrations.
 
 Both sample accounts use this password:
 

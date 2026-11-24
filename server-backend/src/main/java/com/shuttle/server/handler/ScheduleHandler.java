@@ -15,6 +15,9 @@ public class ScheduleHandler extends BaseHandler {
     }
 
     private Response processScoped(Request r) throws Exception {
+        if (!"schedule".equals(r.seg(0)) || r.seg(1) != null) {
+            throw new ApiException(404, "Endpoint Not Found");
+        }
         if (r.is("GET")) {
             return ok(ReportService.schedule(r.worker()));
         }

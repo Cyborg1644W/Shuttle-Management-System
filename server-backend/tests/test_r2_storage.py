@@ -33,7 +33,7 @@ import zipfile
 TEST_ACCESS_KEY = "fake-test-id"
 TEST_SECRET_KEY = "fake-test-secret"
 OBJECT_PATH = "/test-bucket/shuttle-state.zip"
-DATASET_FILES = {"workers.csv", "shuttles.csv", "shifts.csv", "schedule.csv", "terminals.csv"}
+DATASET_FILES = {"workers.txt", "shuttles.txt", "shifts.txt", "schedule.txt", "terminals.txt"}
 
 
 def csv_bytes(rows, fields=None):
@@ -62,7 +62,7 @@ def rename_first_worker(payload, name):
     with zipfile.ZipFile(io.BytesIO(payload)) as source, zipfile.ZipFile(target, "w") as output:
         for member in source.infolist():
             content = source.read(member.filename)
-            if member.filename == "workers.csv":
+            if member.filename == "workers.txt":
                 reader = csv.DictReader(io.StringIO(content.decode("utf-8")))
                 fields, rows = reader.fieldnames, list(reader)
                 rows[0]["fullName"] = name
@@ -393,7 +393,7 @@ class R2StorageTests(unittest.TestCase):
         operator, driver, used_code = self.connected_accounts(first)
         self.request(first, "POST", "/fleet/join", driver, {"inviteCode": used_code})
         unused_code = self.one(self.request(first, "POST", "/fleet/invites", operator, {}, expected=201))["inviteCode"]
-        self.assertTrue(read_dataset(self.s3.snapshot())["workers.csv"])
+        self.assertTrue(read_dataset(self.s3.snapshot())["workers.txt"])
         first.close()
         restored = self.backend()
         driver = self.login(restored, driver)
@@ -402,6 +402,25 @@ class R2StorageTests(unittest.TestCase):
         self.request(restored, "POST", "/fleet/join", other, {"inviteCode": used_code}, expected=403)
         self.request(restored, "POST", "/fleet/join", other, {"inviteCode": unused_code})
         self.assertEqual(self.one(self.request(restored, "GET", "/fleet", other))["joined"], "true")
+
+    def test_legacy_snapshot_is_read_and_next_write_uses_txt(self):
+        first = self.backend()
+        operator = self.register(first, "OPERATOR")
+        first.close()
+        legacy = io.BytesIO()
+        with zipfile.ZipFile(io.BytesIO(self.s3.snapshot())) as source, zipfile.ZipFile(legacy, "w") as target:
+            for name in source.namelist():
+                old_name = Path(name).with_suffix(".csv").name if name in DATASET_FILES else name
+                target.writestr(old_name, source.read(name))
+        with self.s3.lock:
+            self.s3.set_object_unlocked(legacy.getvalue())
+        restored = self.backend()
+        operator = self.login(restored, operator)
+        self.request(restored, "POST", "/fleet", operator, {"terminalName": "Upgraded Fleet"}, expected=201)
+        with zipfile.ZipFile(io.BytesIO(self.s3.snapshot())) as archive:
+            self.assertEqual(set(archive.namelist()), DATASET_FILES | {"commit.txt"})
+        workers = read_dataset(self.s3.snapshot())["workers.txt"]
+        self.assertEqual([row["employeeID"] for row in workers], [operator["employeeId"]])
 
     def test_failed_signup_is_not_acknowledged_or_persisted_and_can_be_retried(self):
         backend = self.backend()
@@ -414,7 +433,7 @@ class R2StorageTests(unittest.TestCase):
             "email": body["email"], "password": self.password,
         }, expected=401)
         self.register(backend)
-        self.assertEqual(len(read_dataset(self.s3.snapshot())["workers.csv"]), 1)
+        self.assertEqual(len(read_dataset(self.s3.snapshot())["workers.txt"]), 1)
 
     def test_failed_join_rolls_back_membership_and_code_consumption(self):
         backend = self.backend()
@@ -425,7 +444,7 @@ class R2StorageTests(unittest.TestCase):
         self.assertEqual(self.s3.snapshot(), before)
         self.assertEqual(self.one(self.request(backend, "GET", "/fleet", driver))["joined"], "false")
         self.request(backend, "POST", "/fleet/join", driver, {"inviteCode": code})
-        state = read_dataset(self.s3.snapshot())["terminals.csv"]
+        state = read_dataset(self.s3.snapshot())["terminals.txt"]
         invite = next(row for row in state if row["type"] == "INVITE" and row["id"] == code)
         self.assertEqual(invite["usedBy"], driver["employeeId"])
 
@@ -450,11 +469,11 @@ class R2StorageTests(unittest.TestCase):
         self.request(backend, "POST", "/shift/start", driver, {}, expected=201)
         self.assertEqual(self.s3.accepted_puts - accepted_before, 1, "A multi-table mutation needs one conditional upload")
         tables = read_dataset(self.s3.snapshot())
-        self.assertEqual(len(tables["shifts.csv"]), 1)
-        self.assertEqual(tables["shifts.csv"][0]["status"], "ACTIVE")
-        worker = next(row for row in tables["workers.csv"] if row["employeeID"] == driver["employeeId"])
+        self.assertEqual(len(tables["shifts.txt"]), 1)
+        self.assertEqual(tables["shifts.txt"][0]["status"], "ACTIVE")
+        worker = next(row for row in tables["workers.txt"] if row["employeeID"] == driver["employeeId"])
         self.assertTrue(worker["activeShiftId"])
-        self.assertEqual(tables["shuttles.csv"][0]["currentStatus"], "IN_SERVICE")
+        self.assertEqual(tables["shuttles.txt"][0]["currentStatus"], "IN_SERVICE")
 
     def test_conditional_conflict_does_not_overwrite_external_revision(self):
         backend = self.backend()
@@ -475,7 +494,7 @@ class R2StorageTests(unittest.TestCase):
         terminal = self.one(self.request(backend, "POST", "/fleet", operator, {"terminalName": "Reconciled Terminal"}, expected=201))
         self.assertEqual(terminal["terminalName"], "Reconciled Terminal")
         self.assertGreaterEqual(self.s3.gets - gets_before, 2, "An ambiguous write needs a verification GET")
-        terminals = read_dataset(self.s3.snapshot())["terminals.csv"]
+        terminals = read_dataset(self.s3.snapshot())["terminals.txt"]
         self.assertEqual([row["name"] for row in terminals if row["type"] == "TERMINAL"], ["Reconciled Terminal"])
 
     def test_two_instances_redeeming_one_code_commit_only_one_membership(self):
@@ -492,7 +511,7 @@ class R2StorageTests(unittest.TestCase):
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             outcomes = list(executor.map(redeem, ((first, driver), (second, other))))
         self.assertEqual(sum(bool(rows and rows[0].get("joined") == "true") for rows in outcomes), 1)
-        records = read_dataset(self.s3.snapshot())["terminals.csv"]
+        records = read_dataset(self.s3.snapshot())["terminals.txt"]
         self.assertEqual(sum(row["type"] == "MEMBER" for row in records), 1)
         invitation = next(row for row in records if row["type"] == "INVITE" and row["id"] == code)
         self.assertIn(invitation["usedBy"], (driver["employeeId"], other["employeeId"]))
@@ -503,7 +522,7 @@ class R2StorageTests(unittest.TestCase):
         self.s3.next_put = "drop_after_accept_change"
         self.request(backend, "POST", "/fleet", operator, {"terminalName": "Unverified Terminal"}, expected=503)
         persisted = read_dataset(self.s3.snapshot())
-        self.assertEqual(persisted["workers.csv"][0]["fullName"], "External After Commit")
+        self.assertEqual(persisted["workers.txt"][0]["fullName"], "External After Commit")
         # The accepted write may exist, but the caller was not promised a save
         # that could not be verified. Later reads must use the external revision.
         self.assertEqual(self.one(self.request(backend, "GET", "/auth/me", operator))["fullName"], "External After Commit")
@@ -516,7 +535,7 @@ class R2StorageTests(unittest.TestCase):
     def test_incomplete_archive_prevents_backend_startup(self):
         partial = io.BytesIO()
         with zipfile.ZipFile(partial, "w") as archive:
-            archive.writestr("workers.csv", "employeeID,fullName\n")
+            archive.writestr("workers.txt", "employeeID,fullName\n")
         with self.s3.lock:
             self.s3.set_object_unlocked(partial.getvalue())
         self.backend(ready=False).assert_startup_rejected()

@@ -23,7 +23,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ShuttleRepository {
 
-    public static final String FILE_NAME = "shuttles.csv";
+    public static final String FILE_NAME = "shuttles.txt";
 
     public static final List<String> HEADER =
             List.of("shuttleId", "plateNumber", "capacity", "currentStatus");

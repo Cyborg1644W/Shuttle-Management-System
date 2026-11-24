@@ -24,7 +24,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ShiftRepository {
 
-    public static final String FILE_NAME = "shifts.csv";
+    public static final String FILE_NAME = "shifts.txt";
 
     public static final List<String> HEADER =
             List.of("shiftId", "driverId", "shuttleId", "startTime", "endTime", "status",

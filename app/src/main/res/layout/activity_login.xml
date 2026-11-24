@@ -50,7 +50,7 @@
                 android:textColor="@color/text_primary" app:backgroundTint="@color/surface" app:strokeColor="@color/border"
                 app:strokeWidth="1dp" app:cornerRadius="12dp" app:icon="@drawable/ic_google" app:iconTint="@null" app:iconGravity="textStart" />
             <TextView android:id="@+id/btnServerConnection" style="@style/Fleet.AuthLink" android:layout_gravity="center_horizontal"
-                android:text="@string/server_connection_title" />
+                android:gravity="center" android:text="@string/server_connection_title" />
             <Space android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1" />
             <TextView style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="20dp" android:gravity="center" android:text="FleetFlow | Shuttle Management System" android:textSize="10sp" />

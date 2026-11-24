@@ -2,6 +2,7 @@
 services:
   - type: web
     name: shuttle-server
+    branch: Backend
     runtime: docker
     plan: free
     numInstances: 1

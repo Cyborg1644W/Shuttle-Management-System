@@ -28,7 +28,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class WorkerRepository {
 
-    public static final String FILE_NAME = "workers.csv";
+    public static final String FILE_NAME = "workers.txt";
 
     public static final List<String> HEADER = List.of(
             "employeeID", "fullName", "email", "passwordHash", "role",

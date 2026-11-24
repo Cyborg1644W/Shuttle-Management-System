@@ -109,8 +109,8 @@ shuttle-management-system/
 |           `-- values/          # Strings, colors, styles
 |
 |-- sample-data/import/          # Seed data for testing
-|   |-- workers.csv
-|   `-- shuttles.csv
+|   |-- workers.txt
+|   `-- shuttles.txt
 `-- docs/                        # API and schema documentation
     |-- FILE_FORMATS.md
     `-- API.md
@@ -150,7 +150,7 @@ Copy the files in `sample-data/import/` into the server's `import/` directory so
 
 On Windows, use `run-server.bat`. The launcher builds an up-to-date installable backend distribution, then starts Java directly rather than leaving a Gradle `run` task attached to Android Studio. The server binds to `0.0.0.0:8080` by default; check `http://127.0.0.1:8080/health`. `./gradlew :server-backend:run` is also valid, but it intentionally remains active while the HTTP server is running.
 
-By default the server stores its CSVs on the same machine. The Render + R2 deployment below uses private cloud storage. For access from different networks, use the HTTPS address of the hosted server.
+By default the server stores comma-separated tables in local `.txt` files. On upgrade, stop the old server before starting this version. Startup renames existing local `.csv` tables byte for byte. If both extensions exist for one table, resolve the duplicate before startup. The Render + R2 deployment below uses private cloud storage.
 
 **4. Install the Android app**
 
@@ -160,9 +160,9 @@ Connect an Android device (or start an emulator) and run:
 bash ./gradlew :app:installDebug
 ```
 
-Use **Server connection** on the sign-in or registration screen to set the address on each phone. On the same Wi-Fi, a physical phone can use the LAN IP of the computer, such as http://192.168.1.10:8080. An emulator uses http://10.0.2.2:8080. For a hosted backend, enter its HTTPS address.
+Fresh installations and upgrades from 1.0 start in **Automatic**. The sign-in screen shows the active address. The release app uses `https://shuttle-server-wh1z.onrender.com/api`. Sign in directly. An upgrade preserves a previously entered address in **Server connection → Custom server**. Select **Custom server** and **Save** to use that address again, or choose **Automatic → Save** to return to the default.
 
-For debug builds, you can also set the default address through the SHUTTLE_API_BASE_URL environment variable or the shuttleApiBaseUrl Gradle property. A saved address in the app takes precedence. Local HTTP is available in debug builds. Use HTTPS for release builds.
+Debug builds can override the automatic address with the `shuttleApiBaseUrl` Gradle property, `SHUTTLE_API_BASE_URL` environment variable, or `shuttleApiBaseUrl` in `local.properties`, in that order. A custom server explicitly selected on the phone takes precedence on subsequent launches. For local HTTP development, a phone on the same Wi-Fi can use an address such as `http://192.168.1.10:8080`. The emulator can use `http://10.0.2.2:8080`. Use HTTPS for custom servers in release builds.
 
 **5. First login workflow**
 
@@ -174,7 +174,7 @@ For debug builds, you can also set the default address through the SHUTTLE_API_B
 
 Each invitation admits one driver and expires after 48 hours. Codes and memberships survive backend restarts; sign in again after restarting because sessions are kept in memory. A driver belongs to one terminal at a time. Accepting another terminal's invitation requires explicit confirmation and finishing any active shift; it clears the old vehicle assignment and schedule while retaining the account and personal trip history. Removing a driver from the staff list disconnects the terminal membership without deleting the driver's account.
 
-Terminal membership, vehicle ownership and invitations are persisted together in `terminals.csv`, next to `workers.csv`. Workers, vehicles, schedules, shift reports and locations are filtered by terminal. Existing CSV records without terminal ownership are not automatically assigned to a newly created terminal; existing drivers should accept invitations, and vehicle ownership needs an explicit data migration. Deleted shuttle IDs remain reserved to their original terminal so historical tracking cannot be exposed through ID reuse.
+Terminal membership, vehicle ownership and invitations are persisted together in `terminals.txt`, next to `workers.txt`. Workers, vehicles, schedules, shift reports and locations are filtered by terminal. Existing CSV records without terminal ownership are not automatically assigned to a newly created terminal; existing drivers should accept invitations, and vehicle ownership needs an explicit data migration. Deleted shuttle IDs remain reserved to their original terminal so historical tracking cannot be exposed through ID reuse.
 
 The invitation feature uses no paid messaging or QR service. It does not provide hosting: both phones still require internet access to the shared backend for joining and live updates.
 
@@ -182,7 +182,7 @@ The invitation feature uses no paid messaging or QR service. It does not provide
 
 See [the deployment guide](docs/DEPLOY_RENDER_R2.md) for the private bucket, server settings, Docker deployment, and two-phone restart checks. The included `render.yaml` selects one Free Docker service and R2 storage; it does not provision services or contain credentials.
 
-Set `STORAGE_MODE=r2` and the documented R2 environment settings on the hosted server. All five CSV tables, including persistent fleet invitations in `terminals.csv`, commit together in a private ZIP object. Conditional writes detect conflicting versions. A failed upload rolls back the request's repository/session changes, and an uncertain upload is checked against the exact saved snapshot before reporting success. Local development still defaults to file storage.
+Set `STORAGE_MODE=r2` and the documented R2 environment settings on the hosted server. All five CSV tables, including persistent fleet invitations in `terminals.txt`, commit together in a private ZIP object. Conditional writes detect conflicting versions. A failed upload rolls back the request's repository/session changes, and an uncertain upload is checked against the exact saved snapshot before reporting success. Local development still defaults to file storage.
 
 The sign-in, registration and fleet clients check readiness before submitting an action, allowing up to 90 seconds for a sleeping host. Only the health GET is retried; account creation, joining and shift actions are never automatically repeated.
 

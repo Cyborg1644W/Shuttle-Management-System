@@ -619,11 +619,12 @@ public class OperatorActivity extends AppCompatActivity {
                 WorkerDialogs.showReassign(OperatorActivity.this, "Assign vehicle",
                         "Choose a vehicle from your terminal for " + w.name,
                         R.drawable.ic_vehicle, options.toArray(new String[0]), w.value1, picked -> {
+                            boolean unassign = picked.equals("Unassigned");
                             JSONObject body = new JSONObject();
-                            try { body.put("shuttleId", picked.equals("Unassigned") ? "" : picked); }
+                            try { body.put("shuttleId", unassign ? "" : picked); }
                             catch (JSONException impossible) { throw new AssertionError(impossible); }
                             FleetApi.put("/workers/" + FleetApi.encode(w.empId) + "/assign", body,
-                                    staffAction("Vehicle assignment updated"));
+                                    staffAction(unassign ? "Vehicle unassigned" : "Vehicle assignment updated"));
                         });
             }
             @Override public void onError(int status, String message) {

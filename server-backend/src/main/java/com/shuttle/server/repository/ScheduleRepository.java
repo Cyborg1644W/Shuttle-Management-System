@@ -14,7 +14,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ScheduleRepository {
 
-    public static final String FILE_NAME = "schedule.csv";
+    public static final String FILE_NAME = "schedule.txt";
 
     public static final List<String> HEADER = List.of("employeeID", "shift", "days");
 

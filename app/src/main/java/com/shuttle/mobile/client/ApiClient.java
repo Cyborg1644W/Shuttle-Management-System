@@ -5,7 +5,6 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.shuttle.common.CsvUtil;
-import com.shuttle.mobile.BuildConfig;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -28,11 +27,7 @@ import java.util.concurrent.Executors;
 
 public class ApiClient {
 
-    /**
-     * Configured at build time from local.properties, a Gradle property, or SHUTTLE_API_BASE_URL.
-     * Remove the trailing slash because API paths start with a slash.
-     */
-    public static final String BASE_URL = BuildConfig.API_BASE_URL.replaceAll("/+$", "");
+    public static final String BASE_URL = ServerConnection.DEFAULT_URL;
 
     public static void initialize(Context context) {
         ServerConnection.initialize(context);

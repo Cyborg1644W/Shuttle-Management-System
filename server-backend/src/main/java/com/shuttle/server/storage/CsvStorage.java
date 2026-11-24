@@ -21,7 +21,7 @@ import java.util.zip.ZipOutputStream;
 
 /** One conditional R2 object write commits every CSV changed by a business operation. */
 public final class CsvStorage {
-    public static final List<String> TABLES = List.of("workers.csv", "shuttles.csv", "shifts.csv", "schedule.csv", "terminals.csv");
+    public static final List<String> TABLES = List.of("workers.txt", "shuttles.txt", "shifts.txt", "schedule.txt", "terminals.txt");
     private static final int MAX_SNAPSHOT_BYTES = 32 * 1024 * 1024;
     private static final String COMMIT_ENTRY = "commit.txt";
     private static ObjectStore cloud;
@@ -34,22 +34,32 @@ public final class CsvStorage {
 
     private CsvStorage() { }
 
-    public static void configure() {
+    public static void configure() throws IOException {
         if (initialized) return;
+        Map<Path, String> paths = new LinkedHashMap<>();
+        paths.put(normalize(ServerConfig.getWorkersCsvPath()), "workers.txt");
+        paths.put(normalize(ServerConfig.getShuttlesCsvPath()), "shuttles.txt");
+        paths.put(normalize(ServerConfig.getShiftsCsvPath()), "shifts.txt");
+        paths.put(normalize(ServerConfig.getScheduleCsvPath()), "schedule.txt");
+        paths.put(normalize(ServerConfig.getDatedShiftsCsvPath()), DatedShiftRepository.FILE_NAME);
+        paths.put(normalize(ServerConfig.getWorkersCsvPath().resolveSibling("terminals.txt")), "terminals.txt");
         if (ServerConfig.isR2()) {
             cloud = new R2ObjectClient(ServerConfig.getR2Endpoint(), ServerConfig.getR2Bucket(),
                     ServerConfig.getR2ObjectKey(), ServerConfig.getR2AccessKeyId(), ServerConfig.getR2SecretAccessKey(),
                     java.time.Clock.systemUTC(), java.net.http.HttpClient.newBuilder()
                     .connectTimeout(java.time.Duration.ofSeconds(10)).followRedirects(java.net.http.HttpClient.Redirect.NEVER).build(),
                     ServerConfig.allowInsecureR2Localhost());
-            Map<Path, String> paths = new LinkedHashMap<>();
-            paths.put(normalize(ServerConfig.getWorkersCsvPath()), "workers.csv");
-            paths.put(normalize(ServerConfig.getShuttlesCsvPath()), "shuttles.csv");
-            paths.put(normalize(ServerConfig.getShiftsCsvPath()), "shifts.csv");
-            paths.put(normalize(ServerConfig.getScheduleCsvPath()), "schedule.csv");
-            paths.put(normalize(ServerConfig.getDatedShiftsCsvPath()), DatedShiftRepository.FILE_NAME);
-            paths.put(normalize(ServerConfig.getWorkersCsvPath().resolveSibling("terminals.csv")), "terminals.csv");
             managed = paths;
+        } else {
+            for (Path path : paths.keySet()) {
+                String name = path.getFileName().toString();
+                if (!name.endsWith(".txt")) continue;
+                Path legacy = path.resolveSibling(name.substring(0, name.length() - 4) + ".csv");
+                if (!Files.notExists(legacy)) {
+                    // Same-directory rename preserves the exact bytes and refuses to overwrite a table.
+                    Files.move(legacy, path);
+                }
+            }
         }
         initialized = true;
     }
@@ -199,6 +209,11 @@ public final class CsvStorage {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 String name = entry.getName();
+                // Old R2 snapshots use the same table contents under .csv names.
+                if (name.endsWith(".csv")) {
+                    name = name.substring(0, name.length() - 4) + ".txt";
+                    if (!isTable(name)) throw new IOException("Unexpected legacy table in cloud state");
+                }
                 if ((!isTable(name) && !COMMIT_ENTRY.equals(name)) || !seen.add(name) || entry.isDirectory()) {
                     throw new IOException("Unexpected or duplicate entry in cloud state");
                 }

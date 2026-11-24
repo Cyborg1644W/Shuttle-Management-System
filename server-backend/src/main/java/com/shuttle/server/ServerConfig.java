@@ -12,10 +12,10 @@ public class ServerConfig {
     // Defaults in case config.properties is missing
     private static int port = 8080;
     private static String host = "0.0.0.0";
-    private static String workersCsv = "sample-data/import/workers.csv";
-    private static String shuttlesCsv = "sample-data/import/shuttles.csv";
-    private static String shiftsCsv = null;     // default: next to workers.csv
-    private static String scheduleCsv = null;   // default: next to workers.csv
+    private static String workersCsv = "sample-data/import/workers.txt";
+    private static String shuttlesCsv = "sample-data/import/shuttles.txt";
+    private static String shiftsCsv = null;     // default: next to workers.txt
+    private static String scheduleCsv = null;   // default: next to workers.txt
     private static String storageMode;
 
     static {
@@ -48,10 +48,10 @@ public class ServerConfig {
         String dataDir = System.getenv("DATA_DIR");
         if (isR2() || (dataDir != null && !dataDir.isBlank())) {
             Path base = Paths.get(setting("DATA_DIR", "data"));
-            workersCsv = base.resolve("workers.csv").toString();
-            shuttlesCsv = base.resolve("shuttles.csv").toString();
-            shiftsCsv = base.resolve("shifts.csv").toString();
-            scheduleCsv = base.resolve("schedule.csv").toString();
+            workersCsv = base.resolve("workers.txt").toString();
+            shuttlesCsv = base.resolve("shuttles.txt").toString();
+            shiftsCsv = base.resolve("shifts.txt").toString();
+            scheduleCsv = base.resolve("schedule.txt").toString();
         }
         if (isR2()) {
             getR2Endpoint(); getR2Bucket(); getR2AccessKeyId(); getR2SecretAccessKey();
@@ -99,19 +99,25 @@ public class ServerConfig {
     }
 
     public static Path getWorkersCsvPath() {
-        return Paths.get(workersCsv);
+        return databasePath(workersCsv);
     }
 
     public static Path getShuttlesCsvPath() {
-        return Paths.get(shuttlesCsv);
+        return databasePath(shuttlesCsv);
     }
 
     public static Path getShiftsCsvPath() {
-        return shiftsCsv != null ? Paths.get(shiftsCsv) : sibling("shifts.csv");
+        return shiftsCsv != null ? databasePath(shiftsCsv) : sibling("shifts.txt");
     }
 
     public static Path getScheduleCsvPath() {
-        return scheduleCsv != null ? Paths.get(scheduleCsv) : sibling("schedule.csv");
+        return scheduleCsv != null ? databasePath(scheduleCsv) : sibling("schedule.txt");
+    }
+
+    private static Path databasePath(String configured) {
+        // Existing config.properties files may specify a custom directory and CSV basename.
+        return Paths.get(configured.endsWith(".csv")
+                ? configured.substring(0, configured.length() - 4) + ".txt" : configured);
     }
 
     public static Path getDatedShiftsCsvPath() {

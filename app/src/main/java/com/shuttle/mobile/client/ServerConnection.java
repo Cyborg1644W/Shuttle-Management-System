@@ -3,6 +3,8 @@ package com.shuttle.mobile.client;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.shuttle.mobile.BuildConfig;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Locale;
@@ -11,17 +13,24 @@ import java.util.Locale;
 public final class ServerConnection {
     private static final String PREFERENCES = "server_connection";
     private static final String ADDRESS = "api_address";
-    private static volatile String baseUrl = ApiClient.BASE_URL;
+    private static final String USE_CUSTOM = "use_custom_server";
+    public static final String DEFAULT_URL = normalize(BuildConfig.API_BASE_URL);
+    private static volatile String baseUrl = DEFAULT_URL;
 
     private ServerConnection() { }
 
     public static synchronized void initialize(Context context) {
-        SharedPreferences prefs = context.getApplicationContext()
-                .getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
+        SharedPreferences prefs = preferences(context);
+        // Older releases saved only ADDRESS. Keep it available in the dialog, but start in Automatic.
+        if (!prefs.getBoolean(USE_CUSTOM, false)) {
+            baseUrl = DEFAULT_URL;
+            return;
+        }
         try {
-            baseUrl = normalize(prefs.getString(ADDRESS, ApiClient.BASE_URL));
-        } catch (IllegalArgumentException e) {
-            baseUrl = ApiClient.BASE_URL;
+            baseUrl = normalize(prefs.getString(ADDRESS, ""));
+        } catch (IllegalArgumentException | ClassCastException e) {
+            prefs.edit().remove(ADDRESS).remove(USE_CUSTOM).apply();
+            baseUrl = DEFAULT_URL;
         }
     }
 
@@ -31,9 +40,29 @@ public final class ServerConnection {
 
     public static synchronized void save(Context context, String address) {
         String normalized = normalize(address);
-        context.getApplicationContext().getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-                .edit().putString(ADDRESS, normalized).apply();
+        if (normalized.equals(DEFAULT_URL)) {
+            useAutomatic(context);
+            return;
+        }
+        preferences(context).edit().putString(ADDRESS, normalized).putBoolean(USE_CUSTOM, true).apply();
         baseUrl = normalized;
+    }
+
+    public static synchronized void useAutomatic(Context context) {
+        preferences(context).edit().remove(USE_CUSTOM).apply();
+        baseUrl = DEFAULT_URL;
+    }
+
+    public static String rememberedAddress(Context context) {
+        try {
+            return normalize(preferences(context).getString(ADDRESS, ""));
+        } catch (IllegalArgumentException | ClassCastException e) {
+            return "";
+        }
+    }
+
+    private static SharedPreferences preferences(Context context) {
+        return context.getApplicationContext().getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
     }
 
     /** Accept a server root or /api URL, retaining only a valid HTTP(S) server address. */

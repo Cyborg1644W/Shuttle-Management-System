@@ -14,7 +14,7 @@ import java.util.Set;
 
 /** Planned assignments, separate from weekly rules and recorded shifts. */
 public final class DatedShiftRepository {
-    public static final String FILE_NAME = "dated-shifts.csv";
+    public static final String FILE_NAME = "dated-shifts.txt";
     private static final List<String> HEADER = List.of("id", "terminalId", "employeeId", "shuttleId",
             "shiftDate", "startTime", "endTime", "notesBase64");
 
@@ -42,7 +42,7 @@ public final class DatedShiftRepository {
                 }
                 assignments.add(entry);
             } catch (RuntimeException invalid) {
-                throw new IOException("Invalid dated-shifts.csv row " + row.lineNumber(), invalid);
+                throw new IOException("Invalid dated-shifts.txt row " + row.lineNumber(), invalid);
             }
         }
     }

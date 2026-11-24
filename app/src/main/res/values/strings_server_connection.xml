@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="server_connection_title">Server connection</string>
-    <string name="server_address_label">Server address</string>
     <string name="server_address_hint">https://your-server.example</string>
-    <string name="server_connection_help">Enter your PC’s Wi-Fi address or your hosted server URL. All devices should use the same address.</string>
+    <string name="server_automatic">Automatic</string>
+    <string name="server_custom">Custom server</string>
+    <string name="server_mode_address">%1$s\n%2$s</string>
+    <string name="server_connection_status">Server connection · %1$s\n%2$s</string>
     <string name="server_address_saved">Server address saved.</string>
     <string name="server_connection_save">Save</string>
 </resources>

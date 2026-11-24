@@ -60,11 +60,11 @@ public final class StorageAdmin {
             if (Files.size(file) > 32 * 1024 * 1024) throw new IOException("CSV exceeds prototype limit");
             tables.put(name, Files.readString(file, StandardCharsets.UTF_8));
         }
-        WorkerRepository workers = new WorkerRepository(dir.resolve("workers.csv"));
-        ShuttleRepository shuttles = new ShuttleRepository(dir.resolve("shuttles.csv"));
-        ShiftRepository shifts = new ShiftRepository(dir.resolve("shifts.csv"));
-        ScheduleRepository schedule = new ScheduleRepository(dir.resolve("schedule.csv"));
-        TerminalRepository terminals = new TerminalRepository(dir.resolve("terminals.csv"));
+        WorkerRepository workers = new WorkerRepository(dir.resolve("workers.txt"));
+        ShuttleRepository shuttles = new ShuttleRepository(dir.resolve("shuttles.txt"));
+        ShiftRepository shifts = new ShiftRepository(dir.resolve("shifts.txt"));
+        ScheduleRepository schedule = new ScheduleRepository(dir.resolve("schedule.txt"));
+        TerminalRepository terminals = new TerminalRepository(dir.resolve("terminals.txt"));
         Path datedPath = dir.resolve(DatedShiftRepository.FILE_NAME);
         if (Files.exists(datedPath)) {
             if (!Files.isRegularFile(datedPath) || Files.size(datedPath) > 32 * 1024 * 1024) {

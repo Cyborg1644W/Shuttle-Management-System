@@ -23,7 +23,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class InviteRepository {
 
-    public static final String FILE_NAME = "invites.csv";
+    public static final String FILE_NAME = "invites.txt";
 
     public static final List<String> HEADER = List.of(
             "token", "invitedEmail", "role", "createdBy",

@@ -23,7 +23,7 @@ For a new system, leave the bucket empty. The server initializes its state objec
 
 Skip this section for a new system. If you already have accounts and fleet data locally, import them **before starting the Render server**. The first normal startup creates its initial state object; the importer refuses to replace any object that already exists, even an empty fleet.
 
-1. Stop the local server so the files cannot change during migration. Make a private backup and collect all five CSV files from the same stopped installation in one directory: `workers.csv`, `shuttles.csv`, `shifts.csv`, `schedule.csv`, and `terminals.csv`. Do not combine files from different servers or fabricate a missing table. Older data without terminal ownership needs a separate migration; the tool does not guess which operator owns a vehicle or driver.
+1. Stop the local server so the files cannot change during migration. Make a private backup and collect all five comma-separated tables from the same stopped installation in one directory: `workers.txt`, `shuttles.txt`, `shifts.txt`, `schedule.txt`, and `terminals.txt`. For a backup from an older installation, rename the copies from `.csv` to `.txt` before validation, including the optional dated shift table. Do not combine files from different servers or fabricate a missing table. Older data without terminal ownership needs a separate migration; the tool does not guess which operator owns a vehicle or driver.
 2. Build the backend image from the repository root:
 
    ```bash
@@ -39,7 +39,7 @@ Skip this section for a new system. If you already have accounts and fleet data 
      -cp /app/shuttle-server.jar com.shuttle.server.storage.StorageAdmin validate /import
    ```
 
-   The one-shot administration container uses UID 0 to read private local files through a read-only mount; the deployed web service continues to run as UID 10001. Successful validation reports the number of CSV tables it checked. Include `dated-shifts.csv` from the same stopped installation if it exists. If validation fails, keep the original data and investigate its schemas and references before uploading.
+   The one-shot administration container uses UID 0 to read private local files through a read-only mount; the deployed web service continues to run as UID 10001. Successful validation reports the number of CSV tables it checked. Include `dated-shifts.txt` from the same stopped installation if it exists. If validation fails, keep the original data and investigate its schemas and references before uploading.
 
 4. Create a private environment file **outside the Git checkout**, for example `/absolute/private/r2.env`, and restrict access to your own user. Enter your actual R2 settings locally, replacing these placeholders:
 
@@ -71,7 +71,7 @@ Skip this section for a new system. If you already have accounts and fleet data 
 ## 2. Deploy the repository on Render
 
 1. Push the reviewed changes to your GitHub repository.
-2. Create or sign in to [Render](https://dashboard.render.com/). Choose **New → Blueprint**, connect the repository, and select the branch containing `render.yaml`.
+2. Create or sign in to [Render](https://dashboard.render.com/). Choose **New → Blueprint**, connect the repository, and select the `Backend` branch containing the dated shift handler and this Blueprint.
 3. Review the proposed service. It must be a **Free** Docker web service with **one instance**, health-check path `/api/health`, and **no persistent disk or paid database**. Do not add autoscaling or another server against the same R2 object.
 4. Fill the four requested environment settings:
 
@@ -101,12 +101,12 @@ The included Blueprint sets these non-secret values:
 | `STORAGE_MODE` | `r2` | Require durable R2 storage |
 | `R2_OBJECT_KEY` | `shuttle-state.zip` | The private object containing the full CSV state |
 
-If you create a Web Service manually instead of using the Blueprint, use Docker, the repository root as build context, `Dockerfile` as the Dockerfile path, `/api/health` as the health check, the Free plan, and **all** the environment variables above. No custom start command is needed.
+If you create a Web Service manually instead of using the Blueprint, select the `Backend` branch and use Docker, the repository root as build context, `Dockerfile` as the Dockerfile path, `/api/health` as the health check, the Free plan, and **all** the environment variables above. No custom start command is needed.
 
 ## 3. Connect the phones
 
 1. Install the updated Android APK on both phones.
-2. On the sign-in screen, open **Server connection** and save the same Render HTTPS address on each phone. You can enter the server root or its `/api` address. Phones use the Render address, never the R2 endpoint; keep R2 credentials out of this field.
+2. Check the address shown on the sign-in screen. Fresh installs and upgrades from 1.0 use **Automatic**, which points to `https://shuttle-server-wh1z.onrender.com/api` in the release app. If you deployed a different service, select **Server connection → Custom server**, enter or reuse its address, and save. Both phones must use the same service.
 3. On the operator's phone, register an **Operator** account, sign in, and create the terminal.
 4. On the driver's phone, register a **Driver** account and sign in. It starts without a terminal.
 5. Operator: choose **Invite drivers**, generate a code, and share it through Messenger or SMS.
@@ -131,11 +131,11 @@ An open port, a successful Docker build, or the presence of an R2 object alone d
 
 ## Storage, backups, and limits
 
-The server saves `workers.csv`, `shuttles.csv`, `shifts.csv`, `schedule.csv`, and `terminals.csv` together in one private ZIP snapshot, with an automatically generated `commit.txt` marker. The optional `dated-shifts.csv` joins the same snapshot after a dated assignment is saved. The current server reads snapshots with or without that table. Deploy the scheduling-capable server before updating the Android clients. Once a dated shift is saved to R2, older server builds cannot read the new snapshot. Keep a private snapshot backup before rolling out the scheduling change. R2 conditional writes compare the object's ETag, preventing two running instances from silently overwriting one another's state. The backend refreshes cloud state before handling a request and checks storage as part of readiness. Keep exactly one instance. If storage cannot be read, written, or safely updated, investigate the error; do not overwrite the object or start a second writer as a workaround. The prototype limits both the snapshot and its expanded contents to 32 MiB; it is not intended as an unlimited history archive.
+The server saves `workers.txt`, `shuttles.txt`, `shifts.txt`, `schedule.txt`, and `terminals.txt` together in one private ZIP snapshot, with an automatically generated `commit.txt` marker. The optional `dated-shifts.txt` joins the same snapshot after a dated assignment is saved. The current server reads snapshots with or without that table. Deploy the scheduling-capable server before updating the Android clients. This build reads existing snapshots with `.csv` entries. The next successful data change writes `.txt` entries. Older builds require the old filenames, so keep a private copy of the original snapshot before upgrading. R2 conditional writes compare the object's ETag, preventing two running instances from silently overwriting one another's state. The backend refreshes cloud state before handling a request and checks storage as part of readiness. Keep exactly one instance. If storage cannot be read, written, or safely updated, investigate the error; do not overwrite the object or start a second writer as a workaround. The prototype limits both the snapshot and its expanded contents to 32 MiB; it is not intended as an unlimited history archive.
 
 A failed or uncertain write can return HTTP 503 or 409. Refresh to inspect the saved result before submitting the action again; do not automatically replay a registration, invitation redemption, or other state-changing request after a timeout.
 
-Treat the snapshot as private account and operations data. It contains password hashes, worker details, terminal memberships, invitations, vehicles, schedules, and shift history. Live login tokens and live GPS positions are in memory and are not restored by a restart. This setup does not add automatic historical backups. Before an intentional migration or data-recovery operation, stop writes and download a dated private backup of the **whole** snapshot from R2. Preserve it securely; do not back up only `workers.csv` or manually edit the ZIP to recover a terminal.
+Treat the snapshot as private account and operations data. It contains password hashes, worker details, terminal memberships, invitations, vehicles, schedules, and shift history. Live login tokens and live GPS positions are in memory and are not restored by a restart. This setup does not add automatic historical backups. Before an intentional migration or data-recovery operation, stop writes and download a dated private backup of the **whole** snapshot from R2. Preserve it securely; do not back up only `workers.txt` or manually edit the ZIP to recover a terminal.
 
 If you already have local CSV data, use the create-only import procedure above before the first hosted startup. Never point a fresh empty deployment at a populated bucket with the intention of replacing its data. Data migration is a separate operation from creating a new fleet.
 
