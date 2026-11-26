@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+    <org.osmdroid.views.MapView
+        android:id="@+id/streets" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:contentDescription="@string/route_map" />
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="top|start" android:layout_margin="8dp" android:orientation="vertical">
+        <TextView android:id="@+id/routeStatus" style="@style/RouteBadge"
+            android:visibility="gone" android:accessibilityLiveRegion="polite" />
+        <TextView android:id="@+id/routeOffline" style="@style/RouteBadge"
+            android:text="@string/route_offline" android:layout_marginTop="3dp" android:visibility="gone" />
+    </LinearLayout>
+    <ImageButton android:id="@+id/recenterRoute" android:layout_width="48dp" android:layout_height="48dp"
+        android:layout_gravity="bottom|end" android:layout_margin="8dp" android:background="@drawable/bg_ff_chip"
+        android:src="@drawable/ic_route_recenter" android:contentDescription="@string/route_recenter"
+        android:elevation="2dp" android:visibility="gone" />
+    <TextView android:id="@+id/routeAttribution" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start" android:paddingHorizontal="4dp" android:paddingVertical="2dp"
+        android:background="#F2FFFFFF" android:textColor="@color/text_primary" android:textSize="11sp"
+        android:text="@string/route_attribution" android:autoLink="none" />
+</merge>

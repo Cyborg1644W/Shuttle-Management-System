@@ -16,6 +16,7 @@ import java.util.Date;
 import java.util.Locale;
 
 public class ShiftSummaryActivity extends AppCompatActivity {
+    private LiveRouteMap map;
     /** Compact trip details retain access to the existing full route summary. */
     public static void showDetails(android.app.Activity activity, String shiftId) {
         com.google.android.material.bottomsheet.BottomSheetDialog sheet =
@@ -81,6 +82,7 @@ public class ShiftSummaryActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_shift_summary);
+        map = findViewById(R.id.mapSummary);
 
         findViewById(R.id.ivBack).setOnClickListener(v -> finish());
         findViewById(R.id.btnDone).setOnClickListener(v -> finish());
@@ -95,7 +97,7 @@ public class ShiftSummaryActivity extends AppCompatActivity {
         FleetApi.get("/shift/" + FleetApi.encode(shiftId), new FleetApi.Callback() {
             @Override
             public void onSuccess(JSONObject json) {
-                if (isFinishing()) {
+                if (isFinishing() || isDestroyed()) {
                     return;
                 }
                 showShift(json);
@@ -135,11 +137,11 @@ public class ShiftSummaryActivity extends AppCompatActivity {
         ((TextView) findViewById(R.id.tvSumStart)).setText(timeFmt.format(new Date(start)));
         ((TextView) findViewById(R.id.tvSumEnd)).setText(end > 0 ? timeFmt.format(new Date(end)) : "-");
 
-        PureJavaMapCanvas map = findViewById(R.id.mapSummary);
         ArrayList<double[]> route = FleetApi.parseRoute(FleetApi.text(s, "route"));
-        map.setTraveled(route);
-        if (!route.isEmpty()) {
-            map.setCurrent(route.get(route.size() - 1));
-        }
+        map.showSummary(route);
     }
+
+    @Override protected void onResume() { super.onResume(); map.resume(); }
+    @Override protected void onPause() { map.pause(); super.onPause(); }
+    @Override protected void onDestroy() { map.destroy(); super.onDestroy(); }
 }

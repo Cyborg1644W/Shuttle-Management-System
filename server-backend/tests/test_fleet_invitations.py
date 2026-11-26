@@ -279,6 +279,24 @@ class FleetInvitationTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/shift?driverId=" + d["employeeId"], b), [])
         self.assertEqual(len(self.request("GET", "/shift", d)), 1)
 
+    def test_large_offline_route_and_idempotent_end(self):
+        operator, _, driver, other = self.linked_fleets()
+        self.shuttle(operator, "MAP-1")
+        self.request("PUT", "/workers/" + driver["employeeId"] + "/assign", operator, {"shuttleId": "MAP-1"})
+        shift = self.one(self.request("POST", "/shift/start", driver, {}, expected=201))
+        trail = ";".join(f"14.{i:05d},120.98" for i in range(5000))
+        body = {"shiftId": shift["shiftId"], "endTime": shift["startTime"], "route": trail, "distanceKm": 6}
+        self.request("POST", "/shift/end", other, body, expected=403)
+        ended = self.one(self.request("POST", "/shift/end", driver, body))
+        self.assertEqual(ended["endTime"], shift["startTime"])
+        self.assertEqual(ended["route"], trail)
+        next_shift = self.one(self.request("POST", "/shift/start", driver, {}, expected=201))
+        retried = self.one(self.request("POST", "/shift/end", driver, body))
+        self.assertEqual(retried["shiftId"], shift["shiftId"])
+        self.assertEqual(self.one(self.request("GET", "/shift/active", driver))["shiftId"], next_shift["shiftId"])
+        self.assertEqual(self.one(self.request("GET", "/shift/" + shift["shiftId"], driver))["route"], trail)
+        self.assertTrue(all("route" not in row for row in self.request("GET", "/shift?summary=true", driver)))
+
     def test_unassign_clears_vehicle_and_preserves_membership_after_restart(self):
         operator, _, driver, _ = self.linked_fleets()
         self.shuttle(operator, "CENTRAL-1")

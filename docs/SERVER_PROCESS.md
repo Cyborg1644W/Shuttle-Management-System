@@ -4,7 +4,7 @@ This guide describes the active implementation reviewed on November 17, 2026. It
 
 The backend is a Java HTTP API running on the hosting computer. The Android APK supplies the user interface. Persistent worker, vehicle, shift, and schedule records are stored as CSV files on that computer. Login sessions and the latest GPS positions are held in server memory.
 
-**Current integration gap:** the registered server handlers use CSV requests and responses. Android's `AuthApi` also uses CSV, but `FleetApi` and `ApiClient` still send or expect JSON for several operations. The backend workflows below describe what its handlers implement for correctly formatted requests. They should not be read as confirmation that the current Android client completes every workflow successfully. Section 12 explains the mismatch.
+The Android client and server exchange CSV requests and responses. Section 12 describes how location uploads and trip records are encoded.
 
 ## 1. Components and request path
 
@@ -183,9 +183,9 @@ Sources: [ShiftHandler](../server-backend/src/main/java/com/shuttle/server/handl
 
 ### Phone-side collection and retry
 
-GpsTrackerService is an Android foreground service with a visible notification. With location permission, it requests high-accuracy locations at an approximately five-second interval, with a two-second minimum update interval. Actual timing depends on Android and the location provider. The current service always selects real GPS; the simulation extra is ignored.
+GpsTrackerService is an Android foreground service with a visible notification. With location permission, it requests high-accuracy locations at an approximately five-second interval, with a two-second minimum update interval. Actual timing depends on Android and the location provider. The service subscribes to the fused location provider for the active shift.
 
-For each received position, it broadcasts the position within the app, creates an update containing shuttle ID, latitude, longitude, speed, and device timestamp, and submits upload work to a single worker executor.
+RouteRepository writes timestamped fixes, speed and optional bearing to an app-private SQLite database before scheduling telemetry uploads. The driver card observes immutable LiveMapUiState snapshots through LiveData. Each snapshot links to earlier fixes so a resumed screen can draw the points it missed. The database retains the current or last completed route for each server and driver.
 
 Before sending the newest update, it tries to flush older queued updates in order. Failed/retryable sends are kept in the app-private offline_queue.txt file. The queue holds up to 1,000 entries and drops the oldest when that maximum is exceeded. Retry is triggered by later GPS callbacks; the server does not read the phone's queue directly.
 
@@ -204,7 +204,7 @@ The handler requires latitude and longitude fields, then calls TrackingService.u
 
 These location handlers do not themselves require an active shift. Their Driver restriction is based on vehicle assignment. An ignored old update still reaches the handler's normal success response.
 
-Live positions are not written to a GPS CSV archive. A server restart clears this map. The current Android upload encoding is incompatible with the server's CSV parser, as described in section 12.
+A server restart clears the in-memory live positions. Android sends location fields as CSV and retains the shift trail on the phone.
 
 Example CSV body for a correctly formatted location request:
 
@@ -231,13 +231,13 @@ Sources: [FleetService](../server-backend/src/main/java/com/shuttle/server/servi
 
 ## 10. Ending a shift
 
-POST `/api/shift/end` requires a Driver session. The service finds that Driver's active shift and rejects the request if none exists.
+POST `/api/shift/end` requires a Driver session. A request with a shift ID can close only that driver's matching shift. Retrying an acknowledged end returns the saved trip, including when the driver has already started another shift.
 
-The client supplies distanceKm, stops, and route. The service clamps negative distance and stop values to zero and discards route strings longer than 20,000 characters. It does not reconstruct the trip distance from the live-position map.
+The client sends the locally recorded end time, distance, stops and full route. The server accepts route strings up to 2 MiB and returns HTTP 413 for larger payloads. Older clients can omit the shift ID and end time to end their current shift.
 
 The service records an end time no earlier than the shift start, changes the shift to COMPLETED, and persists its summary. It clears the Driver's active shift ID and sets OFF_SHIFT. If the vehicle is still IN_SERVICE, it changes it to AVAILABLE. The response includes duration and average speed computed from the shift record.
 
-The intended Android success path stops GpsTrackerService and shows the completed trip. Current JSON/CSV compatibility problems can interrupt that client success path even if a server operation has already changed records.
+End Shift freezes the trail locally, stops GPS collection and fits the whole route in the card. The driver screen retries a pending upload while open and when reopened. The Fleet tab requests shift summaries without geometry and fetches the route when a trip is opened.
 
 Sources: [ShiftService](../server-backend/src/main/java/com/shuttle/server/service/ShiftService.java), [ShiftRepository](../server-backend/src/main/java/com/shuttle/server/repository/ShiftRepository.java), [DriverActivity](../app/src/main/java/com/shuttle/mobile/ui/DriverActivity.java).
 
@@ -274,24 +274,11 @@ Log writes append timestamped INFO, ERROR, and AUDIT messages to console output 
 
 Sources: [WorkerRepository](../server-backend/src/main/java/com/shuttle/server/repository/WorkerRepository.java), [ShiftRepository](../server-backend/src/main/java/com/shuttle/server/repository/ShiftRepository.java), [ShuttleRepository](../server-backend/src/main/java/com/shuttle/server/repository/ShuttleRepository.java), [ScheduleRepository](../server-backend/src/main/java/com/shuttle/server/repository/ScheduleRepository.java), [CsvTable](../server-backend/src/main/java/com/shuttle/server/io/CsvTable.java), [AtomicFileWriter](../server-backend/src/main/java/com/shuttle/server/io/AtomicFileWriter.java), [Log](../server-backend/src/main/java/com/shuttle/server/Log.java).
 
-## 12. Current Android/server protocol mismatch
+## 12. Android and server data formats
 
-| Component | Current encoding or expectation |
-| --- | --- |
-| Registered server handlers | Parse request bodies as CSV and serialize responses as CSV. |
-| Android AuthApi | Sends text/csv and parses CSV login/registration responses. |
-| Android FleetApi | Sends application/json for POST/PUT and parses nonempty successful replies as JSONObject. |
-| Android ApiClient | Sends JSON location updates and parses several GET replies as JSONObject or JSONArray. |
+FleetApi converts the driver's shift requests to CSV and parses the server's CSV rows into the JSON objects consumed by the screens. The active-shift endpoint returns zero or one row. An empty table means the driver is off duty.
 
-Consequences of the active code:
-
-- Login and registration use matching CSV contracts.
-- Fleet, dashboard, history, and other clients can receive a successful CSV response and report an unexpected reply because they attempt JSON parsing.
-- JSON location bodies do not supply the named CSV fields expected by BaseHandler/LocationHandler. The server can reject those updates with HTTP 400.
-- ApiClient treats many 4xx responses, including 400, as handled rather than retryable. Such location updates can therefore be removed from the offline queue despite not being accepted as positions. The explicitly retryable status exceptions are 401, 404, 408, and 429; transport failures and 5xx responses also return false for retry.
-- An operation with no required body fields can change server records and then fail client-side response parsing. For example, a permitted shift-start request can create a shift before FleetApi rejects the CSV success response. A later client retry can encounter an already-active-shift conflict.
-
-Accordingly, a healthy `/api/health` response verifies the HTTP route but does not establish that the Android app's fleet and GPS workflows are compatible. Aligning their request and response formats is separate implementation work; this documentation does not change those formats.
+ApiClient queues location fields locally as JSON and converts them to CSV before uploading. The completed route uses the existing semicolon-separated latitude/longitude pairs in a quoted CSV field. A driver can reopen trips saved by earlier app versions.
 
 Sources: [BaseHandler](../server-backend/src/main/java/com/shuttle/server/handler/BaseHandler.java), [ApiHandler](../server-backend/src/main/java/com/shuttle/server/handler/ApiHandler.java), [AuthApi](../app/src/main/java/com/shuttle/mobile/ui/AuthApi.java), [FleetApi](../app/src/main/java/com/shuttle/mobile/ui/FleetApi.java), [ApiClient](../app/src/main/java/com/shuttle/mobile/client/ApiClient.java).
 

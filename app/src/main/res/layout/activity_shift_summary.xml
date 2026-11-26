@@ -325,7 +325,7 @@
                 android:paddingStart="4dp"
                 android:text="Route" />
 
-            <com.shuttle.mobile.ui.PureJavaMapCanvas
+            <com.shuttle.mobile.ui.LiveRouteMap
                 android:id="@+id/mapSummary"
                 android:layout_width="match_parent"
                 android:layout_height="220dp"

@@ -10,7 +10,7 @@ The project is divided into three Gradle modules (Groovy build scripts, no Kotli
 
 1. **`:common`**: Shared domain models (Workers, Shifts, GPS Coordinates) used by both the server and the app.
 2. **`:server-backend`**: A JDK 17 HTTP server built on `com.sun.net.httpserver`. Data is stored in local CSV files using thread-safe atomic file swapping.
-3. **`:app`**: A native Android client (Java/XML) with background GPS tracking, programmatic canvas map rendering, and an offline-first queue for cellular dead zones.
+3. **`:app`**: A native Android client (Java/XML) with background GPS tracking, an interactive OpenStreetMap driver map, and an offline-first queue for cellular dead zones.
 
 ```text
 Driver Phone (Android) -------\
@@ -23,7 +23,7 @@ Dispatcher Phone (Android) ---/              (Java, files)  --writes--> export/ 
 ### Mobile Client (Android)
 * **Offline-First Resilience (`OfflineQueueManager`):** Caches GPS coordinates locally during cellular dead spots and flushes them to the server when connectivity returns.
 * **Background Tracking:** Uses an Android Foreground Service to keep collecting hardware GPS coordinates while the app is in the background. (Aggressive manufacturer battery optimization can still stop it; see Known Limitations.)
-* **Custom Map Rendering:** Avoids paid third-party map APIs by plotting live fleet telemetry onto a pure Java `Canvas`.
+* **Driver Live Route** follows the shuttle on OpenStreetMap, records the path locally during a shift, and fits the completed trip to the card.
 * **Role-Based Routing:** Separate interfaces for Drivers, Dispatchers, and Administrators using standard Android XML layouts and plain Java activities.
 
 ### Server Backend (Pure JDK)
@@ -101,7 +101,7 @@ shuttle-management-system/
 |       |       |-- DriverActivity.java
 |       |       |-- DispatcherActivity.java
 |       |       |-- AdminActivity.java
-|       |       |-- PureJavaMapCanvas.java    # Custom Canvas rendering
+|       |       |-- LiveRouteMap.java         # Driver street map and trip geometry
 |       |       `-- ShiftSummaryActivity.java
 |       |
 |       `-- res/
@@ -216,7 +216,7 @@ Before real drivers use this system in production:
 
 * **Session volatility:** Sessions live in RAM, so a server restart forces every mobile client to log in again.
 * **Storage scale:** The CSV backend handles dozens of drivers and thousands of shifts well. For thousands of concurrent active drivers, back the `Repository` interfaces with JDBC.
-* **Map detail:** `PureJavaMapCanvas` plots coordinates accurately but renders no street-level tiles. It works as a radar-style telemetry display.
+* **Offline map coverage** includes tiles previously viewed on this phone at the cached zoom levels. The GPS trail continues across areas without cached streets.
 * **Background tracking on Android:** Some manufacturers' battery optimizers kill foreground services anyway. Drivers may need to exempt the app from battery optimization.
 
 ---

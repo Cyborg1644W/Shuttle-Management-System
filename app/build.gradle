@@ -54,6 +54,8 @@ android {
 
 dependencies {
     implementation project(':common')
+    implementation 'org.osmdroid:osmdroid-android:6.1.20'
+    implementation 'androidx.lifecycle:lifecycle-livedata-core:2.6.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'com.google.android.gms:play-services-location:21.3.0'
