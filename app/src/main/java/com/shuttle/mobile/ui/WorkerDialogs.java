@@ -7,7 +7,6 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -83,11 +82,6 @@ public final class WorkerDialogs {
         void onPick(String value);
     }
 
-    /** Return null when saved OK, or an error message to show in the dialog (it stays open). */
-    public interface OnSubmit {
-        String onSubmit(String name, String employeeId, String phoneDigits, boolean operator);
-    }
-
     // Status helpers
     /** 0 = active / on shift, 1 = on break, 2 = off duty (goes to the bottom). */
     public static int statusRank(String status) {
@@ -133,94 +127,6 @@ public final class WorkerDialogs {
 
         v.findViewById(R.id.btnRsCancel).setOnClickListener(x -> d.dismiss());
         d.show();
-    }
-
-    // 3) Add / Edit worker
-    /**
-     * @param adding   true = "Add Worker" (shows the Driver/Operator toggle), false = "Edit Worker Profile"
-     * @param phoneDigits the 10 digits after +63 (or empty)
-     */
-    public static void showWorkerForm(Context c, boolean adding, String name, String employeeId,
-                                      String phoneDigits, OnSubmit listener) {
-        View v = inflate(c, R.layout.dialog_edit_worker);
-        AlertDialog d = build(c, v);
-
-        EditText etName = v.findViewById(R.id.etEwName);
-        EditText etEmp = v.findViewById(R.id.etEwEmp);
-        EditText etPhone = v.findViewById(R.id.etEwPhone);
-        TextView tvError = v.findViewById(R.id.tvEwError);
-        TextView tvDriver = v.findViewById(R.id.tvEwDriver);
-        TextView tvOperator = v.findViewById(R.id.tvEwOperator);
-        final boolean[] operator = {false};
-
-        ((TextView) v.findViewById(R.id.tvEwTitle)).setText(adding ? "Add Worker" : "Edit Worker Profile");
-        ((TextView) v.findViewById(R.id.tvEwSubtitle)).setText(adding
-                ? "Register a new driver or operator" : "Update this worker's details");
-        ((ImageView) v.findViewById(R.id.ivEwIcon)).setImageResource(
-                adding ? R.drawable.ic_plus : R.drawable.ic_edit);
-        ((TextView) v.findViewById(R.id.btnEwSave)).setText(adding ? "Add" : "Save");
-
-        v.findViewById(R.id.layoutEwRole).setVisibility(adding ? View.VISIBLE : View.GONE);
-        tvDriver.setOnClickListener(x -> {
-            operator[0] = false;
-            styleRole(c, tvDriver, true);
-            styleRole(c, tvOperator, false);
-        });
-        tvOperator.setOnClickListener(x -> {
-            operator[0] = true;
-            styleRole(c, tvDriver, false);
-            styleRole(c, tvOperator, true);
-        });
-
-        etName.setText(name);
-        etEmp.setText(employeeId);
-        etPhone.setText(phoneDigits);
-
-        v.findViewById(R.id.btnEwCancel).setOnClickListener(x -> d.dismiss());
-        v.findViewById(R.id.btnEwSave).setOnClickListener(x -> {
-            String n = etName.getText().toString().trim();
-            String e = etEmp.getText().toString().trim().toUpperCase(Locale.ROOT);
-            String digits = etPhone.getText().toString().replaceAll("[^0-9]", "");
-            if (digits.startsWith("0")) digits = digits.substring(1);
-
-            boolean badName = n.isEmpty();
-            boolean badEmp = e.isEmpty();
-            boolean badPhone = digits.length() != 10;
-
-            setError(etName, badName);
-            setError(etEmp, badEmp);
-            setError(etPhone, badPhone);
-
-            if (badName || badEmp || badPhone) {
-                showError(tvError, badName ? "Please enter the worker's name."
-                        : badEmp ? "Please enter an employee ID."
-                          : "Enter a 10-digit mobile number (after +63).");
-                return;
-            }
-
-            String problem = listener == null ? null : listener.onSubmit(n, e, digits, operator[0]);
-            if (problem != null) {
-                setError(etEmp, true); // e.g. "This ID is already used"
-                showError(tvError, problem);
-                return;
-            }
-            d.dismiss();
-        });
-        d.show();
-    }
-
-    private static void setError(EditText et, boolean bad) {
-        et.setBackgroundResource(bad ? R.drawable.input_bg_error : R.drawable.input_bg);
-    }
-
-    private static void showError(TextView tv, String message) {
-        tv.setText(message);
-        tv.setVisibility(View.VISIBLE);
-    }
-
-    private static void styleRole(Context c, TextView chip, boolean selected) {
-        chip.setBackgroundResource(selected ? R.drawable.tab_selected : R.drawable.tab_unselected);
-        chip.setTextColor(ContextCompat.getColor(c, selected ? R.color.white : R.color.text_secondary));
     }
 
     // Helpers

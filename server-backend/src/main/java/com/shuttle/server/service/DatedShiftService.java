@@ -7,6 +7,7 @@ import com.shuttle.server.ApiException;
 import com.shuttle.server.Csv;
 import com.shuttle.server.Repositories;
 import com.shuttle.server.repository.DatedShiftRepository.Assignment;
+import com.shuttle.server.repository.DatedShiftRepository.StoredAssignment;
 import com.shuttle.server.repository.ScheduleRepository;
 import com.shuttle.server.repository.ShuttleRepository;
 
@@ -50,7 +51,7 @@ public final class DatedShiftService {
                 .filter(entry -> actor.getRole() == Role.OPERATOR || actor.getEmployeeID().equals(entry.employeeId()))
                 .filter(entry -> !entry.shiftDate().isBefore(from) && !entry.shiftDate().isAfter(to))
                 .sorted(Comparator.comparing(Assignment::shiftDate).thenComparing(Assignment::startTime))
-                .forEach(entry -> result.add(toRow(entry)));
+                .forEach(entry -> result.add(toRow(entry, actor)));
         return result;
     }
 
@@ -91,11 +92,10 @@ public final class DatedShiftService {
         }
         Assignment assignment = new Assignment(id, terminal, driverId, shuttleId, day, start, end, notes);
         List<Assignment> saved = Repositories.datedShifts().all();
-        for (Assignment entry : saved) {
-            if (entry.id().equals(id)) {
-                if (entry.equals(assignment)) return toRow(entry);
-                throw new ApiException(409, "This request ID already belongs to a different shift");
-            }
+        StoredAssignment existing = Repositories.datedShifts().find(id);
+        if (existing != null) {
+            if (!existing.removed() && existing.assignment().equals(assignment)) return toRow(assignment, actor);
+            throw new ApiException(409, "This request ID already belongs to a saved or removed shift");
         }
         for (Assignment entry : saved) {
             if (!day.equals(entry.shiftDate()) || !overlaps(start, end, entry.startTime(), entry.endTime())) continue;
@@ -110,7 +110,66 @@ public final class DatedShiftService {
             throw new ApiException(409, "This worker has a weekly shift during that time");
         }
         Repositories.datedShifts().add(assignment);
-        return toRow(assignment);
+        return toRow(assignment, actor);
+    }
+
+    public static Map<String, Object> remove(Worker operator, String id) throws IOException {
+        TerminalService.requireOperator(operator);
+        TerminalService.requireJoined(operator);
+        StoredAssignment stored = Repositories.datedShifts().find(id);
+        if (stored == null || !stored.assignment().terminalId().equals(TerminalService.terminalId(operator))) {
+            throw new ApiException(404, "This schedule does not exist in your terminal");
+        }
+        Assignment entry = stored.assignment();
+        if (!stored.removed()) {
+            if (!removable(entry, System.currentTimeMillis())) {
+                throw new ApiException(409, "Only upcoming schedules can be removed");
+            }
+            Repositories.datedShifts().remove(stored);
+        }
+        return Csv.obj("id", id, "removed", true);
+    }
+
+    static void requireUpcomingWeekly(ScheduleRepository.Entry rule, String shiftDate) {
+        LocalDate day = date(shiftDate);
+        int weekday = day.getDayOfWeek().getValue() - 1;
+        if (rule.days.charAt(weekday) != '1') {
+            throw new ApiException(400, "Select a date on which this weekly shift occurs");
+        }
+        LocalTime start = switch (rule.shift) {
+            case 0 -> MORNING;
+            case 1 -> AFTERNOON;
+            case 2 -> NIGHT;
+            default -> throw new ApiException(400, "Invalid weekly shift");
+        };
+        if (at(day, start) <= System.currentTimeMillis()
+                || Repositories.shifts().findActiveByDriverId(rule.employeeId).isPresent()) {
+            throw new ApiException(409, "Only upcoming schedules for off-duty workers can be removed");
+        }
+    }
+
+    private static long at(LocalDate day, LocalTime time) {
+        return day.atTime(time).atZone(SCHEDULE_ZONE).toInstant().toEpochMilli();
+    }
+
+    private static boolean removable(Assignment entry, long now) {
+        if (at(entry.shiftDate(), entry.startTime()) <= now) return false;
+        return Repositories.shifts().findAllActive().stream().noneMatch(shift ->
+                shift.getDriverId().equals(entry.employeeId()) && shift.getShuttleId().equals(entry.shuttleId())
+                        && java.time.Instant.ofEpochMilli(shift.getStartTime()).atZone(SCHEDULE_ZONE)
+                                .toLocalDate().equals(entry.shiftDate()));
+    }
+
+    private static String status(Assignment entry, long now) {
+        long start = at(entry.shiftDate(), entry.startTime());
+        long end = at(entry.shiftDate(), entry.endTime());
+        for (var shift : Repositories.shifts().findByDriverId(entry.employeeId())) {
+            if (!shift.getShuttleId().equals(entry.shuttleId()) || shift.getStartTime() >= end) continue;
+            long shiftEnd = shift.isActive() ? now : shift.getEndTime();
+            if (shiftEnd <= start) continue;
+            return shift.isActive() ? "In progress" : "Completed";
+        }
+        return end <= now ? "Past assignment" : "Scheduled";
     }
 
     private static boolean overlapsWeeklyRule(String driverId, LocalDate date, LocalTime start, LocalTime end) {
@@ -182,14 +241,16 @@ public final class DatedShiftService {
         }
     }
 
-    private static Map<String, Object> toRow(Assignment entry) {
+    private static Map<String, Object> toRow(Assignment entry, Worker actor) {
         Worker driver = Repositories.workers().findById(entry.employeeId()).orElse(null);
         // A worker who moved terminals can still have a historical row in the old terminal.
         String name = driver != null && entry.terminalId().equals(TerminalService.terminalId(driver))
                 ? driver.getFullName() : "";
+        long now = System.currentTimeMillis();
         return Csv.obj("id", entry.id(), "employeeId", entry.employeeId(), "name", name,
                 "shuttleId", entry.shuttleId(), "shiftDate", entry.shiftDate(), "startTime", entry.startTime(),
                 "endTime", entry.endTime(), "notesBase64", entry.notesBase64(),
-                "status", entry.shiftDate().isBefore(LocalDate.now(SCHEDULE_ZONE)) ? "Past assignment" : "Scheduled");
+                "status", status(entry, now),
+                "canRemove", actor.getRole() == Role.OPERATOR && removable(entry, now));
     }
 }

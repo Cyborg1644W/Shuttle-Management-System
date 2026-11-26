@@ -55,7 +55,7 @@ public class DriverActivity extends AppCompatActivity {
     private View pageTrips;
     private View pageSchedule;
     private View layoutHeaderTitle;
-    private View viewDot;
+    private NotificationBadge notificationBadge;
     private TextView tvHello;
     private TextView tvStatusBadge;
     private TextView tvTimer;
@@ -91,6 +91,7 @@ public class DriverActivity extends AppCompatActivity {
             if (Session.isSignedIn()) {
                 refreshMembership(false);
                 syncFromServer();
+                notificationBadge.refresh();
             }
             handler.postDelayed(this, 10000);
         }
@@ -130,7 +131,7 @@ public class DriverActivity extends AppCompatActivity {
         pageSchedule = findViewById(R.id.pageDriverSchedule);
         SchedulePage.bind(this, pageSchedule);
         layoutHeaderTitle = findViewById(R.id.layoutHeaderTitle);
-        viewDot = findViewById(R.id.viewDot);
+        notificationBadge = new NotificationBadge(findViewById(R.id.viewDot));
         tvHello = findViewById(R.id.tvHello);
         tvStatusBadge = findViewById(R.id.tvStatusBadge);
         tvTimer = findViewById(R.id.tvTimer);
@@ -173,7 +174,6 @@ public class DriverActivity extends AppCompatActivity {
         findViewById(R.id.navDriverSchedule).setOnClickListener(v -> setTab(2));
         findViewById(R.id.navTrips).setOnClickListener(v -> setTab(1));
         findViewById(R.id.flBell).setOnClickListener(v -> showNotifications());
-        viewDot.setVisibility(View.GONE);
         findViewById(R.id.btnDriverProfile).setOnClickListener(v -> showAccountMenu());
         findViewById(R.id.btnJoinTerminal).setOnClickListener(v -> showTerminalConnection());
         btnShift.setOnClickListener(v -> onShiftButton());
@@ -202,6 +202,7 @@ public class DriverActivity extends AppCompatActivity {
         refreshShiftUi();
         refreshMembership();
         syncFromServer();
+        notificationBadge.refresh();
         handler.removeCallbacks(connectionRefresh);
         handler.postDelayed(connectionRefresh, 10000);
         if (currentTab == 1) {
@@ -212,6 +213,7 @@ public class DriverActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         resumed = false;
+        if (notificationBadge != null) notificationBadge.pause();
         gpsShift = "";
         if (mapView != null) mapView.pause();
         super.onPause();
@@ -491,7 +493,6 @@ public class DriverActivity extends AppCompatActivity {
     }
 
     private void showNotifications() {
-        viewDot.setVisibility(View.GONE);
         startActivity(new Intent(this, AccountActivity.class).putExtra("notifications", true));
     }
 

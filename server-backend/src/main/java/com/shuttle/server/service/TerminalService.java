@@ -17,7 +17,8 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class TerminalService {
-    private static final long INVITE_LIFETIME_MS = 48L * 60 * 60 * 1000;
+    private static final String INVALID_INVITE =
+            "This invite code is invalid, disabled, or already used. Ask the operator for a new one.";
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -73,30 +74,76 @@ public final class TerminalService {
         synchronized (Repositories.LOCK) {
             requireOperator(operator);
             requireJoined(operator);
+            String terminal = terminalId(operator);
+            Entry current = currentInvite(terminal);
+            if (current != null && current.usedBy.isEmpty()) return invitationRow(operator, current);
+
             String code;
             do {
                 StringBuilder value = new StringBuilder();
                 for (int i = 0; i < 12; i++) value.append(CODE_ALPHABET.charAt(RANDOM.nextInt(CODE_ALPHABET.length())));
                 code = value.toString();
             } while (find("INVITE", code) != null);
-            long expiresAt = System.currentTimeMillis() + INVITE_LIFETIME_MS;
+            Entry created = new Entry("INVITE", code, terminal, "", 0, "");
             List<Entry> entries = Repositories.terminals().all();
-            entries.removeIf(e -> e.type.equals("INVITE") && e.expiresAt <= System.currentTimeMillis());
-            entries.add(new Entry("INVITE", code, terminalId(operator), "", expiresAt, ""));
+            entries.add(created);
             Repositories.terminals().replaceAll(entries);
-            Map<String, Object> row = getState(operator);
-            row.put("inviteCode", code);
-            row.put("expiresAt", expiresAt);
             Log.audit("Fleet invitation created by " + operator.getEmployeeID());
-            return row;
+            return invitationRow(operator, created);
         }
+    }
+
+    public static Map<String, Object> invitationState(Worker operator) {
+        synchronized (Repositories.LOCK) {
+            requireOperator(operator);
+            requireJoined(operator);
+            return invitationRow(operator, currentInvite(terminalId(operator)));
+        }
+    }
+
+    public static Map<String, Object> setInviteEnabled(Worker operator, String code, boolean enabled)
+            throws IOException {
+        synchronized (Repositories.LOCK) {
+            requireOperator(operator);
+            requireJoined(operator);
+            Entry current = currentInvite(terminalId(operator));
+            if (current == null || !current.id.equals(code) || !current.usedBy.isEmpty()) {
+                throw new ApiException(409, "This invitation is no longer current or has already been used");
+            }
+            if (current.enabled == enabled) return invitationRow(operator, current);
+            Entry changed = new Entry(current.type, current.id, current.terminalId, current.name, 0, "", enabled);
+            List<Entry> entries = Repositories.terminals().all();
+            entries.replaceAll(entry -> entry == current ? changed : entry);
+            Repositories.terminals().replaceAll(entries);
+            return invitationRow(operator, changed);
+        }
+    }
+
+    private static Entry currentInvite(String terminal) {
+        List<Entry> entries = Repositories.terminals().all();
+        for (int i = entries.size() - 1; i >= 0; i--) {
+            Entry entry = entries.get(i);
+            if (entry.type.equals("INVITE") && entry.terminalId.equals(terminal)) return entry;
+        }
+        return null;
+    }
+
+    private static Map<String, Object> invitationRow(Worker operator, Entry invite) {
+        Map<String, Object> row = getState(operator);
+        boolean used = invite != null && !invite.usedBy.isEmpty();
+        row.put("inviteCode", invite == null ? "" : invite.id);
+        row.put("enabled", invite != null && invite.enabled && !used);
+        row.put("used", used);
+        row.put("expiresAt", 0);
+        return row;
     }
 
     private static Entry usableInvite(String rawCode) {
         String code = rawCode == null ? "" : rawCode.replaceAll("[\\s-]", "").toUpperCase(Locale.ROOT);
         Entry invite = find("INVITE", code);
-        if (invite == null || !invite.usedBy.isEmpty() || invite.expiresAt <= System.currentTimeMillis()) {
-            throw new ApiException(403, "This invite code is invalid, expired or already used. Ask the operator for a new one.");
+        if (invite == null || !invite.enabled || !invite.usedBy.isEmpty()
+                || !invite.id.equals(currentInvite(invite.terminalId).id)) {
+            throw new ApiException(403, INVALID_INVITE);
         }
         return invite;
     }
@@ -125,7 +172,7 @@ public final class TerminalService {
             entries.removeIf(e -> e.type.equals("MEMBER") && e.id.equals(driver.getEmployeeID()));
             entries.removeIf(e -> e.type.equals("INVITE") && e.id.equals(invite.id));
             entries.add(new Entry("MEMBER", driver.getEmployeeID(), invite.terminalId, "", 0, ""));
-            entries.add(new Entry("INVITE", invite.id, invite.terminalId, "", invite.expiresAt, driver.getEmployeeID()));
+            entries.add(new Entry("INVITE", invite.id, invite.terminalId, "", 0, driver.getEmployeeID(), false));
             Repositories.terminals().replaceAll(entries);
             Log.audit("Driver " + driver.getEmployeeID() + " joined terminal " + invite.terminalId);
             return getState(driver);
@@ -239,7 +286,7 @@ public final class TerminalService {
         Repositories.schedule().removeEmployee(employeeId);
     }
 
-    private static void requireOperator(Worker worker) {
+    static void requireOperator(Worker worker) {
         if (worker.getRole() != Role.OPERATOR) throw new ApiException(403, "Operators only");
     }
 

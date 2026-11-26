@@ -74,7 +74,7 @@ public class ImportService {
 
     public ImportResult importWorkers(Path csvFile) throws IOException {
         ImportResult result = new ImportResult(csvFile.getFileName().toString());
-        CsvTable table = CsvTable.load(csvFile, WorkerRepository.HEADER); // header problems -> exception
+        CsvTable table = CsvTable.load(csvFile, WorkerRepository.REQUIRED_HEADER); // header problems -> exception
 
         List<Worker> toSave = new ArrayList<>();
         Set<String> seenIds = new HashSet<>();
@@ -107,7 +107,7 @@ public class ImportService {
 
     public ImportResult importShuttles(Path csvFile) throws IOException {
         ImportResult result = new ImportResult(csvFile.getFileName().toString());
-        CsvTable table = CsvTable.load(csvFile, ShuttleRepository.HEADER);
+        CsvTable table = CsvTable.load(csvFile, ShuttleRepository.REQUIRED_HEADER);
 
         List<ShuttleUnit> toSave = new ArrayList<>();
         Set<String> seenIds = new HashSet<>();

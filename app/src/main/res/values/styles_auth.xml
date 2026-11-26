@@ -19,6 +19,14 @@
         <item name="android:textColorHint">@color/text_tertiary</item>
         <item name="android:singleLine">true</item>
     </style>
+    <style name="Fleet.ProfileFieldError" parent="Fleet.Caption">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:textColor">@color/error</item>
+        <item name="android:accessibilityLiveRegion">polite</item>
+        <item name="android:visibility">gone</item>
+    </style>
     <style name="Fleet.AuthReadOnlyField" parent="Fleet.AuthField">
         <item name="android:gravity">center_vertical</item>
         <item name="android:backgroundTint">@color/surface_subtle</item>

@@ -7,6 +7,7 @@ import com.shuttle.server.handler.DashboardHandler;
 import com.shuttle.server.handler.DatedShiftHandler;
 import com.shuttle.server.handler.LiveHandler;
 import com.shuttle.server.handler.LocationHandler;
+import com.shuttle.server.handler.NotificationsHandler;
 import com.shuttle.server.handler.ScheduleHandler;
 import com.shuttle.server.handler.ShiftHandler;
 import com.shuttle.server.handler.ShuttleLocationHandler;
@@ -54,6 +55,7 @@ public class ShuttleServer {
         server.createContext("/api/dashboard", new DashboardHandler());
         server.createContext("/api/schedule", new ScheduleHandler());
         server.createContext("/api/scheduled-shifts", new DatedShiftHandler());
+        server.createContext("/api/notifications", new NotificationsHandler());
 
         server.start();
         Log.info("ShuttleServer listening on " + host + ":" + port + " (health: /health)");

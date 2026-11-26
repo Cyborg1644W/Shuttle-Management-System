@@ -112,7 +112,7 @@ If you create a Web Service manually instead of using the Blueprint, select the 
 5. Operator: choose **Invite drivers**, generate a code, and share it through Messenger or SMS.
 6. Driver: choose **Join terminal**, enter the code, check the terminal/operator details, and confirm. The driver should appear in the operator's list after refresh.
 
-Each invitation works once and expires after 48 hours. A driver has one current terminal; accepting another terminal's invitation switches membership and clears the old shuttle assignment and schedule. The driver must finish an active shift before switching.
+Each terminal has one current invitation. It works once while enabled and has no time limit. A driver has one current terminal; accepting another terminal's invitation switches membership and clears the old shuttle assignment and schedule. The driver must finish an active shift before switching.
 
 Use mobile data on at least one phone to check that the two phones work from different networks.
 

@@ -1,6 +1,13 @@
 package com.shuttle.common;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class Driver extends Worker {
+    public record VehicleNotice(String id, String shuttleId, long createdAt, boolean read) { }
+
+    private List<VehicleNotice> vehicleNotices = Collections.emptyList();
 
     private String licenseNumber;
     private String licenseExpirationDate;
@@ -49,6 +56,12 @@ public class Driver extends Worker {
 
     public String getActiveShiftId() { return activeShiftId; }
     public void setActiveShiftId(String activeShiftId) { this.activeShiftId = activeShiftId; }
+
+    public List<VehicleNotice> getVehicleNotices() { return vehicleNotices; }
+
+    public void setVehicleNotices(List<VehicleNotice> vehicleNotices) {
+        this.vehicleNotices = Collections.unmodifiableList(new ArrayList<>(vehicleNotices));
+    }
 
     public GpsCoordinate getLastLocation() { return lastLocation; }
     public void setLastLocation(GpsCoordinate lastLocation) { this.lastLocation = lastLocation; }

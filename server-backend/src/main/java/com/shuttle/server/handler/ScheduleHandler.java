@@ -15,8 +15,14 @@ public class ScheduleHandler extends BaseHandler {
     }
 
     private Response processScoped(Request r) throws Exception {
-        if (!"schedule".equals(r.seg(0)) || r.seg(1) != null) {
+        if (!"schedule".equals(r.seg(0)) || r.seg(2) != null) {
             throw new ApiException(404, "Endpoint Not Found");
+        }
+        if (r.seg(1) != null) {
+            if (!r.is("DELETE")) throw new ApiException(405, "Method Not Allowed");
+            r.requireOperator();
+            return ok(ReportService.removeSchedule(r.worker(), r.seg(1),
+                    Integer.parseInt(r.query.get("shift")), r.query.get("days"), r.query.get("date")));
         }
         if (r.is("GET")) {
             return ok(ReportService.schedule(r.worker()));

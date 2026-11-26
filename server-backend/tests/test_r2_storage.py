@@ -244,7 +244,9 @@ class Backend:
             self.port = reservation.getsockname()[1]
         self.base_url = f"http://127.0.0.1:{self.port}/api"
         # Do not pass cloud credentials from the developer's environment into tests.
-        environment = {name: os.environ[name] for name in ("PATH", "JAVA_HOME", "LANG", "LC_ALL") if name in os.environ}
+        # Windows Java needs SystemRoot to initialize its networking libraries.
+        allowed_env = ("PATH", "JAVA_HOME", "LANG", "LC_ALL", "SystemRoot", "WINDIR", "TEMP", "TMP")
+        environment = {name: os.environ[name] for name in allowed_env if name in os.environ}
         environment.update({
             "STORAGE_MODE": "r2", "R2_ENDPOINT": parent.s3.endpoint,
             "R2_ALLOW_HTTP_LOCALHOST": "true", "R2_BUCKET": "test-bucket",
@@ -434,6 +436,28 @@ class R2StorageTests(unittest.TestCase):
         }, expected=401)
         self.register(backend)
         self.assertEqual(len(read_dataset(self.s3.snapshot())["workers.txt"]), 1)
+
+    def test_assignment_notifications_exist_only_after_r2_commit(self):
+        backend = self.backend()
+        operator, driver, code = self.connected_accounts(backend)
+        self.request(backend, "POST", "/fleet/join", driver, {"inviteCode": code})
+        self.request(backend, "POST", "/shuttles", operator, {
+            "shuttleId": "NOTIFY-1", "plateNumber": "NOTIFY PLATE", "vehicleModel": "Coaster",
+        }, expected=201)
+        assignment = "/workers/" + driver["employeeId"] + "/assign"
+        body = {"shuttleId": "NOTIFY-1"}
+        before = self.s3.snapshot()
+        self.s3.next_put = "fail"
+        self.request(backend, "PUT", assignment, operator, body, expected=503)
+        self.assertEqual(self.s3.snapshot(), before)
+        self.assertEqual(self.request(backend, "GET", "/notifications", driver), [])
+        self.request(backend, "PUT", assignment, operator, body)
+        self.request(backend, "PUT", assignment, operator, body)
+        restored = self.backend()
+        driver = self.login(restored, driver)
+        notice = self.one(self.request(restored, "GET", "/notifications", driver))
+        self.assertEqual(notice["message"], "You have been assigned to Shuttle NOTIFY-1.")
+        self.assertEqual(notice["read"], "false")
 
     def test_failed_join_rolls_back_membership_and_code_consumption(self):
         backend = self.backend()

@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.snackbar.Snackbar;
 import com.shuttle.common.Role;
+import com.shuttle.common.ShiftTime;
 import com.shuttle.mobile.R;
 
 import org.json.JSONArray;
@@ -33,7 +34,13 @@ import java.util.Objects;
 
 /** Shows dated assignments and existing weekly shifts on the same calendar. */
 public final class SchedulePage {
-    private static final String[] TIMES = {"06:00 – 14:00", "14:00 – 22:00", "22:00 – 06:00"};
+    private static final String[] WEEKLY_START = {"06:00", "14:00", "22:00"};
+    private static final String[] WEEKLY_END = {"14:00", "22:00", "06:00"};
+    private static final String[] TIMES = {shiftRange(0), shiftRange(1), shiftRange(2)};
+
+    private static String shiftRange(int shift) {
+        return ShiftTime.display(WEEKLY_START[shift]) + " – " + ShiftTime.display(WEEKLY_END[shift]);
+    }
     private final Context context;
     private final View root;
     private final LinearLayout layoutDays, layoutSchedule;
@@ -254,25 +261,22 @@ public final class SchedulePage {
     }
 
     private void render() {
-        date.setText(ScheduleDates.label(selected, "EEEE, MMMM d"));
+        Calendar day = (Calendar) selected.clone();
+        date.setText(ScheduleDates.label(day, "EEEE, MMMM d"));
         layoutSchedule.removeAllViews();
         String iso = ScheduleDates.iso(selected);
         for (JSONObject row : assignments) {
             if (!iso.equals(row.optString("shiftDate"))) continue;
             View card = scheduleCard(row,
                     "Shuttle " + row.optString("shuttleId") + " · " + row.optString("employeeId"),
-                    row.optString("startTime") + " – " + row.optString("endTime"),
+                    ShiftTime.display(row.optString("startTime")) + " – " + ShiftTime.display(row.optString("endTime")),
                     row.optString("status", "Scheduled"));
-            String notes = FleetApi.text(row, "notesBase64");
+            String notes = shiftNotes(row);
             if (!notes.isEmpty()) {
-                TextView text = card.findViewById(R.id.tvSchNotes);
-                try {
-                    text.setText(new String(Base64.decode(notes, Base64.DEFAULT), StandardCharsets.UTF_8));
-                } catch (IllegalArgumentException invalid) {
-                    text.setText("Notes could not be read.");
-                }
+                ((TextView) card.findViewById(R.id.tvSchNotes)).setText(notes);
                 card.findViewById(R.id.layoutShiftNotes).setVisibility(View.VISIBLE);
             }
+            bindDetails(card, row, day, false);
             layoutSchedule.addView(card);
         }
         for (JSONObject row : entries) {
@@ -280,7 +284,7 @@ public final class SchedulePage {
             if (shift < 0 || shift >= TIMES.length || !hasWeeklyShift(row, selected)) continue;
             View card = scheduleCard(row, row.optString("role") + " · " + row.optString("place"),
                     TIMES[shift], "Weekly shift");
-            if (Session.getRole() == Role.OPERATOR) card.setOnClickListener(v -> editWeekly(row));
+            bindDetails(card, row, day, true);
             layoutSchedule.addView(card);
         }
 
@@ -305,6 +309,114 @@ public final class SchedulePage {
         ((TextView) card.findViewById(R.id.tvSchTime)).setText(time);
         ((TextView) card.findViewById(R.id.tvSchStatus)).setText(status);
         return card;
+    }
+
+    private void bindDetails(View card, JSONObject row, Calendar day, boolean weekly) {
+        card.findViewById(R.id.btnScheduleDetails).setOnClickListener(v -> showDetails(row, day, weekly));
+        card.setOnClickListener(v -> showDetails(row, day, weekly));
+    }
+
+    private void showDetails(JSONObject row, Calendar day, boolean weekly) {
+        LinearLayout content = WorkerDialogs.detailContent(context);
+        LinearLayout information = WorkerDialogs.detailSection(context, content, "Shift Assignment");
+        String worker = FleetApi.text(row, "name");
+        if (worker.isEmpty()) worker = row.optString("employeeId");
+        String shuttle = FleetApi.text(row, "shuttleId");
+        int shift = row.optInt("shift", -1);
+        String start = weekly ? WEEKLY_START[shift] : row.optString("startTime");
+        String end = weekly ? WEEKLY_END[shift] : row.optString("endTime");
+        boolean overnight = end.compareTo(start) < 0;
+        Calendar shiftStart = (Calendar) day.clone();
+        boolean startKnown = !"Unavailable".equals(ShiftTime.display(start));
+        if (startKnown) {
+            shiftStart.set(Calendar.HOUR_OF_DAY, Integer.parseInt(start.substring(0, 2)));
+            shiftStart.set(Calendar.MINUTE, Integer.parseInt(start.substring(3)));
+        }
+        boolean upcoming = startKnown && shiftStart.getTimeInMillis() > System.currentTimeMillis();
+        WorkerDialogs.informationRow(context, information, "Assigned Worker", worker);
+        WorkerDialogs.informationRow(context, information, "Assigned Shuttle", shuttle.isEmpty() ? "Unassigned" : "Shuttle " + shuttle);
+        WorkerDialogs.informationRow(context, information, "Shift Date", ScheduleDates.label(day, "EEE, MMM d, yyyy"));
+        WorkerDialogs.informationRow(context, information, "Start Time", ShiftTime.display(start));
+        WorkerDialogs.informationRow(context, information, "End Time", ShiftTime.display(end) + (overnight ? " (next day)" : ""));
+        WorkerDialogs.informationRow(context, information, "Status", weekly
+                ? (upcoming ? "Weekly shift" : "Weekly occurrence") : row.optString("status", "Scheduled"));
+        String notes = shiftNotes(row);
+        if (!notes.isEmpty()) {
+            LinearLayout section = WorkerDialogs.detailSection(context, content, "Worker Notes");
+            section.addView(WorkerDialogs.detailText(context, notes, 14, false));
+        }
+        android.app.Dialog page = WorkerDialogs.showDetailPage(context, "Schedule Details", content);
+        if (Session.getRole() != Role.OPERATOR) return;
+        if (weekly) {
+            com.google.android.material.button.MaterialButton edit = new com.google.android.material.button.MaterialButton(context);
+            edit.setText("Edit Weekly Shift");
+            edit.setAllCaps(false);
+            content.addView(edit);
+            edit.setOnClickListener(v -> { page.dismiss(); editWeekly(row); });
+        }
+        boolean mayRemove = row.optBoolean("canRemove", false) && (!weekly || upcoming);
+        if (!mayRemove) return;
+        com.google.android.material.button.MaterialButton remove = new com.google.android.material.button.MaterialButton(context);
+        remove.setText("Remove Schedule");
+        remove.setAllCaps(false);
+        remove.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                ContextCompat.getColor(context, R.color.error)));
+        LinearLayout.LayoutParams removeLayout = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        removeLayout.topMargin = dp(16);
+        content.addView(remove, removeLayout);
+        remove.setOnClickListener(v -> confirmRemove(row, day, weekly, page));
+    }
+
+    private void confirmRemove(JSONObject row, Calendar day, boolean weekly, android.app.Dialog page) {
+        if (!(context instanceof Activity activity) || Session.getRole() != Role.OPERATOR) return;
+        FleetConfirmation confirmation = new FleetConfirmation(activity, "Remove Schedule?",
+                "Are you sure you want to remove this schedule? This action cannot be undone.",
+                "Remove Schedule", true);
+        if (weekly) confirmation.addDetail("Applies to", "Entire weekly schedule");
+        confirmation.show(() -> {
+            confirmation.setBusy(true, "Removing…");
+            String path = weekly
+                    ? "/schedule/" + FleetApi.encode(row.optString("employeeId"))
+                        + "?shift=" + row.optInt("shift") + "&days=" + FleetApi.encode(row.optString("days"))
+                        + "&date=" + ScheduleDates.iso(day)
+                    : "/scheduled-shifts/" + FleetApi.encode(row.optString("id"));
+            String token = Session.getToken();
+            FleetApi.delete(path, new FleetApi.Callback() {
+                @Override public void onSuccess(JSONObject result) {
+                    if (!active() || !Objects.equals(token, Session.getToken())) return;
+                    if (!result.optBoolean("removed", false)) {
+                        confirmation.showError("The server did not confirm removal. Refresh the schedule before retrying.");
+                        return;
+                    }
+                    confirmation.dismiss();
+                    page.dismiss();
+                    if (weekly) {
+                        entries.removeIf(entry -> entry.optString("employeeId").equals(row.optString("employeeId"))
+                                && entry.optInt("shift") == row.optInt("shift")
+                                && entry.optString("days").equals(row.optString("days")));
+                    } else {
+                        assignments.removeIf(entry -> entry.optString("id").equals(row.optString("id")));
+                    }
+                    load();
+                    Snackbar.make(root, "Schedule removed", Snackbar.LENGTH_SHORT).show();
+                }
+
+                @Override public void onError(int status, String message) {
+                    if (active() && Objects.equals(token, Session.getToken())) confirmation.showError(message);
+                }
+            });
+        });
+    }
+
+    private static String shiftNotes(JSONObject row) {
+        String notes = FleetApi.text(row, "notesBase64");
+        if (notes.isEmpty()) return "";
+        try {
+            return new String(Base64.decode(notes, Base64.DEFAULT), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException invalid) {
+            return "Notes could not be read.";
+        }
     }
 
     private void editWeekly(JSONObject existing) {

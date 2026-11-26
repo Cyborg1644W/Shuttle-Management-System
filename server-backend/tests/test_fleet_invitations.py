@@ -165,7 +165,7 @@ class FleetInvitationTests(unittest.TestCase):
     def invite(self, operator):
         invitation = self.one(self.request("POST", "/fleet/invites", operator, {}, expected=201))
         self.assertTrue(invitation.get("inviteCode"))
-        self.assertGreater(int(invitation["expiresAt"]), int(time.time() * 1000))
+        self.assertEqual(invitation["expiresAt"], "0")
         return invitation
 
     def join(self, driver, code, switch=False, expected=200):
@@ -336,7 +336,8 @@ class FleetInvitationTests(unittest.TestCase):
         self.assertEqual({p.name: p.read_bytes() for p in data.glob("*.txt")}, tables)
         self.assertFalse(list(data.glob("*.csv")))
         self.request("POST", "/scheduled-shifts", operator, shift, expected=201)
-        self.assertEqual(self.request("GET", f"/scheduled-shifts?from={day}&to={day}", driver), [saved])
+        self.assertEqual(self.request("GET", f"/scheduled-shifts?from={day}&to={day}", driver),
+                         [dict(saved, canRemove="false")])
         self.assertEqual(self.request("GET", "/schedule", driver), [])
 
     def test_removing_driver_detaches_membership_without_deleting_account(self):
@@ -365,8 +366,8 @@ class FleetInvitationTests(unittest.TestCase):
         a, d, e = self.users["operator_a"], self.users["driver_a"], self.users["driver_b"]
         self.terminal(a, "Central Terminal")
         used = self.invite(a)["inviteCode"]
-        unused = self.invite(a)["inviteCode"]
         self.join(d, used)
+        unused = self.invite(a)["inviteCode"]
         self.restart_server()
         self.assertEqual(self.one(self.request("GET", "/fleet", d))["terminalName"], "Central Terminal")
         self.join(e, used, expected=(403, 409))
@@ -386,37 +387,181 @@ class FleetInvitationTests(unittest.TestCase):
         memberships = [self.one(self.request("GET", "/fleet", user))["joined"] for user in (d, e)]
         self.assertEqual(sorted(memberships), ["false", "true"])
 
-    def test_expired_invite_is_rejected_without_changing_membership(self):
+    def test_vehicle_model_and_assignment_notice_survive_restart(self):
+        a, _, d, other = self.linked_fleets()
+        point = "/shuttles/MODEL-1"
+        body = {"shuttleId": "MODEL-1", "plateNumber": "ABC 1234", "vehicleModel": 'Toyota, "Coaster"'}
+        self.request("POST", "/shuttles", a, dict(body, vehicleModel=""), expected=400)
+        unit = self.one(self.request("POST", "/shuttles", a, body, expected=201))
+        self.assertEqual(unit["vehicleModel"], body["vehicleModel"])
+        self.shuttle(a, "LEGACY-1")
+        assignment = "/workers/" + d["employeeId"] + "/assign"
+        for _ in range(2):
+            self.request("PUT", assignment, a, {"shuttleId": unit["shuttleId"]})
+        notice = self.one(self.request("GET", "/notifications", d))
+        self.assertEqual(notice["title"], "Vehicle Assigned")
+        self.assertEqual(notice["message"], "You have been assigned to Shuttle MODEL-1.")
+        self.assertEqual(notice["read"], "false")
+        self.assertEqual(self.request("GET", "/notifications", other), [])
+        self.assertEqual(self.request("GET", "/notifications", a), [])
+        mark = "/notifications/" + notice["id"] + "/read"
+        self.request("PUT", mark, other, expected=404)
+        self.request("PUT", mark, a, expected=403)
+        self.request("PUT", mark, d)
+        self.request("PUT", mark, d)
+        self.restart_server()
+        self.assertEqual(self.one(self.request("GET", point, a))["plateNumber"], body["plateNumber"])
+        self.assertEqual(self.one(self.request("GET", point, a))["vehicleModel"], body["vehicleModel"])
+        self.assertEqual(self.one(self.request("GET", "/shuttles/LEGACY-1", a))["capacity"], "12")
+        self.assertEqual(self.one(self.request("GET", "/notifications", d))["read"], "true")
+        self.assertEqual(self.one(self.request("GET", "/notifications/unread", d))["unread"], "0")
+
+    def test_dated_removal_permissions_and_persistent_notification(self):
+        a, b, d, other = self.linked_fleets()
+        self.shuttle(a, "CENTRAL-1")
+        day = (date.today() + timedelta(days=7)).isoformat()
+        shift = {"id": str(uuid.uuid4()), "shiftDate": day, "employeeId": d["employeeId"],
+                 "shuttleId": "CENTRAL-1", "startTime": "00:00", "endTime": "12:00", "notesBase64": "Tm90ZXM="}
+        for _ in range(2):
+            self.request("POST", "/scheduled-shifts", a, shift, expected=201)
+        route = "/scheduled-shifts/" + shift["id"]
+        span = f"/scheduled-shifts?from={day}&to={day}"
+        row = self.one(self.request("GET", span, a))
+        self.assertEqual((row["name"], row["shuttleId"], row["notesBase64"], row["canRemove"]),
+                         (d["fullName"], "CENTRAL-1", "Tm90ZXM=", "true"))
+        notice = self.one(self.request("GET", "/notifications", d))
+        self.assertEqual(notice["title"], "New Shift Assigned")
+        self.assertIn("12:00 AM to 12:00 PM", notice["message"])
+        self.assertIn("Shuttle CENTRAL-1", notice["message"])
+        self.assertEqual(self.request("GET", "/notifications", other), [])
+        self.assertEqual(self.one(self.request("GET", "/notifications/unread", d))["unread"], "1")
+        self.assertEqual(self.one(self.request("GET", span, d))["canRemove"], "false")
+        self.request("DELETE", route, expected=401)
+        self.request("DELETE", route, d, expected=403)
+        self.request("DELETE", route, b, expected=404)
+        self.assertEqual(self.one(self.request("GET", span, a))["id"], shift["id"])
+        self.request("PUT", "/notifications/" + notice["id"] + "/read", d)
+        self.request("DELETE", route, a)
+        self.request("DELETE", route, a)
+        self.restart_server()
+        self.request("POST", "/scheduled-shifts", a, shift, expected=409)
+        self.assertEqual(self.request("GET", span, a), [])
+        self.assertEqual(self.request("GET", span, d), [])
+        history = self.one(self.request("GET", "/notifications", d))
+        self.assertEqual((history["id"], history["read"]), (notice["id"], "true"))
+        self.assertIn("schedule was removed", history["message"])
+        self.request("GET", "/shuttles/CENTRAL-1", a)
+        self.request("GET", "/workers/" + d["employeeId"], a)
+
+    def test_started_schedules_cannot_be_removed(self):
+        a, _, d, _ = self.linked_fleets()
+        self.shuttle(a, "CENTRAL-1")
+        shift_id = str(uuid.uuid4())
+        self.stop_server()
+        (self.workdir / "data/dated-shifts.txt").write_text(
+            "id,terminalId,employeeId,shuttleId,shiftDate,startTime,endTime,notesBase64\n"
+            + f"{shift_id},{a['employeeId']},{d['employeeId']},CENTRAL-1,2020-01-01,10:00,11:00,\n",
+            encoding="utf-8",
+        )
+        self.restart_server()
+        self.request("DELETE", "/scheduled-shifts/" + shift_id, a, expected=409)
+        row = self.one(self.request("GET", "/scheduled-shifts?from=2020-01-01&to=2020-01-01", a))
+        self.assertEqual((row["canRemove"], row["status"]), ("false", "Past assignment"))
+
+    def test_weekly_removal_is_scoped_to_one_rule(self):
+        a, b, d, other = self.linked_fleets()
+        day = (date.today() + timedelta(days=7)).isoformat()
+        current = {"employeeId": d["employeeId"], "shift": "2", "days": "1111111"}
+        retained = dict(current, shift="1")
+        self.request("PUT", "/schedule", a, [current, retained])
+        self.request("PUT", "/schedule", b, dict(current, employeeId=other["employeeId"]))
+        path = f"/schedule/{d['employeeId']}?shift=2&days=1111111&date={day}"
+        self.assertTrue(all(row["canRemove"] == "false" for row in self.request("GET", "/schedule", d)))
+        self.request("DELETE", path, expected=401)
+        self.request("DELETE", path, d, expected=403)
+        self.request("PUT", "/schedule", d, retained, expected=403)
+        self.request("DELETE", path, b, expected=403)
+        self.request("DELETE", path.replace(day, "2020-01-01"), a, expected=409)
+
+        self.shuttle(a, "CENTRAL-1")
+        self.request("PUT", f"/workers/{d['employeeId']}/assign", a, {"shuttleId": "CENTRAL-1"})
+        self.request("POST", "/shift/start", d, {}, expected=201)
+        self.assertTrue(all(row["canRemove"] == "false" for row in self.request("GET", "/schedule", a)))
+        self.request("DELETE", path, a, expected=409)
+        self.request("POST", "/shift/end", d, {"distanceKm": 0, "stops": 0})
+        history = self.request("GET", "/shift", d)
+        self.assertTrue(history)
+        self.assertTrue(all(row["canRemove"] == "true" for row in self.request("GET", "/schedule", a)))
+
+        reply = self.one(self.request("DELETE", path, a))
+        self.assertEqual(reply["removed"], "true")
+        self.restart_server()
+        self.assertEqual(self.one(self.request("GET", "/schedule", a))["shift"], retained["shift"])
+        self.assertEqual(self.one(self.request("GET", "/schedule", b))["employeeId"], other["employeeId"])
+        self.assertEqual(self.request("GET", "/shift", d), history)
+
+    def test_unjoined_operator_can_view_but_cannot_remove_legacy_rule(self):
+        operator = self.users["operator_a"]
+        employee_id = operator["employeeId"]
+        self.stop_server()
+        (self.workdir / "data/schedule.txt").write_text(
+            f"employeeID,shift,days\n{employee_id},2,1111111\n",
+            encoding="utf-8",
+        )
+        self.restart_server()
+        day = (date.today() + timedelta(days=7)).isoformat()
+        url = f"/schedule/{employee_id}?shift=2&days=1111111&date={day}"
+        rule = self.one(self.request("GET", "/schedule", operator))
+        self.assertEqual(rule["canRemove"], "false")
+        self.request("DELETE", url, operator, expected=409)
+        self.assertEqual(self.one(self.request("GET", "/schedule", operator)), rule)
+
+    def test_legacy_expiry_does_not_disable_unused_code(self):
         a, d = self.users["operator_a"], self.users["driver_a"]
         self.terminal(a, "Central Terminal")
         code = self.invite(a)["inviteCode"]
         self.stop_server()
-        changed = False
-        for path in self.workdir.rglob("*.txt"):
-            with path.open(newline="", encoding="utf-8") as stream:
-                reader = csv.DictReader(stream)
-                fields, rows = reader.fieldnames, list(reader)
-            if not fields or "expiresAt" not in fields:
-                continue
-            for row in rows:
-                if code in row.values():
-                    row["expiresAt"] = str(int(time.time() * 1000) - 1)
-                    changed = True
-            if changed:
-                with path.open("w", newline="", encoding="utf-8") as stream:
-                    writer = csv.DictWriter(stream, fields, lineterminator="\n")
-                    writer.writeheader()
-                    writer.writerows(rows)
-                break
-        self.assertTrue(changed, "Invitation expiry must be persisted in CSV")
-        self.start_server()
-        for user in self.users.values():
-            login = self.one(self.request("POST", "/auth/login", body={
-                "email": user["login_email"], "password": user["login_password"],
-            }))
-            user["token"] = login["token"]
-        self.join(d, code, expected=(403, 409))
-        self.assertEqual(self.one(self.request("GET", "/fleet", d))["joined"], "false")
+        path = self.workdir / "data/terminals.txt"
+        with path.open(newline="", encoding="utf-8") as stream:
+            reader = csv.DictReader(stream)
+            fields, rows = list(reader.fieldnames), list(reader)
+        fields.remove("enabled")
+        for row in rows:
+            row.pop("enabled")
+            if row["id"] == code:
+                row["expiresAt"] = "1"
+        with path.open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(stream, fields, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rows)
+        self.restart_server()
+        self.join(d, code)
+
+    def test_invitation_toggle_persists_and_only_controls_unused_code(self):
+        a, b, d, e = (self.users[key] for key in ("operator_a", "operator_b", "driver_a", "driver_b"))
+        self.terminal(a, "Central Terminal")
+        self.terminal(b, "North Terminal")
+        self.join(d, self.invite(a)["inviteCode"])
+        code = self.invite(a)["inviteCode"]
+        self.assertEqual(self.invite(a)["inviteCode"], code)
+        payload = {"inviteCode": code, "enabled": "false"}
+        self.request("PUT", "/fleet/invites", d, payload, expected=403)
+        self.request("PUT", "/fleet/invites", b, payload, expected=409)
+        self.request("PUT", "/fleet/invites", a, payload)
+        message = "This invite code is invalid, disabled, or already used. Ask the operator for a new one."
+        rejected = self.one(self.request("POST", "/fleet/preview", e, {"inviteCode": code}, expected=403))
+        self.assertEqual(rejected["error"], message)
+        self.join(e, code, expected=403)
+        self.restart_server()
+        current = self.one(self.request("GET", "/fleet/invites", a))
+        self.assertEqual((current["inviteCode"], current["enabled"]), (code, "false"))
+        self.assertEqual(self.one(self.request("GET", "/fleet", d))["joined"], "true")
+        payload["enabled"] = "true"
+        self.request("PUT", "/fleet/invites", a, payload)
+        self.join(e, code)
+        self.request("PUT", "/fleet/invites", a, payload, expected=409)
+        current = self.one(self.request("GET", "/fleet/invites", a))
+        self.assertEqual((current["used"], current["enabled"]), ("true", "false"))
 
 
 if __name__ == "__main__":

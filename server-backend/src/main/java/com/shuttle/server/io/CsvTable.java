@@ -49,6 +49,10 @@ public final class CsvTable {
             return value.isEmpty() ? fallback : value;
         }
 
+        public String getOptional(String column, String fallback) {
+            return index.containsKey(column) ? getOrDefault(column, fallback) : fallback;
+        }
+
         public int lineNumber() {
             return lineNumber;
         }

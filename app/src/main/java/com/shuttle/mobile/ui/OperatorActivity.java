@@ -92,6 +92,7 @@ public class OperatorActivity extends AppCompatActivity {
     private final Runnable staffRefresh = new Runnable() {
         @Override public void run() {
             if (fleetMembership != null && fleetMembership.joined) refreshStaff();
+            notificationBadge.refresh();
             refreshHandler.postDelayed(this, 10000);
         }
     };
@@ -102,7 +103,7 @@ public class OperatorActivity extends AppCompatActivity {
     private TextView chipDrivers;
     private TextView chipOperators;
     private ImageView tvHeaderAvatar;
-    private View viewDot;
+    private NotificationBadge notificationBadge;
 
     private static final int TAB_WORKERS = 0;
     private static final int TAB_SCHEDULE = 1;
@@ -138,7 +139,7 @@ public class OperatorActivity extends AppCompatActivity {
         chipDrivers = findViewById(R.id.chipDrivers);
         chipOperators = findViewById(R.id.chipOperators);
         tvHeaderAvatar = findViewById(R.id.tvHeaderAvatar);
-        viewDot = findViewById(R.id.viewDot);
+        notificationBadge = new NotificationBadge(findViewById(R.id.viewDot));
         pageWorkers = findViewById(R.id.pageWorkers);
         pageSchedule = findViewById(R.id.pageSchedule);
         ivNavWorkers = findViewById(R.id.ivNavWorkers);
@@ -180,7 +181,6 @@ public class OperatorActivity extends AppCompatActivity {
 
         updateSummary();
         selectFilter("ALL");
-        viewDot.setVisibility(View.GONE);
         showTab(TAB_DASHBOARD);
     }
 
@@ -191,12 +191,14 @@ public class OperatorActivity extends AppCompatActivity {
         tvHeaderAvatar.setContentDescription("Account menu for " + Session.getName());
         if (pageDashboard != null && currentTab == TAB_DASHBOARD) Dashboard.refresh(pageDashboard);
         refreshFleetConnection();
+        notificationBadge.refresh();
         refreshHandler.removeCallbacks(staffRefresh);
         refreshHandler.postDelayed(staffRefresh, 10000);
     }
 
     @Override
     protected void onPause() {
+        if (notificationBadge != null) notificationBadge.pause();
         refreshHandler.removeCallbacks(staffRefresh);
         super.onPause();
     }
@@ -501,18 +503,23 @@ public class OperatorActivity extends AppCompatActivity {
         WorkerDialogs.informationRow(this, assignment, worker.label1(), worker.value1);
         WorkerDialogs.informationRow(this, assignment, worker.label2(), worker.value2);
         WorkerDialogs.informationRow(this, assignment, "Duty status", worker.status.replace('_', ' '));
-        com.google.android.material.button.MaterialButton actions =
+        int buttonGap = Math.round(16 * getResources().getDisplayMetrics().density);
+        com.google.android.material.button.MaterialButton call =
                 new com.google.android.material.button.MaterialButton(this);
-        actions.setText("More actions");
+        call.setText("Call Worker");
+        call.setAllCaps(false);
+        call.setEnabled(!worker.phone.isEmpty());
+        LinearLayout.LayoutParams callLayout = new LinearLayout.LayoutParams(-1, -2);
+        callLayout.topMargin = buttonGap;
+        content.addView(call, callLayout);
+        call.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + worker.phone))));
+        com.google.android.material.button.MaterialButton actions =
+                new com.google.android.material.button.MaterialButton(this, null,
+                        com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        actions.setText("More Actions");
+        actions.setAllCaps(false);
         content.addView(actions, new LinearLayout.LayoutParams(-1, -2));
         actions.setOnClickListener(v -> openSheet(worker));
-        if (!worker.phone.isEmpty()) {
-            com.google.android.material.button.MaterialButton call =
-                    new com.google.android.material.button.MaterialButton(this);
-            call.setText("Call worker");
-            content.addView(call, new LinearLayout.LayoutParams(-1, -2));
-            call.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + worker.phone))));
-        }
         WorkerDialogs.showDetailPage(this, "Worker Details", content);
     }
 
@@ -532,11 +539,6 @@ public class OperatorActivity extends AppCompatActivity {
 
         sheet.findViewById(R.id.btnSheetClose).setOnClickListener(v -> dialog.dismiss());
         sheet.findViewById(R.id.btnDismiss).setOnClickListener(v -> dialog.dismiss());
-
-        sheet.findViewById(R.id.rowEdit).setOnClickListener(v -> {
-            dialog.dismiss();
-            showWorkerForm(w);
-        });
 
         sheet.findViewById(R.id.rowLog).setOnClickListener(v -> {
             dialog.dismiss();
@@ -659,31 +661,7 @@ public class OperatorActivity extends AppCompatActivity {
         };
     }
 
-    private void showWorkerForm(final WorkerItem existing) {
-        if (existing == null) {
-            showFleetConnection();
-            return;
-        }
-        String digits = existing.phone.replaceAll("[^0-9]", "");
-        if (digits.startsWith("63")) digits = digits.substring(2);
-        WorkerDialogs.showWorkerForm(this, false, existing.name, existing.empId, digits,
-                (name, emp, phoneDigits, op) -> {
-                    if (!existing.empId.equalsIgnoreCase(emp)) {
-                        return "Keep the existing account's employee ID";
-                    }
-                    JSONObject body = new JSONObject();
-                    try {
-                        body.put("fullName", name);
-                        body.put("phone", "+63" + phoneDigits);
-                    } catch (JSONException impossible) { throw new AssertionError(impossible); }
-                    FleetApi.put("/workers/" + FleetApi.encode(existing.empId), body,
-                            staffAction("Profile updated"));
-                    return null;
-                });
-    }
-
     private void showNotifications() {
-        viewDot.setVisibility(View.GONE);
         startActivity(new Intent(this, AccountActivity.class).putExtra("notifications", true));
     }
 

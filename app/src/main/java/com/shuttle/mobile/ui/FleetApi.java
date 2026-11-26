@@ -239,6 +239,7 @@ public final class FleetApi {
                 case "/shift": listKey = "shifts"; break;
                 case "/schedule": listKey = "schedule"; break;
                 case "/scheduled-shifts": listKey = "assignments"; break;
+                case "/notifications": listKey = "notifications"; break;
                 case "/live": listKey = "shuttles"; break;
                 default: break;
             }

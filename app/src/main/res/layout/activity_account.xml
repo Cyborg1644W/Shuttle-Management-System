@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/accountRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/background">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/accountRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/background">
     <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp">
         <ImageButton android:id="@+id/btnAccountBack" android:layout_width="40dp" android:layout_height="48dp" android:padding="12dp" android:src="@drawable/ic_arrow_back" android:contentDescription="Back" android:background="?attr/selectableItemBackgroundBorderless" />
         <TextView android:id="@+id/tvAccountTitle" style="@style/Fleet.Title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/profile_details_title" android:textSize="18sp" />
@@ -23,10 +23,13 @@
                 <LinearLayout android:id="@+id/layoutProfileForm" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="20dp" android:visibility="gone">
                     <TextView style="@style/Fleet.AuthLabel" android:text="FIRST NAME" android:textSize="10sp" />
                     <EditText android:id="@+id/etAccountFirstName" style="@style/Fleet.AuthField" android:inputType="textPersonName" android:autofillHints="personGivenName" />
+                    <TextView android:id="@+id/tvAccountFirstNameError" style="@style/Fleet.ProfileFieldError" />
                     <TextView style="@style/Fleet.AuthLabel" android:text="LAST NAME" android:textSize="10sp" />
                     <EditText android:id="@+id/etAccountLastName" style="@style/Fleet.AuthField" android:inputType="textPersonName" android:autofillHints="personFamilyName" />
+                    <TextView android:id="@+id/tvAccountLastNameError" style="@style/Fleet.ProfileFieldError" />
                     <TextView style="@style/Fleet.AuthLabel" android:text="EMAIL ADDRESS" android:textSize="10sp" />
                     <EditText android:id="@+id/etAccountEmail" style="@style/Fleet.AuthField" android:inputType="textEmailAddress" android:autofillHints="emailAddress" />
+                    <TextView android:id="@+id/tvAccountEmailError" style="@style/Fleet.ProfileFieldError" />
                     <TextView style="@style/Fleet.AuthLabel" android:text="MOBILE NUMBER" android:textSize="10sp" />
                     <EditText android:id="@+id/etAccountPhone" style="@style/Fleet.AuthField" android:inputType="phone" android:autofillHints="phone" />
                     <TextView style="@style/Fleet.AuthLabel" android:text="ACCOUNT ID" android:textSize="10sp" />
@@ -39,17 +42,6 @@
                     <TextView android:id="@+id/btnAccountCancel" style="@style/Fleet.AuthLink" android:layout_gravity="center_horizontal" android:text="Cancel" />
                 </LinearLayout>
                 <TextView android:id="@+id/tvAccountSaved" style="@style/Fleet.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:padding="16dp" android:background="@drawable/bg_ff_card" android:textColor="@color/success" android:text="✓ Changes saved successfully.\nProfile information has been updated." android:textSize="12sp" android:visibility="gone" android:accessibilityLiveRegion="polite" />
-            </LinearLayout>
-            <LinearLayout android:id="@+id/layoutAccountNotifications" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content">
-                    <TextView android:id="@+id/btnNotificationsAll" style="@style/Fleet.AuthLink" android:minWidth="96dp" android:minHeight="48dp" android:textSize="13sp" android:text="All" android:background="@drawable/tab_selected" android:textColor="@color/white" android:paddingStart="20dp" android:paddingEnd="20dp" />
-                    <TextView android:id="@+id/btnNotificationsUnread" style="@style/Fleet.AuthLink" android:minWidth="96dp" android:minHeight="48dp" android:textSize="13sp" android:text="Unread" android:layout_marginStart="8dp" android:background="@drawable/tab_unselected" android:paddingStart="20dp" android:paddingEnd="20dp" />
-                </LinearLayout>
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="80dp" android:orientation="vertical" android:gravity="center">
-                    <ImageView android:layout_width="64dp" android:layout_height="64dp" android:src="@drawable/ic_bell" android:contentDescription="@null" android:padding="18dp" android:background="@drawable/empty_icon_bg" app:tint="@color/primary" />
-                    <TextView android:id="@+id/tvNotificationsEmpty" android:gravity="center" android:accessibilityLiveRegion="polite" style="@style/Fleet.Subtitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="@string/no_notifications" />
-                    <TextView android:id="@+id/tvNotificationsDescription" style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:layout_marginTop="8dp" android:textSize="13sp" android:text="@string/no_notifications_detail" />
-                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

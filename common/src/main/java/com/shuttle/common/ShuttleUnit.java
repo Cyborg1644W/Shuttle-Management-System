@@ -5,6 +5,7 @@ public class ShuttleUnit {
     private String shuttleId;
     private String plateNumber;
     private int capacity;
+    private String vehicleModel = "";
     private String currentStatus = "AVAILABLE";  // AVAILABLE / IN_SERVICE / MAINTENANCE / OFFLINE
 
     public ShuttleUnit() {
@@ -26,6 +27,9 @@ public class ShuttleUnit {
 
     public String getPlateNumber() { return plateNumber; }
     public void setPlateNumber(String plateNumber) { this.plateNumber = plateNumber; }
+
+    public String getVehicleModel() { return vehicleModel; }
+    public void setVehicleModel(String vehicleModel) { this.vehicleModel = vehicleModel; }
 
     public int getCapacity() { return capacity; }
     public void setCapacity(int capacity) { this.capacity = capacity; }

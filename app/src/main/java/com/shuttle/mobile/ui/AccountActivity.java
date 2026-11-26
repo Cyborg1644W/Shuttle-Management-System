@@ -2,7 +2,6 @@ package com.shuttle.mobile.ui;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Patterns;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.EditText;
@@ -13,16 +12,19 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.shuttle.common.Role;
 import com.shuttle.mobile.R;
-import com.shuttle.mobile.client.ApiClient;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/** Shared profile presentation and notification empty state for both roles. */
+import java.util.function.ToIntFunction;
+
+/** Shared profile and assignment notifications. */
 public final class AccountActivity extends AppCompatActivity {
     private EditText firstName, lastName, email, phone;
-    private TextView error;
+    private TextView firstNameMessage, lastNameMessage, emailMessage, error;
     private boolean editing;
+    private boolean validationStarted;
     private boolean saving;
+    private NotificationsPage notificationsPage;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -31,22 +33,25 @@ public final class AccountActivity extends AppCompatActivity {
             finish();
             return;
         }
-        setContentView(R.layout.activity_account);
-        findViewById(R.id.btnAccountBack).setOnClickListener(v -> onBackPressed());
         if (getIntent().getBooleanExtra("notifications", false)) {
-            ((TextView) findViewById(R.id.tvAccountTitle)).setText(R.string.notifications_title);
-            findViewById(R.id.layoutAccountProfile).setVisibility(View.GONE);
-            findViewById(R.id.layoutAccountNotifications).setVisibility(View.VISIBLE);
-            findViewById(R.id.btnNotificationsAll).setOnClickListener(v -> filterNotifications(false));
-            findViewById(R.id.btnNotificationsUnread).setOnClickListener(v -> filterNotifications(true));
-            filterNotifications(false);
+            setContentView(R.layout.activity_notifications);
+            findViewById(R.id.btnNotificationsBack).setOnClickListener(v -> finish());
+            notificationsPage = new NotificationsPage(this);
             return;
         }
+        setContentView(R.layout.activity_account);
+        findViewById(R.id.btnAccountBack).setOnClickListener(v -> onBackPressed());
         firstName = findViewById(R.id.etAccountFirstName);
         lastName = findViewById(R.id.etAccountLastName);
         email = findViewById(R.id.etAccountEmail);
         phone = findViewById(R.id.etAccountPhone);
+        firstNameMessage = findViewById(R.id.tvAccountFirstNameError);
+        lastNameMessage = findViewById(R.id.tvAccountLastNameError);
+        emailMessage = findViewById(R.id.tvAccountEmailError);
         error = findViewById(R.id.tvAccountError);
+        watchProfileField(firstName, firstNameMessage, AccountActivity::firstNameError);
+        watchProfileField(lastName, lastNameMessage, AccountActivity::lastNameError);
+        watchProfileField(email, emailMessage, AccountActivity::emailError);
         findViewById(R.id.btnAccountEdit).setOnClickListener(v -> setEditing(true));
         findViewById(R.id.btnAccountCancel).setOnClickListener(v -> { fill(); setEditing(false); });
         findViewById(R.id.btnAccountSave).setOnClickListener(v -> save());
@@ -98,6 +103,10 @@ public final class AccountActivity extends AppCompatActivity {
 
     private void setEditing(boolean value) {
         editing = value;
+        validationStarted = false;
+        showFieldError(firstName, firstNameMessage, 0);
+        showFieldError(lastName, lastNameMessage, 0);
+        showFieldError(email, emailMessage, 0);
         ((TextView) findViewById(R.id.tvAccountTitle)).setText(value ? "Edit Profile" : "Profile Details");
         findViewById(R.id.layoutProfileDetails).setVisibility(value ? View.GONE : View.VISIBLE);
         findViewById(R.id.layoutProfileIdentity).setVisibility(value ? View.GONE : View.VISIBLE);
@@ -109,13 +118,42 @@ public final class AccountActivity extends AppCompatActivity {
         }
     }
 
+    private void watchProfileField(EditText field, TextView message, ToIntFunction<String> validate) {
+        FieldUi.onChange(field, () -> {
+            if (validationStarted) showFieldError(field, message, validate.applyAsInt(field.getText().toString().trim()));
+        });
+    }
+
+    private boolean showFieldError(EditText field, TextView message, int errorRes) {
+        return FieldUi.showInlineError(field, message, errorRes == 0 ? null : getString(errorRes));
+    }
+
+    private static int firstNameError(String value) {
+        return FieldUi.isBlank(value) ? R.string.profile_first_name_required : 0;
+    }
+
+    private static int lastNameError(String value) {
+        return FieldUi.isBlank(value) ? R.string.profile_last_name_required : 0;
+    }
+
+    private static int emailError(String value) {
+        if (FieldUi.isBlank(value)) return R.string.profile_email_required;
+        return FieldUi.isGmailAddress(value) ? 0 : R.string.profile_email_invalid;
+    }
+
     private void save() {
         if (saving) return;
-        String n = (firstName.getText().toString().trim() + " " + lastName.getText().toString().trim()).trim();
+        validationStarted = true;
+        error.setVisibility(View.GONE);
+        String first = firstName.getText().toString().trim();
+        String last = lastName.getText().toString().trim();
         String e = email.getText().toString().trim();
+        boolean firstValid = showFieldError(firstName, firstNameMessage, firstNameError(first));
+        boolean lastValid = showFieldError(lastName, lastNameMessage, lastNameError(last));
+        boolean emailValid = showFieldError(email, emailMessage, emailError(e));
+        if (!firstValid || !lastValid || !emailValid) return;
+        String n = first + " " + last;
         String p = phone.getText().toString().trim();
-        if (n.length() < 2) { showError("Please enter your full name"); return; }
-        if (!Patterns.EMAIL_ADDRESS.matcher(e).matches()) { showError("Enter a valid email address"); return; }
         JSONObject body = new JSONObject();
         try { body.put("fullName", n).put("email", e).put("phone", p); }
         catch (JSONException impossible) { throw new IllegalStateException(impossible); }
@@ -125,7 +163,6 @@ public final class AccountActivity extends AppCompatActivity {
         saving = true;
         findViewById(R.id.btnAccountSave).setEnabled(false);
         findViewById(R.id.btnAccountCancel).setEnabled(false);
-        error.setVisibility(View.GONE);
         FleetApi.put("/workers/" + FleetApi.encode(id), body, new FleetApi.Callback() {
             private boolean active() {
                 return !isFinishing() && !isDestroyed() && java.util.Objects.equals(token, Session.getToken());
@@ -155,18 +192,14 @@ public final class AccountActivity extends AppCompatActivity {
         });
     }
 
-    private void filterNotifications(boolean unread) {
-        for (int id : new int[] {R.id.btnNotificationsAll, R.id.btnNotificationsUnread}) {
-            boolean selected = (id == R.id.btnNotificationsUnread) == unread;
-            TextView chip = findViewById(id);
-            chip.setBackgroundResource(selected ? R.drawable.tab_selected : R.drawable.notification_filter_outline);
-            chip.setTextColor(ContextCompat.getColor(this, selected ? R.color.white : R.color.primary));
-        }
-        // No notification endpoint exists yet. Never present demonstration events as user data.
-        ((TextView) findViewById(R.id.tvNotificationsEmpty)).setText(
-                unread ? "No unread notifications" : getString(R.string.no_notifications));
-        ((TextView) findViewById(R.id.tvNotificationsDescription)).setText(
-                unread ? "New notifications will appear here." : getString(R.string.no_notifications_detail));
+    @Override protected void onResume() {
+        super.onResume();
+        if (notificationsPage != null) notificationsPage.resume();
+    }
+
+    @Override protected void onPause() {
+        if (notificationsPage != null) notificationsPage.pause();
+        super.onPause();
     }
 
     static void confirmSignOut(AppCompatActivity activity, Runnable signOut) {

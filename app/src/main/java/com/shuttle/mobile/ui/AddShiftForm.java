@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
-import android.text.format.DateFormat;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -20,6 +19,7 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.shuttle.mobile.R;
+import com.shuttle.common.ShiftTime;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -219,8 +219,8 @@ final class AddShiftForm {
         int minute = value < 0 ? now.get(Calendar.MINUTE) : value % 60;
         TimePickerDialog picker = new TimePickerDialog(context, (v, h, m) -> {
             if (from) start = h * 60 + m; else end = h * 60 + m;
-            chosen(from ? R.id.btnShiftStart : R.id.btnShiftEnd, time(h * 60 + m));
-        }, hour, minute, DateFormat.is24HourFormat(context));
+            chosen(from ? R.id.btnShiftStart : R.id.btnShiftEnd, ShiftTime.display(h * 60 + m));
+        }, hour, minute, false);
         picker.setTitle(from ? "Start Time" : "End Time");
         picker.show();
     }
@@ -249,7 +249,7 @@ final class AddShiftForm {
         try {
             data.put("id", requestId).put("shiftDate", ScheduleDates.iso(date))
                     .put("employeeId", worker.id()).put("shuttleId", shuttle.id())
-                    .put("startTime", time(start)).put("endTime", time(end))
+                    .put("startTime", ShiftTime.wire(start)).put("endTime", ShiftTime.wire(end))
                     .put("notesBase64", Base64.encodeToString(notes.getText().toString()
                             .getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP));
         } catch (JSONException invalid) {
@@ -299,10 +299,6 @@ final class AddShiftForm {
     private void showError(String text) {
         error.setText(text);
         error.setVisibility(View.VISIBLE);
-    }
-
-    private static String time(int minutes) {
-        return String.format(Locale.US, "%02d:%02d", minutes / 60, minutes % 60);
     }
 
     private final class Picker {

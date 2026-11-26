@@ -38,7 +38,6 @@ import org.osmdroid.views.overlay.Polyline;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 public final class LiveRouteMap extends FrameLayout {
@@ -184,7 +183,7 @@ public final class LiveRouteMap extends FrameLayout {
         switch (state.phase(System.currentTimeMillis())) {
             case WAITING_FOR_GPS: status = getContext().getString(R.string.route_waiting); break;
             case WEAK_SIGNAL:
-                String time = android.text.format.DateFormat.getTimeFormat(getContext()).format(new Date(rendered.time));
+                String time = com.shuttle.common.ShiftTime.timestamp(rendered.time, "h:mm a");
                 status = getContext().getString(R.string.route_last_updated, time);
                 break;
             case ENDED:

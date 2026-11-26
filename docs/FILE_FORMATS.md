@@ -35,18 +35,19 @@ EMP-0001,Alex Reyes,alex.reyes@example.test,password-hash,DRIVER,ACTIVE,OFF_SHIF
 Stores shuttle vehicle information.
 
 ```text
-shuttleId,plateNumber,capacity,currentStatus
+shuttleId,plateNumber,capacity,currentStatus,vehicleModel
 ```
 
 - `shuttleId` must be unique.
 - `plateNumber` must be unique.
-- `capacity` must be a positive whole number.
+- Older rows keep their seating capacity. New units with a vehicle model may use `0` for an unspecified capacity.
+- `vehicleModel` is optional for older rows and required by the current Add Fleet Unit form.
 - `currentStatus` must be `AVAILABLE`, `IN_SERVICE`, `MAINTENANCE`, or `OFFLINE`.
 
 Example:
 
 ```text
-SH-001,ABC-1234,20,AVAILABLE
+SH-001,ABC-1234,0,AVAILABLE,Toyota Coaster
 ```
 
 ## shifts.txt
@@ -117,7 +118,7 @@ Do not edit `.lock` files. The backend creates them automatically while it safel
 `dated-shifts.txt` is created when the first dated assignment is saved. It lives beside `schedule.txt` in local mode and joins the same private snapshot in R2 mode.
 
 ```csv
-id,terminalId,employeeId,shuttleId,shiftDate,startTime,endTime,notesBase64
+id,terminalId,employeeId,shuttleId,shiftDate,startTime,endTime,notesBase64,notifiedAt,readAt,removed
 ```
 
 - `id` is a UUID. Repeating the same save with the same ID returns the saved assignment rather than creating a duplicate.

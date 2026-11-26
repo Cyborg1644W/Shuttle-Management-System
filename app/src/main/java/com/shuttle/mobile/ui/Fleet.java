@@ -237,7 +237,8 @@ public final class Fleet {
         TextView name = WorkerDialogs.detailText(context, shuttleTitle(unit), 20, true);
         name.setGravity(Gravity.CENTER);
         identity.addView(name);
-        TextView plate = WorkerDialogs.detailText(context, unit.optString("plateNumber"), 13, false);
+        String plateNumber = value(unit, "plateNumber", "Not recorded");
+        TextView plate = WorkerDialogs.detailText(context, plateNumber, 13, false);
         plate.setGravity(Gravity.CENTER);
         identity.addView(plate);
         String statusCode = unit.optString("status");
@@ -254,8 +255,8 @@ public final class Fleet {
 
         LinearLayout information = WorkerDialogs.detailSection(context, content, "Vehicle Information");
         WorkerDialogs.informationRow(context, information, "Unit Number", unit.optString("shuttleId"));
-        WorkerDialogs.informationRow(context, information, "Plate Number", unit.optString("plateNumber"));
-        WorkerDialogs.informationRow(context, information, "Vehicle Model", "Not recorded");
+        WorkerDialogs.informationRow(context, information, "Plate Number", plateNumber);
+        WorkerDialogs.informationRow(context, information, "Vehicle Model", value(unit, "vehicleModel", "Not recorded"));
         LinearLayout assignment = WorkerDialogs.detailSection(context, content, "Assigned Driver");
         List<JSONObject> assigned = assignedWorkers(unit);
 
@@ -311,8 +312,7 @@ public final class Fleet {
                         if (!active() || !page.isShowing()) return;
                         JSONObject shift = result.optJSONObject("shift");
                         long start = shift == null ? 0 : shift.optLong("startTime");
-                        shiftTime.setText(start > 0 ? java.text.DateFormat.getDateTimeInstance()
-                                .format(new java.util.Date(start)) : "Unavailable");
+                        shiftTime.setText(start > 0 ? com.shuttle.common.ShiftTime.timestamp(start, "EEE, MMM d · h:mm a") : "Unavailable");
                     }
 
                     @Override public void onError(int status, String message) {
@@ -345,15 +345,18 @@ public final class Fleet {
     private void addUnit() {
         LinearLayout form = WorkerDialogs.detailContent(context);
         shuttleIcon(form);
-        EditText id = field(form, "UNIT NUMBER", InputType.TYPE_CLASS_TEXT);
-        EditText plate = field(form, "PLATE NUMBER", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
-        EditText capacity = field(form, "SEATING CAPACITY", InputType.TYPE_CLASS_NUMBER);
+        EditText id = field(form, "UNIT NUMBER", "Enter valid unit number", InputType.TYPE_CLASS_TEXT);
+        EditText plate = field(form, "PLATE NUMBER", "Enter valid plate number",
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+        EditText model = field(form, "VEHICLE MODEL", "Enter vehicle model", InputType.TYPE_CLASS_TEXT);
+        model.setFilters(new android.text.InputFilter[] {new android.text.InputFilter.LengthFilter(80)});
         TextView error = WorkerDialogs.detailText(context, "", 12, false);
         error.setTextColor(ContextCompat.getColor(context, R.color.error));
         error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         form.addView(error);
         com.google.android.material.button.MaterialButton save = new com.google.android.material.button.MaterialButton(context);
         save.setText("Add Unit");
+        save.setAllCaps(false);
         LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(-1, dp(48));
         buttonParams.topMargin = dp(24);
         form.addView(save, buttonParams);
@@ -361,18 +364,16 @@ public final class Fleet {
         save.setOnClickListener(button -> {
             String unitId = id.getText().toString().trim();
             String plateNumber = plate.getText().toString().trim();
-            int seats;
+            String vehicleModel = model.getText().toString().trim();
             if (unitId.isEmpty() || unitId.contains(" ")) { id.setError("Enter a unit number without spaces"); return; }
             if (plateNumber.isEmpty()) { plate.setError("Enter a plate number"); return; }
-            try { seats = Integer.parseInt(capacity.getText().toString().trim()); }
-            catch (NumberFormatException invalid) { capacity.setError("Enter a positive number"); return; }
-            if (seats < 1) { capacity.setError("Enter a positive number"); return; }
+            if (vehicleModel.isEmpty()) { model.setError("Enter a vehicle model"); return; }
             JSONObject body = new JSONObject();
-            try { body.put("shuttleId", unitId).put("plateNumber", plateNumber).put("capacity", seats); }
+            try { body.put("shuttleId", unitId).put("plateNumber", plateNumber).put("vehicleModel", vehicleModel); }
             catch (JSONException impossible) { throw new IllegalStateException(impossible); }
             String token = Session.getToken();
             save.setEnabled(false);
-            id.setEnabled(false); plate.setEnabled(false); capacity.setEnabled(false);
+            id.setEnabled(false); plate.setEnabled(false); model.setEnabled(false);
             page.setCancelable(false);
             page.findViewById(R.id.btnDetailBack).setEnabled(false);
             error.setText("");
@@ -386,7 +387,7 @@ public final class Fleet {
                 @Override public void onError(int status, String message) {
                     if (!active() || !java.util.Objects.equals(token, Session.getToken())) return;
                     save.setEnabled(true);
-                    id.setEnabled(true); plate.setEnabled(true); capacity.setEnabled(true);
+                    id.setEnabled(true); plate.setEnabled(true); model.setEnabled(true);
                     page.setCancelable(true);
                     page.findViewById(R.id.btnDetailBack).setEnabled(true);
                     error.setText(message);
@@ -413,7 +414,7 @@ public final class Fleet {
         };
     }
 
-    private EditText field(LinearLayout form, String label, int type) {
+    private EditText field(LinearLayout form, String label, String hint, int type) {
         TextView caption = new TextView(context);
         caption.setText(label);
         caption.setTextSize(10);
@@ -424,6 +425,7 @@ public final class Fleet {
         field.setInputType(type);
         field.setSingleLine(true);
         field.setTextSize(14);
+        field.setHint(hint);
         field.setBackgroundResource(R.drawable.input_bg);
         field.setPadding(dp(12), 0, dp(12), 0);
         form.addView(field, new LinearLayout.LayoutParams(-1, dp(48)));

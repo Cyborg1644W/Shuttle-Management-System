@@ -13,6 +13,15 @@ public final class FleetConnectionHandler extends BaseHandler {
         if (action == null && r.is("POST")) {
             return created(TerminalService.create(r.worker(), Csv.str(r.body, "terminalName")));
         }
+        if ("invites".equals(action) && r.is("GET")) return ok(TerminalService.invitationState(r.worker()));
+        if ("invites".equals(action) && r.is("PUT")) {
+            String enabled = Csv.str(r.body, "enabled");
+            if (!"true".equalsIgnoreCase(enabled) && !"false".equalsIgnoreCase(enabled)) {
+                throw new ApiException(400, "Specify whether the invitation is enabled");
+            }
+            return ok(TerminalService.setInviteEnabled(r.worker(), Csv.str(r.body, "inviteCode"),
+                    Boolean.parseBoolean(enabled)));
+        }
         if (r.is("POST")) {
             if ("invites".equals(action)) return created(TerminalService.invite(r.worker()));
             if ("preview".equals(action)) return ok(TerminalService.preview(r.worker(), Csv.str(r.body, "inviteCode")));

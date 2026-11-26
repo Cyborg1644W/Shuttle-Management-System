@@ -149,7 +149,7 @@ Sources: [AuthHandler](../server-backend/src/main/java/com/shuttle/server/handle
 
 ## 6. Operator setup and management
 
-Operators manage workers and vehicles through their handlers and services. For example, an Operator can add a vehicle with a unique shuttle ID, a plate number, and positive capacity. New vehicles start AVAILABLE.
+Operators manage workers and vehicles through their handlers and services. For example, an Operator can add a vehicle with a unique shuttle ID, a plate number, and a vehicle model. New vehicles start AVAILABLE.
 
 Assignment updates save a Driver's assigned shuttle and terminal in workers.txt. The service verifies a supplied shuttle ID exists and rejects changing the vehicle while the Driver has an active shift ID. Operator assignments use fields such as terminal zone and shift time.
 

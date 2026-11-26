@@ -7,13 +7,41 @@
     </LinearLayout>
     <TextView android:id="@+id/tvInviteSheetDescription" style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp" />
     <TextView style="@style/Fleet.AuthLabel" android:text="INVITATION CODE" android:textSize="10sp" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical" android:background="@drawable/input_bg" android:paddingStart="8dp" android:paddingEnd="8dp">
+    <LinearLayout android:id="@+id/inviteCodeField" android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical" android:background="@drawable/input_bg" android:paddingStart="8dp" android:paddingEnd="8dp">
         <EditText android:id="@+id/etInviteSheetCode" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@null" android:textSize="14sp" android:singleLine="true" android:inputType="textCapCharacters" android:importantForAutofill="no" android:hint="Invitation code" />
         <ImageButton android:id="@+id/btnInviteSheetReveal" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:src="@drawable/ic_eye" android:contentDescription="Show invitation code" android:background="?attr/selectableItemBackgroundBorderless" />
         <ImageButton android:id="@+id/btnInviteSheetCopy" android:layout_width="48dp"
             android:layout_height="48dp" android:padding="13dp"
             android:src="@drawable/ic_copy" android:contentDescription="Copy invitation code"
             android:background="?attr/selectableItemBackgroundBorderless" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/inviteSettings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/border" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/switchInviteEnabled"
+            style="@style/Fleet.AuthLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:minHeight="44dp"
+            android:text="JOIN WITH CODE" />
+
+        <TextView
+            style="@style/Fleet.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Workers can request to join with this code." />
     </LinearLayout>
     <TextView android:id="@+id/tvInviteSheetError" style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textColor="@color/error" android:visibility="gone" android:accessibilityLiveRegion="polite" />
     <com.google.android.material.button.MaterialButton android:id="@+id/btnInviteSheetAction" style="@style/Fleet.AuthButton" android:text="Join" />

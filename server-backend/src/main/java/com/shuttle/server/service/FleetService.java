@@ -43,6 +43,7 @@ public class FleetService {
                 "shuttleId", s.getShuttleId(),
                 "plateNumber", s.getPlateNumber(),
                 "capacity", s.getCapacity(),
+                "vehicleModel", s.getVehicleModel(),
                 "status", s.getCurrentStatus(),
                 "driverId", driverId,
                 "driverName", driverName);
@@ -61,15 +62,20 @@ public class FleetService {
         synchronized (Repositories.LOCK) {
             String id = str(body, "shuttleId").trim();
             String plate = str(body, "plateNumber").trim();
-            int capacity = (int) Csv.lng(body, "capacity");
+            long capacity = Csv.lng(body, "capacity");
+            String model = str(body, "vehicleModel").trim();
             if (id.isEmpty() || id.indexOf(' ') >= 0) {
                 throw new ApiException(400, "shuttleId can't be empty or contain spaces");
             }
             if (plate.isEmpty()) {
                 throw new ApiException(400, "plateNumber is required");
             }
-            if (capacity <= 0) {
-                throw new ApiException(400, "capacity must be greater than 0");
+            if (model.length() > 80 || model.chars().anyMatch(Character::isISOControl)
+                    || (body.containsKey("vehicleModel") && model.isBlank())) {
+                throw new ApiException(400, "Enter a vehicle model of up to 80 characters");
+            }
+            if (capacity < 0 || capacity > Integer.MAX_VALUE || (capacity == 0 && model.isBlank())) {
+                throw new ApiException(400, "Enter a vehicle model or a positive seating capacity");
             }
             if (Repositories.shuttles().existsById(id)) {
                 throw new ApiException(409, "This shuttle ID already exists");
@@ -77,7 +83,8 @@ public class FleetService {
             ShuttleUnit s = new ShuttleUnit();
             s.setShuttleId(id);
             s.setPlateNumber(plate);
-            s.setCapacity(capacity);
+            s.setCapacity((int) capacity);
+            s.setVehicleModel(model);
             s.setCurrentStatus(ShuttleRepository.STATUS_AVAILABLE);
             Repositories.shuttles().saveShuttle(s);
             Log.audit("Shuttle added: " + id);

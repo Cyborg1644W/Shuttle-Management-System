@@ -26,7 +26,8 @@ public class ShuttleRepository {
     public static final String FILE_NAME = "shuttles.txt";
 
     public static final List<String> HEADER =
-            List.of("shuttleId", "plateNumber", "capacity", "currentStatus");
+            List.of("shuttleId", "plateNumber", "capacity", "currentStatus", "vehicleModel");
+    public static final List<String> REQUIRED_HEADER = HEADER.subList(0, HEADER.size() - 1);
 
     // Allowed values of currentStatus
     public static final String STATUS_AVAILABLE = "AVAILABLE";
@@ -197,18 +198,20 @@ public class ShuttleRepository {
         if (!ValidationUtil.isNotEmpty(plate)) {
             throw new IllegalArgumentException("plateNumber is empty");
         }
+        String model = row.getOptional("vehicleModel", "");
         int capacity;
         try {
             capacity = Integer.parseInt(row.get("capacity"));
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("capacity is not a whole number: '" + row.get("capacity") + "'");
         }
-        if (capacity <= 0) {
-            throw new IllegalArgumentException("capacity must be greater than 0");
+        if (capacity < 0 || (capacity == 0 && model.isBlank())) {
+            throw new IllegalArgumentException("A shuttle needs a capacity or vehicle model");
         }
         ShuttleUnit s = new ShuttleUnit();
         s.setShuttleId(id);
         s.setPlateNumber(plate);
+        s.setVehicleModel(model);
         s.setCapacity(capacity);
         s.setCurrentStatus(normaliseStatus(row.getOrDefault("currentStatus", STATUS_AVAILABLE)));
         return s;
@@ -219,7 +222,8 @@ public class ShuttleRepository {
                 nullToEmpty(s.getShuttleId()),
                 nullToEmpty(s.getPlateNumber()),
                 String.valueOf(s.getCapacity()),
-                nullToEmpty(s.getCurrentStatus())
+                nullToEmpty(s.getCurrentStatus()),
+                nullToEmpty(s.getVehicleModel())
         };
     }
 
@@ -228,7 +232,7 @@ public class ShuttleRepository {
             new CsvTable(HEADER).save(file); // first run: create an empty file with the header
             return new LinkedHashMap<>();
         }
-        CsvTable table = CsvTable.load(file, HEADER);
+        CsvTable table = CsvTable.load(file, REQUIRED_HEADER);
         Map<String, ShuttleUnit> map = new LinkedHashMap<>();
         for (CsvTable.Row row : table.getRows()) {
             ShuttleUnit s;

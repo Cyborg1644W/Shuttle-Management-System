@@ -197,6 +197,12 @@ public class WorkerService {
                     if (changed && d.getActiveShiftId() != null) {
                         throw new ApiException(409, "End the driver's shift before changing the vehicle");
                     }
+                    if (changed && shuttleId != null) {
+                        var notices = new java.util.ArrayList<>(d.getVehicleNotices());
+                        notices.add(new Driver.VehicleNotice(java.util.UUID.randomUUID().toString(),
+                                shuttleId, System.currentTimeMillis(), false));
+                        d.setVehicleNotices(notices);
+                    }
                     d.setAssignedShuttleId(shuttleId);
                 }
                 String name = String.valueOf(TerminalService.getState(w).get("terminalName"));

@@ -107,44 +107,6 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Edit -->
-    <LinearLayout
-        android:id="@+id/rowEdit"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="6dp">
-
-        <ImageView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/icon_square_bg"
-            android:contentDescription="@null"
-            android:padding="10dp"
-            android:src="@drawable/ic_edit"
-            app:tint="@color/brand_600" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_weight="1"
-            android:text="Edit Worker Profile"
-            android:textColor="@color/text_primary"
-            android:textSize="14sp" />
-
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:contentDescription="@null"
-            android:src="@drawable/ic_chevron_right"
-            app:tint="@color/text_secondary" />
-    </LinearLayout>
-
     <!-- Shift log -->
     <LinearLayout
         android:id="@+id/rowLog"
@@ -170,7 +132,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="14dp"
             android:layout_weight="1"
-            android:text="View Shift Log &amp; Telematics"
+            android:text="View Shift Logs"
             android:textColor="@color/text_primary"
             android:textSize="14sp" />
 
