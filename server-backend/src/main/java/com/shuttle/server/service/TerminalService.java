@@ -25,10 +25,7 @@ public final class TerminalService {
     private TerminalService() { }
 
     private static Entry find(String type, String id) {
-        for (Entry e : Repositories.terminals().all()) {
-            if (e.type.equals(type) && e.id.equals(id)) return e;
-        }
-        return null;
+        return Repositories.terminals().find(type, id);
     }
 
     public static String terminalId(Worker worker) {
@@ -51,10 +48,15 @@ public final class TerminalService {
         Entry terminal = find("TERMINAL", id);
         if (terminal == null) throw new ApiException(404, "Terminal no longer exists");
         return Csv.obj("joined", true, "terminalId", terminal.id, "terminalName", terminal.name,
+                "terminalLatitude", terminal.latitude, "terminalLongitude", terminal.longitude,
                 "operatorName", WorkerService.get(terminal.id).getFullName());
     }
 
     public static Map<String, Object> create(Worker operator, String rawName) throws IOException {
+        return create(operator, rawName, "", "");
+    }
+
+    public static Map<String, Object> create(Worker operator, String rawName, String latitude, String longitude) throws IOException {
         synchronized (Repositories.LOCK) {
             requireOperator(operator);
             if (!terminalId(operator).isEmpty()) throw new ApiException(409, "You already manage a terminal");
@@ -63,7 +65,17 @@ public final class TerminalService {
                 throw new ApiException(400, "Enter a terminal name between 2 and 80 characters");
             }
             List<Entry> entries = Repositories.terminals().all();
-            entries.add(new Entry("TERMINAL", operator.getEmployeeID(), operator.getEmployeeID(), name, 0, ""));
+            if (!latitude.isEmpty() || !longitude.isEmpty()) {
+                try {
+                    if (!com.shuttle.common.ValidationUtil.isValidLatitude(Double.parseDouble(latitude))
+                            || !com.shuttle.common.ValidationUtil.isValidLongitude(Double.parseDouble(longitude)))
+                        throw new NumberFormatException();
+                } catch (NumberFormatException invalid) {
+                    throw new ApiException(400, "Supply a valid terminal latitude and longitude together");
+                }
+            }
+            entries.add(new Entry("TERMINAL", operator.getEmployeeID(), operator.getEmployeeID(), name, 0, "",
+                    true, latitude, longitude));
             Repositories.terminals().replaceAll(entries);
             Log.audit("Terminal created by " + operator.getEmployeeID());
             return getState(operator);

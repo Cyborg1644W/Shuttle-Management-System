@@ -63,6 +63,11 @@ public class ApiClient {
 
     public static String buildLocationJson(String shuttleId, double lat, double lng,
                                            float speed, long timestamp) {
+        return buildLocationJson(shuttleId, lat, lng, speed, timestamp, null, Float.NaN);
+    }
+
+    public static String buildLocationJson(String shuttleId, double lat, double lng,
+                                           float speed, long timestamp, String shiftId, float bearing) {
         try {
             JSONObject o = new JSONObject();
             o.put("shuttleId", shuttleId);
@@ -70,6 +75,8 @@ public class ApiClient {
             o.put("longitude", lng);
             o.put("speed", speed);
             o.put("timestamp", timestamp);
+            if (shiftId != null) o.put("shiftId", shiftId);
+            if (Float.isFinite(bearing)) o.put("bearing", bearing);
             return o.toString();
         } catch (JSONException e) {
             return "{}";

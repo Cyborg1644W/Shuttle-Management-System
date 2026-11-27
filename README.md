@@ -24,7 +24,16 @@ Dispatcher Phone (Android) ---/              (Java, files)  --writes--> export/ 
 * **Offline-First Resilience (`OfflineQueueManager`):** Caches GPS coordinates locally during cellular dead spots and flushes them to the server when connectivity returns.
 * **Background Tracking:** Uses an Android Foreground Service to keep collecting hardware GPS coordinates while the app is in the background. (Aggressive manufacturer battery optimization can still stop it; see Known Limitations.)
 * **Driver Live Route** follows the shuttle on OpenStreetMap, records the path locally during a shift, and fits the completed trip to the card.
+* **Operator Fleet Status** shows active shifts on Home. Select a unit in the map or list to follow it, use two fingers to pan or zoom, or tap **Fit All** to return to the overview. **Completed trips** opens a saved shift's route.
 * **Role-Based Routing:** Separate interfaces for Drivers, Dispatchers, and Administrators using standard Android XML layouts and plain Java activities.
+
+#### Fleet monitoring
+
+`FleetMonitorViewModel` polls the operator-scoped `GET /api/live/fleet` feed five seconds after each response while Home is visible. Each shift sends only fixes newer than the operator's last timestamp. The feed includes shifts awaiting a first fix. It retains live trails in server memory until shift end. The driver's saved trip supplies the completed geometry.
+
+`FleetStatusMapUiState` retains positions, selection and camera mode across connectivity changes and rotation. A fix becomes stale after 30 seconds. Speed below 3 km/h indicates idle, and an idle unit within 50 metres of its configured terminal is shown as **At terminal**. Both roles share osmdroid street tiles, the tile cache, shuttle icon, segmented polylines and camera fitting through `StreetMapCard`.
+
+Each operator manages one terminal. Its optional `terminalLatitude` and `terminalLongitude` fields can be supplied together on terminal creation. Older records still load. The map uses a Philippines overview when both terminal and shuttle positions are unavailable.
 
 ### Server Backend (Pure JDK)
 * **Thread-Safe CSV Persistence:** No external database. Data lives in structured CSV files, written through atomic file swapping and file locking (`AtomicFileWriter.java`) to prevent race conditions.

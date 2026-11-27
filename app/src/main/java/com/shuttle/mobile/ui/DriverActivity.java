@@ -275,7 +275,7 @@ public class DriverActivity extends AppCompatActivity {
             @Override public void onSuccess(JSONObject json) {
                 if (isFinishing() || isDestroyed()) return;
                 fleetMembership = new FleetConnectionUi.Membership(json);
-                membershipTerminal = isFleetJoined() ? terminalPoint(json) : null;
+                membershipTerminal = isFleetJoined() ? StreetMapCard.terminalPoint(json) : null;
                 mapView.setTerminal(trip.active() && shiftTerminal != null ? shiftTerminal : membershipTerminal);
                 terminal = isFleetJoined() ? fleetMembership.terminalName : "No terminal yet";
                 btnTerminal.setText(isFleetJoined() ? "View Terminal →" : "Join terminal");
@@ -349,19 +349,12 @@ public class DriverActivity extends AppCompatActivity {
         });
     }
 
-    private static GeoPoint terminalPoint(JSONObject row) {
-        JSONObject coords = row.optJSONObject("terminalCoordinates");
-        double lat = coords == null ? row.optDouble("terminalLatitude", Double.NaN) : coords.optDouble("latitude", Double.NaN);
-        double lon = coords == null ? row.optDouble("terminalLongitude", Double.NaN) : coords.optDouble("longitude", Double.NaN);
-        return LiveMapUiState.valid(lat, lon) ? new GeoPoint(lat, lon) : null;
-    }
-
     private boolean applyServerShift(JSONObject shift) {
         String id = FleetApi.text(shift, "shiftId");
         long start = shift.optLong("startTime", 0);
         String unit = FleetApi.text(shift, "shuttleId");
         if (id.isEmpty() || start <= 0 || unit.isEmpty()) return false;
-        GeoPoint assigned = terminalPoint(shift);
+        GeoPoint assigned = StreetMapCard.terminalPoint(shift);
         boolean newShift = !id.equals(trip.shiftId) || start != trip.start;
         if (newShift || assigned != null) shiftTerminal = assigned;
         GeoPoint center = shiftTerminal != null ? shiftTerminal : membershipTerminal;

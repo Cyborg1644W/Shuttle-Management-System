@@ -25,11 +25,29 @@
      <TextView android:id="@+id/tvDashboardAvailable" style="@style/Fleet.Display" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="—" android:textSize="30sp" />
     </LinearLayout>
    </LinearLayout>
-   <TextView android:id="@+id/btnDashboardViewFleet" style="@style/Fleet.AuthLink" android:layout_width="match_parent" android:gravity="end|center_vertical" android:text="View Fleet →" android:textSize="11sp" android:minHeight="32dp" />
-  </LinearLayout>
+   <TextView style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content"
+       android:text="@string/fleet_map_gestures" android:layout_marginTop="8dp" />
   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center_vertical">
    <TextView android:id="@+id/tvDashboardLoadState" style="@style/Fleet.Caption" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:accessibilityLiveRegion="polite" android:text="@string/dashboard_loading" />
    <TextView android:id="@+id/btnDashboardRetry" style="@style/Fleet.AuthLink" android:text="Retry" android:visibility="gone" />
+  </LinearLayout>
+   <com.shuttle.mobile.ui.FleetStatusMap android:id="@+id/fleetStatusMap" android:layout_width="match_parent" android:layout_height="320dp" android:layout_marginTop="12dp" />
+
+    <LinearLayout android:id="@+id/fleetInspector" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="6dp" android:padding="9dp"
+        android:background="@drawable/bg_ff_card" android:orientation="vertical" android:visibility="gone">
+        <TextView android:id="@+id/fleetInspectorUnit" style="@style/Fleet.Subtitle"
+            android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <TextView android:id="@+id/fleetInspectorAssignment" style="@style/Fleet.Caption"
+            android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <TextView android:id="@+id/fleetInspectorSignal" style="@style/Fleet.Caption"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/text_primary" />
+    </LinearLayout>
+   <LinearLayout android:id="@+id/fleetStatusUnits" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+    <TextView android:id="@+id/fleetCompleted" style="@style/Fleet.AuthLink" android:layout_width="0dp" android:layout_weight="1" android:minHeight="48dp" android:gravity="start|center_vertical" android:text="@string/fleet_completed" />
+    <TextView android:id="@+id/btnDashboardViewFleet" style="@style/Fleet.AuthLink" android:layout_width="wrap_content" android:gravity="end|center_vertical" android:text="View Fleet" android:minHeight="48dp" />
+   </LinearLayout>
   </LinearLayout>
  </LinearLayout>
 </ScrollView>

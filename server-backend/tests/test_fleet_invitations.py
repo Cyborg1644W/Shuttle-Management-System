@@ -279,6 +279,117 @@ class FleetInvitationTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/shift?driverId=" + d["employeeId"], b), [])
         self.assertEqual(len(self.request("GET", "/shift", d)), 1)
 
+    def test_operator_fleet_snapshot_and_delta_follow_shift_lifecycle(self):
+        a, b = self.users["operator_a"], self.users["operator_b"]
+        d = self.users["driver_a"]
+        self.request("POST", "/fleet", a, {"terminalName": "Central", "terminalLatitude": 14.5,
+                                           "terminalLongitude": 121.0}, expected=201)
+        self.terminal(b, "North")
+        self.join(d, self.invite(a)["inviteCode"])
+        header = self.one(self.request("GET", "/live/fleet", a))
+        self.assertEqual((header["type"], float(header["terminalLatitude"])), ("fleet", 14.5))
+        self.request("GET", "/live/fleet", d, expected=403)
+        self.shuttle(a, "MAP-1")
+        self.request("PUT", "/workers/" + d["employeeId"] + "/assign", a, {"shuttleId": "MAP-1"})
+        shift = self.one(self.request("POST", "/shift/start", d, {}, expected=201))
+        sid, start = shift["shiftId"], int(shift["startTime"])
+        self.assertEqual(self.request("GET", "/live/fleet", a)[1]["positionTime"], "")
+        for offset in (100, 200):
+            self.request("POST", "/shuttles/MAP-1/location", d, {"shiftId": sid, "latitude": 14.5,
+                         "longitude": 121 + offset/10000000, "speed": 4, "bearing": 90, "timestamp": start+offset})
+        current = self.request("GET", "/live/fleet", a)[1]
+        self.assertEqual((current["shiftId"], float(current["bearing"]), len(current["trail"].split(";"))),
+                         (sid, 90, 2))
+        delta = self.request("GET", f"/live/fleet?{sid}={start+100}", a)[1]["trail"]
+        self.assertEqual(delta, current["trail"].split(";")[1])
+        self.assertEqual(len(self.request("GET", "/live/fleet", b)), 1)
+        self.request("POST", "/shift/end", d, {"shiftId": sid, "route": "14.5,121;14.5,121.001"})
+        self.assertEqual(len(self.request("GET", "/live/fleet", a)), 1)
+        self.assertEqual(self.one(self.request("GET", "/shift/" + sid, a))["route"], "14.5,121;14.5,121.001")
+
+    def test_concurrent_telemetry_and_invalid_fixes(self):
+        op = self.users["operator_a"]
+        self.terminal(op, "Central")
+        shifts = []
+        for index, key in enumerate(("driver_a", "driver_b")):
+            d = self.users[key]
+            unit = f"MAP-{index}"
+            self.join(d, self.invite(op)["inviteCode"])
+            self.shuttle(op, unit)
+            self.request("PUT", f"/workers/{d['employeeId']}/assign", op, {"shuttleId": unit})
+            shift = self.one(self.request("POST", "/shift/start", d, {}, expected=201))
+            shifts.append((d, shift))
+
+        def send(driver, shift, t):
+            self.request("POST", "/location", driver, {"shiftId": shift["shiftId"], "latitude": 14.5,
+                         "longitude": 121, "timestamp": int(shift["startTime"]) + t})
+
+        def inspect():
+            rows = self.request("GET", "/live/fleet", op)
+            self.assertEqual(int(rows[0]["operatingUnits"]), len(rows) - 1)
+            self.assertEqual(int(rows[0]["activeShifts"]), len(rows) - 1)
+            self.assertEqual(int(rows[0]["driversActive"]), len(rows) - 1)
+            for row in rows[1:]:
+                if row["trail"]:
+                    times = [int(p.split(",")[0]) for p in row["trail"].split(";")]
+                    self.assertEqual(times, sorted(set(times)))
+                    self.assertEqual(times[-1], int(row["positionTime"]))
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+            jobs = []
+            for tick in range(1, 13):
+                jobs.extend(pool.submit(send, d, shift, tick) for d, shift in shifts)
+                jobs.append(pool.submit(inspect))
+            for job in jobs:
+                job.result()
+
+        d, shift = shifts[0]
+        self.request("POST", "/live/fleet", op, {}, expected=405)
+        self.request("GET", "/live/unknown", op, expected=404)
+        for endpoint in ("/location", "/shuttles/MAP-0/location"):
+            for lat, lon in ((None, 121), (0, 0), ("north", 121), (14.5, "NaN")):
+                self.request("POST", endpoint, d, {"latitude": lat, "longitude": lon}, expected=400)
+        send(d, shift, 1)
+        rows = self.request("GET", "/live/fleet", op)
+        self.assertEqual({int(r["positionTime"]) for r in rows[1:]},
+                         {int(s["startTime"]) + 12 for _, s in shifts})
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+            closing = pool.submit(self.request, "POST", "/shift/end", d, {"shiftId": shift["shiftId"]})
+            racing = pool.submit(send, d, shift, 13)
+            inspect()
+            closing.result()
+            racing.result()
+        self.assertEqual([r["shiftId"] for r in self.request("GET", "/live/fleet", op)[1:]],
+                         [shifts[1][1]["shiftId"]])
+
+    def test_interrupted_local_shift_commit_recovers_before_poll(self):
+        op, _, driver, _ = self.linked_fleets()
+        self.shuttle(op, "MAP-1")
+        self.request("PUT", f"/workers/{driver['employeeId']}/assign", op, {"shuttleId": "MAP-1"})
+        data = self.workdir / "data"
+        # A write failure before the journal is published must leave all three tables unchanged.
+        def block(name):
+            folder = data / name
+            folder.mkdir()
+            (folder / "busy").touch()
+            return folder
+        blocked = block("pending-tables.properties.tmp")
+        self.request("POST", "/shift/start", driver, {}, expected=503)
+        shutil.rmtree(blocked)
+        self.assertEqual(len(self.request("GET", "/live/fleet", op)), 1)
+        shift = self.one(self.request("POST", "/shift/start", driver, {}, expected=201))
+        # After journal publication a reader must wait for recovery or get a retryable error.
+        blocked = block("shuttles.txt.tmp")
+        self.request("POST", "/shift/end", driver, {"shiftId": shift["shiftId"]}, expected=503)
+        self.request("GET", "/live/fleet", op, expected=503)
+        shutil.rmtree(blocked)
+        self.restart_server()
+        snapshot = self.one(self.request("GET", "/live/fleet", op))
+        self.assertEqual((snapshot["operatingUnits"], snapshot["availableUnits"]), ("0", "1"))
+        self.assertEqual(self.request("GET", "/shift/active", driver), [])
+        self.assertEqual(self.one(self.request("POST", "/shift/end", driver,
+                                              {"shiftId": shift["shiftId"]}))["status"], "COMPLETED")
+
     def test_large_offline_route_and_idempotent_end(self):
         operator, _, driver, other = self.linked_fleets()
         self.shuttle(operator, "MAP-1")

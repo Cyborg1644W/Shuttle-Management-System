@@ -11,7 +11,8 @@ public final class FleetConnectionHandler extends BaseHandler {
         if (r.seg(2) != null) throw new ApiException(404, "Endpoint Not Found");
         if (action == null && r.is("GET")) return ok(TerminalService.getState(r.worker()));
         if (action == null && r.is("POST")) {
-            return created(TerminalService.create(r.worker(), Csv.str(r.body, "terminalName")));
+            return created(TerminalService.create(r.worker(), Csv.str(r.body, "terminalName"),
+                    Csv.str(r.body, "terminalLatitude"), Csv.str(r.body, "terminalLongitude")));
         }
         if ("invites".equals(action) && r.is("GET")) return ok(TerminalService.invitationState(r.worker()));
         if ("invites".equals(action) && r.is("PUT")) {

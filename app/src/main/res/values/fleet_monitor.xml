@@ -1,0 +1,24 @@
+<resources>
+    <string name="fleet_fit_all">Fit All</string>
+    <string name="fleet_completed">Completed trips</string>
+    <string name="fleet_map_description">Live fleet street map</string>
+    <string name="fleet_map_empty">No active shuttles</string>
+    <string name="fleet_loading">Loading fleet…</string>
+    <string name="fleet_reconnecting">Reconnecting to fleet…</string>
+    <string name="fleet_offline_status">Offline · Waiting for a network</string>
+    <string name="fleet_cached_tiles">Cached streets only</string>
+    <string name="fleet_error_status">Fleet updates unavailable. %1$s</string>
+    <string name="fleet_map_gestures">Slide up or down to scroll. Use two fingers to move or zoom the map.</string>
+    <string name="fleet_waiting">Waiting for GPS…</string>
+    <string name="fleet_moving">Active</string>
+    <string name="fleet_idle">Idle</string>
+    <string name="fleet_at_terminal">At terminal</string>
+    <string name="fleet_stale">Weak GPS</string>
+    <string name="fleet_updated">%1$s · Updated %2$s</string>
+    <string name="fleet_stale_updated">Weak GPS · Last updated: %1$s</string>
+    <string name="fleet_unit_plate">%1$s · %2$s</string>
+    <string name="fleet_details">Driver: %1$s\nTerminal: %2$s</string>
+    <string name="fleet_unknown">Unavailable</string>
+    <string name="fleet_in_location">Shuttles at this location</string>
+    <string name="fleet_no_completed">No completed trips yet</string>
+</resources>

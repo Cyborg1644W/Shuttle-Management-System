@@ -33,8 +33,8 @@ public class ShiftService {
             Driver driver = (Driver) Repositories.workers().findById(worker.getEmployeeID())
                     .orElseThrow(() -> new ApiException(404, "Worker not found"));
 
-            if (driver.getActiveShiftId() != null
-                    || Repositories.shifts().findActiveByDriverId(driver.getEmployeeID()).isPresent()) {
+            // The shift table is authoritative, including after upgrading older partial local saves.
+            if (Repositories.shifts().findActiveByDriverId(driver.getEmployeeID()).isPresent()) {
                 throw new ApiException(409, "You already have a shift running");
             }
             String shuttleId = driver.getAssignedShuttleId();
@@ -132,6 +132,7 @@ public class ShiftService {
         if (shuttle.isPresent() && ShuttleRepository.STATUS_IN_SERVICE.equals(shuttle.get().getCurrentStatus())) {
             Repositories.shuttles().updateStatus(closed.getShuttleId(), ShuttleRepository.STATUS_AVAILABLE);
         }
+        TrackingService.finishShift(active.getShuttleId(), active.getShiftId());
         return closed;
     }
 

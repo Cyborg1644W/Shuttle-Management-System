@@ -12,18 +12,19 @@ public final class LiveMapUiStateTest {
         check(trip.append(0, 0, start - 1, 0, 0) == trip);
         check(trip.append(Double.NaN, 0, start, 0, 0) == trip);
         check(trip.append(0, 181, start, 0, 0) == trip);
-        trip = trip.append(0, 0, start, 0, Float.NaN);
+        check(trip.append(0, 0, start, 0, Float.NaN) == trip);
+        trip = trip.append(0, 1, start, 0, Float.NaN);
         check(trip.phase(start + 29_999) == LiveMapUiState.Phase.TRACKING);
         check(trip.phase(start + 30_000) == LiveMapUiState.Phase.WEAK_SIGNAL);
         LiveMapUiState.Fix first = trip.last;
-        LiveMapUiState jitter = trip.append(0, 0.00001, start + 5000, 0, 0);
+        LiveMapUiState jitter = trip.append(0, 1.00001, start + 5000, 0, 0);
         check(jitter.last.distanceKm == 0 && jitter.last.lon != first.lon);
-        trip = trip.append(0, 0, start + 30_001, 0, Float.NaN);
+        trip = trip.append(0, 1, start + 30_001, 0, Float.NaN);
         check(trip.phase(trip.last.time) == LiveMapUiState.Phase.TRACKING);
         check(trip.append(1, 1, start, 0, 0) == trip);
-        check(trip.routeString().equals("0.0,0.0"));
+        check(trip.routeString().equals("0.0,1.0"));
         for (int i = 1; i <= 10_000; i++) {
-            trip = trip.append(0, i / 100_000.0, trip.last.time + 5000, 1, 90);
+            trip = trip.append(0, 1 + i / 100_000.0, trip.last.time + 5000, 1, 90);
         }
         Deque<LiveMapUiState.Fix> missed = trip.fixesAfter(first);
         check(missed.size() == 10_001 && missed.getFirst().previous == first && missed.getLast() == trip.last);
@@ -33,7 +34,7 @@ public final class LiveMapUiStateTest {
         check(ended.phase(ended.end) == LiveMapUiState.Phase.ENDED && ended.pendingUpload);
         check(ended.append(0, 1, ended.end + 1, 0, 0) == ended);
         String route = ended.routeString();
-        check(route.split(";").length == 10_001 && route.endsWith("0.0,0.1"));
+        check(route.split(";").length == 10_001 && route.endsWith("0.0,1.1"));
         check(ended.endAt(ended.end, false).last == trip.last);
         System.out.println("Live map state, stale GPS, incremental rendering and 10,000-point completion passed.");
     }

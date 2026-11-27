@@ -25,6 +25,7 @@ public final class Repositories {
     private static DatedShiftRepository datedShifts;
     private static TerminalRepository terminals;
     private static boolean initialized;
+    private static boolean reloadRequired;
 
     private Repositories() {
     }
@@ -69,26 +70,30 @@ public final class Repositories {
     /** Cloud writes are staged until all validation, mutations and response serialization succeed. */
     public static <T> T transact(java.util.concurrent.Callable<T> operation) throws Exception {
         synchronized (LOCK) {
-            if (!CsvStorage.isCloud()) return operation.call();
-            CsvStorage.refresh();
+            if (CsvStorage.refresh()) reloadRequired = true;
             CsvStorage.begin();
             java.util.Map<String, String> sessions = Auth.snapshotSessions();
             java.util.Map<String, TrackingService.Position> positions = TrackingService.snapshot();
             Log.beginTransaction();
+            boolean committingWrites = false;
             try {
-                reload();
+                if (reloadRequired) {
+                    reload();
+                    reloadRequired = false;
+                }
                 T result = operation.call();
+                committingWrites = CsvStorage.hasWrites();
                 CsvStorage.commit();
                 Log.commitTransaction();
                 return result;
             } catch (Exception failure) {
+                reloadRequired |= committingWrites || CsvStorage.hasWrites();
                 CsvStorage.rollback();
                 Auth.restoreSessions(sessions);
                 TrackingService.restore(positions);
                 Log.rollbackTransaction();
-                // Reconstruct the in-memory repositories from the last committed dataset.
-                // Any later request refreshes R2 again, including after an uncertain upload.
-                try { reload(); } catch (Exception recovery) { failure.addSuppressed(recovery); }
+                // The next request recovers any interrupted local commit and reloads the last
+                // committed tables before authentication or any other read can observe these changes.
                 throw failure;
             }
         }

@@ -48,7 +48,7 @@ public final class LiveMapUiState {
     }
 
     LiveMapUiState append(double lat, double lon, long time, float speed, float bearing) {
-        if (!active() || !valid(lat, lon) || time < start || (last != null && time <= last.time)) return this;
+        if (!active() || !ValidationUtil.isTrackingFix(lat, lon) || time < start || (last != null && time <= last.time)) return this;
         return new LiveMapUiState(shiftId, shuttleId, start, end, pendingUpload,
                 new Fix(last, lat, lon, time, speed, bearing), terminalLat, terminalLon);
     }

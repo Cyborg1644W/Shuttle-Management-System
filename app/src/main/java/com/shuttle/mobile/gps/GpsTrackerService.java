@@ -130,9 +130,10 @@ public class GpsTrackerService extends Service {
                     long time = location.getTime();
                     float speed = location.hasSpeed() ? location.getSpeed() : 0f;
                     String unit = shuttleId;
-                    routes.record(shiftId, lat, lon, time, speed,
-                            location.hasBearing() ? location.getBearing() : Float.NaN,
-                            () -> upload(ApiClient.buildLocationJson(unit, lat, lon, speed, time)));
+                    String shift = shiftId;
+                    float bearing = location.hasBearing() ? location.getBearing() : Float.NaN;
+                    routes.record(shift, lat, lon, time, speed, bearing,
+                            () -> upload(ApiClient.buildLocationJson(unit, lat, lon, speed, time, shift, bearing)));
                 }
             }
         };

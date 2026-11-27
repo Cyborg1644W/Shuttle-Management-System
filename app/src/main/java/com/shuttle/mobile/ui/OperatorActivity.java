@@ -86,12 +86,14 @@ public class OperatorActivity extends AppCompatActivity {
     private String currentFilter = "ALL";
     private FleetConnectionUi.Membership fleetMembership;
     private boolean workersLoaded;
+    private FleetApi.Call staffCall, membershipCall;
     private String workerError;
     private TextView btnFleetConnection;
     private final Handler refreshHandler = new Handler(Looper.getMainLooper());
     private final Runnable staffRefresh = new Runnable() {
         @Override public void run() {
-            if (fleetMembership != null && fleetMembership.joined) refreshStaff();
+            if (currentTab == TAB_WORKERS && staffCall == null && fleetMembership != null && fleetMembership.joined) refreshStaff();
+            if (fleetMembership == null && membershipCall == null) refreshFleetConnection();
             notificationBadge.refresh();
             refreshHandler.postDelayed(this, 10000);
         }
@@ -113,6 +115,8 @@ public class OperatorActivity extends AppCompatActivity {
     private View pageWorkers;
     private View pageSchedule;
     private View pageDashboard;
+    private FleetStatusPanel fleetStatusPanel;
+    private boolean foreground;
     private View pageFleet;
     private ImageView ivNavWorkers;
     private ImageView ivNavSchedule;
@@ -188,8 +192,9 @@ public class OperatorActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         if (!Session.isSignedIn() || btnFleetConnection == null) return;
+        foreground = true;
+        if (fleetStatusPanel != null) fleetStatusPanel.visible(currentTab == TAB_DASHBOARD);
         tvHeaderAvatar.setContentDescription("Account menu for " + Session.getName());
-        if (pageDashboard != null && currentTab == TAB_DASHBOARD) Dashboard.refresh(pageDashboard);
         refreshFleetConnection();
         notificationBadge.refresh();
         refreshHandler.removeCallbacks(staffRefresh);
@@ -198,9 +203,19 @@ public class OperatorActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
+        foreground = false;
+        if (membershipCall != null) membershipCall.cancel();
+        if (staffCall != null) staffCall.cancel();
+        membershipCall = staffCall = null;
+        if (fleetStatusPanel != null) fleetStatusPanel.visible(false);
         if (notificationBadge != null) notificationBadge.pause();
         refreshHandler.removeCallbacks(staffRefresh);
         super.onPause();
+    }
+
+    @Override protected void onDestroy() {
+        if (fleetStatusPanel != null) fleetStatusPanel.destroy();
+        super.onDestroy();
     }
 
     private void showFleetConnection() {
@@ -213,13 +228,18 @@ public class OperatorActivity extends AppCompatActivity {
     }
 
     private void refreshFleetConnection() {
-        FleetApi.get("/fleet", new FleetApi.Callback() {
+        if (!foreground) return;
+        if (membershipCall != null) membershipCall.cancel();
+        membershipCall = FleetApi.poll("/fleet", new FleetApi.Callback() {
             @Override public void onSuccess(JSONObject json) {
                 if (isFinishing() || isDestroyed()) return;
+                membershipCall = null;
                 fleetMembership = new FleetConnectionUi.Membership(json);
                 if (fleetMembership.joined) {
-                    refreshStaff();
+                    if (currentTab == TAB_WORKERS) refreshStaff();
                 } else {
+                    if (staffCall != null) staffCall.cancel();
+                    staffCall = null;
                     workers.clear();
                     workersLoaded = true;
                     workerError = null;
@@ -229,15 +249,19 @@ public class OperatorActivity extends AppCompatActivity {
             }
             @Override public void onError(int status, String message) {
                 if (isFinishing() || isDestroyed()) return;
+                membershipCall = null;
                 handleServerError(status, message);
             }
         });
     }
 
     private void refreshStaff() {
-        FleetApi.get("/workers", new FleetApi.Callback() {
+        if (!foreground) return;
+        if (staffCall != null) staffCall.cancel();
+        staffCall = FleetApi.poll("/workers", new FleetApi.Callback() {
             @Override public void onSuccess(JSONObject json) {
                 if (isFinishing() || isDestroyed()) return;
+                staffCall = null;
                 JSONArray rows = json.optJSONArray("workers");
                 if (rows == null) {
                     handleServerError(0, "The server sent an unexpected staff list.");
@@ -270,6 +294,7 @@ public class OperatorActivity extends AppCompatActivity {
             }
             @Override public void onError(int status, String message) {
                 if (isFinishing() || isDestroyed()) return;
+                staffCall = null;
                 handleServerError(status, message);
             }
         });
@@ -296,13 +321,12 @@ public class OperatorActivity extends AppCompatActivity {
 
     private void showTab(int tab) {
         currentTab = tab;
-        boolean dashboardCreated = false;
 
         if (tab == TAB_DASHBOARD && pageDashboard == null) {
             ViewGroup parent = (ViewGroup) pageSchedule.getParent();
             pageDashboard = addPage(Dashboard.create(this, parent));
+            fleetStatusPanel = new FleetStatusPanel(this, pageDashboard);
             pageDashboard.findViewById(R.id.btnDashboardViewFleet).setOnClickListener(v -> showTab(TAB_FLEET));
-            dashboardCreated = true;
         }
         boolean fleetCreated = false;
         if (tab == TAB_FLEET && pageFleet == null) {
@@ -315,6 +339,7 @@ public class OperatorActivity extends AppCompatActivity {
         pageSchedule.setVisibility(tab == TAB_SCHEDULE ? View.VISIBLE : View.GONE);
         if (pageDashboard != null) {
             pageDashboard.setVisibility(tab == TAB_DASHBOARD ? View.VISIBLE : View.GONE);
+            fleetStatusPanel.visible(foreground && tab == TAB_DASHBOARD);
         }
         if (pageFleet != null) {
             pageFleet.setVisibility(tab == TAB_FLEET ? View.VISIBLE : View.GONE);
@@ -326,9 +351,9 @@ public class OperatorActivity extends AppCompatActivity {
         styleNav(ivNavSchedule, tvNavSchedule, tab == TAB_SCHEDULE);
         styleNavGroup(navDashboard, tab == TAB_DASHBOARD);
         styleNavGroup(navFleet, tab == TAB_FLEET);
-        if (tab == TAB_DASHBOARD && !dashboardCreated) Dashboard.refresh(pageDashboard);
         if (tab == TAB_FLEET && !fleetCreated) Fleet.refresh(pageFleet);
         if (tab == TAB_SCHEDULE) SchedulePage.refresh(pageSchedule);
+        if (tab == TAB_WORKERS && foreground && fleetMembership != null && fleetMembership.joined) refreshStaff();
     }
 
     private View addPage(View page) {

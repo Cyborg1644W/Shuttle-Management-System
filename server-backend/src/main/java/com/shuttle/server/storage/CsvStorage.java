@@ -29,6 +29,8 @@ public final class CsvStorage {
     private static Map<String, String> committed = new LinkedHashMap<>();
     private static Map<String, String> staged;
     private static Thread owner;
+    private static Path localJournal;
+    private static boolean localRecoveryNeeded;
     private static String etag;
     private static boolean initialized;
 
@@ -49,7 +51,6 @@ public final class CsvStorage {
                     java.time.Clock.systemUTC(), java.net.http.HttpClient.newBuilder()
                     .connectTimeout(java.time.Duration.ofSeconds(10)).followRedirects(java.net.http.HttpClient.Redirect.NEVER).build(),
                     ServerConfig.allowInsecureR2Localhost());
-            managed = paths;
         } else {
             for (Path path : paths.keySet()) {
                 String name = path.getFileName().toString();
@@ -61,6 +62,11 @@ public final class CsvStorage {
                 }
             }
         }
+        managed = paths;
+        if (!isCloud()) {
+            localJournal = normalize(ServerConfig.getShiftsCsvPath()).resolveSibling("pending-tables.properties");
+            localRecoveryNeeded = Files.exists(localJournal);
+        }
         initialized = true;
     }
 
@@ -68,7 +74,20 @@ public final class CsvStorage {
 
     /** Called under Repositories.LOCK, before resolving request authentication. */
     public static boolean refresh() throws IOException {
-        if (!isCloud()) return false;
+        if (!isCloud()) {
+            if (!localRecoveryNeeded) return false;
+            java.util.Properties writes = new java.util.Properties();
+            try (java.io.Reader reader = Files.newBufferedReader(localJournal)) {
+                writes.load(reader);
+            }
+            for (var entry : managed.entrySet()) {
+                String contents = writes.getProperty(entry.getValue());
+                if (contents != null) AtomicFileWriter.writeAtomically(entry.getKey(), contents);
+            }
+            Files.delete(localJournal);
+            localRecoveryNeeded = false;
+            return true;
+        }
         if (staged != null) throw new IllegalStateException("Cannot refresh during a storage transaction");
         ObjectStore.Versioned version = cloud.get();
         if (version == null) {
@@ -83,15 +102,33 @@ public final class CsvStorage {
     }
 
     public static void begin() {
-        if (!isCloud()) return;
         if (staged != null) throw new IllegalStateException("Nested storage transaction");
-        staged = new LinkedHashMap<>(committed);
+        staged = isCloud() ? new LinkedHashMap<>(committed) : new LinkedHashMap<>();
         owner = Thread.currentThread();
     }
 
     public static void commit() throws IOException {
-        if (!isCloud()) return;
         requireOwner();
+        if (!isCloud()) {
+            // Publish the complete write set before replacing any of its individual CSV files.
+            // After an interruption refresh() finishes that same commit before servicing a reader.
+            if (staged.size() > 1) {
+                java.util.Properties writes = new java.util.Properties();
+                writes.putAll(staged);
+                java.io.StringWriter journal = new java.io.StringWriter();
+                writes.store(journal, null);
+                AtomicFileWriter.writeAtomically(localJournal, journal.toString());
+                localRecoveryNeeded = true;
+                refresh();
+            } else if (!staged.isEmpty()) {
+                for (var entry : managed.entrySet()) {
+                    String contents = staged.get(entry.getValue());
+                    if (contents != null) AtomicFileWriter.writeAtomically(entry.getKey(), contents);
+                }
+            }
+            rollback();
+            return;
+        }
         try {
             if (staged.equals(committed)) return;
             if (!complete(staged)) {
@@ -123,6 +160,10 @@ public final class CsvStorage {
         }
     }
 
+    public static boolean hasWrites() {
+        return staged != null && (isCloud() ? !staged.equals(committed) : !staged.isEmpty());
+    }
+
     public static void rollback() {
         staged = null;
         owner = null;
@@ -130,12 +171,13 @@ public final class CsvStorage {
 
     public static boolean exists(Path path) {
         String name = managed.get(normalize(path));
-        return name == null ? Files.exists(path) : current().containsKey(name);
+        if (name == null) return Files.exists(path);
+        return current().containsKey(name) || (!isCloud() && Files.exists(path));
     }
 
     public static String read(Path path) throws IOException {
         String name = managed.get(normalize(path));
-        if (name == null) return AtomicFileWriter.readString(path);
+        if (name == null || (!isCloud() && !current().containsKey(name))) return AtomicFileWriter.readString(path);
         String text = current().get(name);
         if (text == null) throw new IOException("Missing cloud table: " + name);
         return text;
@@ -143,7 +185,7 @@ public final class CsvStorage {
 
     public static void write(Path path, String contents) throws IOException {
         String name = managed.get(normalize(path));
-        if (name == null) {
+        if (name == null || (!isCloud() && staged == null)) {
             AtomicFileWriter.writeAtomically(path, contents);
             return;
         }
