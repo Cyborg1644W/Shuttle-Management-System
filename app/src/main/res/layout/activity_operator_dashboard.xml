@@ -1,281 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/background"
-    android:fillViewport="true"
-    android:scrollbars="none">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="16dp"
-        android:paddingTop="20dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="100dp">
-
-        <TextView
-            style="@style/Fleet.Display"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Dashboard"
-            android:textColor="@color/text_primary" />
-
-        <TextView
-            style="@style/Fleet.Body"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Shifts and unit status at a glance"
-            android:textColor="@color/text_secondary" />
-
-        <!-- Top stat cards -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:layout_weight="1"
-                android:background="@drawable/stat_card_bg"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    style="@style/Fleet.Overline"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Total shifts"
-                    android:textColor="@color/text_secondary" />
-
-                <TextView
-                    android:id="@+id/tvTotalShifts"
-                    style="@style/Fleet.Display"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="0"
-                    android:textColor="@color/brand_600" />
-
-                <TextView
-                    style="@style/Fleet.Caption"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="All recorded shifts"
-                    android:textColor="@color/text_secondary" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:background="@drawable/stat_card_bg"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    style="@style/Fleet.Overline"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Total units"
-                    android:textColor="@color/text_secondary" />
-
-                <TextView
-                    android:id="@+id/tvTotalUnits"
-                    style="@style/Fleet.Display"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="0"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    style="@style/Fleet.Caption"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Shuttles in the fleet"
-                    android:textColor="@color/text_secondary" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <TextView
-            style="@style/Fleet.Title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="Unit status"
-            android:textColor="@color/text_primary" />
-
-        <!-- Status card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/stat_card_bg"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <!-- Proportion bar -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="12dp"
-                android:background="@drawable/bg_ff_chip"
-                android:backgroundTint="@color/ff_inactive_soft"
-                android:clipToOutline="true"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/barActive"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="@color/ff_active" />
-
-                <View
-                    android:id="@+id/barInactive"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="@color/ff_inactive" />
-
-                <View
-                    android:id="@+id/barMaint"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="@color/ff_maint" />
-            </LinearLayout>
-
-            <!-- Active row -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <View
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:background="@drawable/bg_ff_dot"
-                    android:backgroundTint="@color/ff_active" />
-
-                <TextView
-                    style="@style/Fleet.Body"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:text="Active"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:id="@+id/tvActiveCount"
-                    style="@style/Fleet.Title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="0"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:id="@+id/tvActivePct"
-                    style="@style/Fleet.Caption"
-                    android:layout_width="48dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="end"
-                    android:text="0%"
-                    android:textColor="@color/text_secondary" />
-            </LinearLayout>
-
-            <!-- Inactive row -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <View
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:background="@drawable/bg_ff_dot"
-                    android:backgroundTint="@color/ff_inactive" />
-
-                <TextView
-                    style="@style/Fleet.Body"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:text="Inactive"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:id="@+id/tvInactiveCount"
-                    style="@style/Fleet.Title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="0"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:id="@+id/tvInactivePct"
-                    style="@style/Fleet.Caption"
-                    android:layout_width="48dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="end"
-                    android:text="0%"
-                    android:textColor="@color/text_secondary" />
-            </LinearLayout>
-
-            <!-- In maintenance row -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <View
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:background="@drawable/bg_ff_dot"
-                    android:backgroundTint="@color/ff_maint" />
-
-                <TextView
-                    style="@style/Fleet.Body"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:text="In maintenance"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:id="@+id/tvMaintCount"
-                    style="@style/Fleet.Title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="0"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:id="@+id/tvMaintPct"
-                    style="@style/Fleet.Caption"
-                    android:layout_width="48dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="end"
-                    android:text="0%"
-                    android:textColor="@color/text_secondary" />
-            </LinearLayout>
-        </LinearLayout>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:background="@color/background">
+ <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp" android:orientation="vertical">
+  <TextView android:id="@+id/tvDashboardGreeting" style="@style/Fleet.Display" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Welcome!" android:textSize="23sp" />
+  <TextView android:id="@+id/tvDashboardDate" style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textSize="12sp" />
+  <TextView style="@style/Fleet.Subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="36dp" android:text="Daily Operations Overview:" android:textSize="14sp" />
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+   <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="112dp" android:layout_weight="1" android:padding="12dp" android:orientation="vertical" android:background="@drawable/bg_ff_card" android:layout_marginStart="4dp" android:layout_marginEnd="4dp"><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical"><ImageView android:layout_width="24dp" android:layout_height="24dp" android:padding="4dp" android:src="@drawable/ic_nav_schedule" android:contentDescription="@null" android:background="@drawable/icon_square_bg" app:tint="@color/primary" /><TextView style="@style/Fleet.Caption" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:text="Active Shifts" android:textColor="@color/text_primary" android:textSize="13sp" android:textStyle="bold" /></LinearLayout><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:gravity="bottom"><TextView android:id="@+id/tvDashboardActiveShifts" style="@style/Fleet.Display" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" android:textSize="34sp" /><TextView style="@style/Fleet.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5dp" android:layout_marginBottom="6dp" android:text="Ongoing" android:textSize="10sp" /></LinearLayout></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="112dp" android:layout_weight="1" android:padding="12dp" android:orientation="vertical" android:background="@drawable/bg_ff_card" android:layout_marginStart="4dp" android:layout_marginEnd="4dp"><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical"><ImageView android:layout_width="24dp" android:layout_height="24dp" android:padding="4dp" android:src="@drawable/ic_nav_workers" android:contentDescription="@null" android:background="@drawable/icon_square_bg" app:tint="@color/primary" /><TextView style="@style/Fleet.Caption" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:text="Drivers on Duty" android:textColor="@color/text_primary" android:textSize="13sp" android:textStyle="bold" /></LinearLayout><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:gravity="bottom"><TextView android:id="@+id/tvDashboardDriversOnDuty" style="@style/Fleet.Display" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" android:textSize="34sp" /><TextView style="@style/Fleet.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5dp" android:layout_marginBottom="6dp" android:text="Working" android:textSize="10sp" /></LinearLayout></LinearLayout>
+  </LinearLayout>
+  <TextView style="@style/Fleet.Subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="36dp" android:text="Fleet Status:" android:textSize="14sp" />
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:padding="12dp" android:background="@drawable/bg_ff_card" android:orientation="vertical">
+   <TextView android:id="@+id/tvDashboardTotalUnits" style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="end" android:textSize="12sp" android:text="— units total" />
+   <LinearLayout android:layout_width="match_parent" android:layout_height="7dp" android:layout_marginTop="8dp" android:background="@color/border">
+    <View android:id="@+id/barDashboardInService" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0" android:background="@color/success" />
+    <View android:id="@+id/barDashboardOther" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0" android:background="@color/border" />
+    <View android:id="@+id/barDashboardAvailable" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0" android:background="@color/accent" />
+   </LinearLayout>
+   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp">
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+     <TextView style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="● In Service" android:textColor="@color/success" android:textSize="12sp" />
+     <TextView android:id="@+id/tvDashboardInService" style="@style/Fleet.Display" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="—" android:textSize="30sp" />
     </LinearLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+     <TextView style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="● Available" android:textColor="@color/primary" android:textSize="12sp" />
+     <TextView android:id="@+id/tvDashboardAvailable" style="@style/Fleet.Display" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="—" android:textSize="30sp" />
+    </LinearLayout>
+   </LinearLayout>
+   <TextView style="@style/Fleet.Caption" android:layout_width="match_parent" android:layout_height="wrap_content"
+       android:text="@string/fleet_map_gestures" android:layout_marginTop="8dp" />
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center_vertical">
+   <TextView android:id="@+id/tvDashboardLoadState" style="@style/Fleet.Caption" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:accessibilityLiveRegion="polite" android:text="@string/dashboard_loading" />
+   <TextView android:id="@+id/btnDashboardRetry" style="@style/Fleet.AuthLink" android:text="Retry" android:visibility="gone" />
+  </LinearLayout>
+   <com.shuttle.mobile.ui.FleetStatusMap android:id="@+id/fleetStatusMap" android:layout_width="match_parent" android:layout_height="320dp" android:layout_marginTop="12dp" />
+
+    <LinearLayout android:id="@+id/fleetInspector" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="6dp" android:padding="9dp"
+        android:background="@drawable/bg_ff_card" android:orientation="vertical" android:visibility="gone">
+        <TextView android:id="@+id/fleetInspectorUnit" style="@style/Fleet.Subtitle"
+            android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <TextView android:id="@+id/fleetInspectorAssignment" style="@style/Fleet.Caption"
+            android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <TextView android:id="@+id/fleetInspectorSignal" style="@style/Fleet.Caption"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/text_primary" />
+    </LinearLayout>
+   <LinearLayout android:id="@+id/fleetStatusUnits" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+    <TextView android:id="@+id/fleetCompleted" style="@style/Fleet.AuthLink" android:layout_width="0dp" android:layout_weight="1" android:minHeight="48dp" android:gravity="start|center_vertical" android:text="@string/fleet_completed" />
+    <TextView android:id="@+id/btnDashboardViewFleet" style="@style/Fleet.AuthLink" android:layout_width="wrap_content" android:gravity="end|center_vertical" android:text="View Fleet" android:minHeight="48dp" />
+   </LinearLayout>
+  </LinearLayout>
+ </LinearLayout>
 </ScrollView>

@@ -22,7 +22,7 @@ import java.util.Optional;
 
 public class ShiftService {
 
-    private static final int MAX_ROUTE_CHARS = 20_000;
+    private static final int MAX_ROUTE_CHARS = 2 * 1024 * 1024;
 
     public static ShiftRecord start(Worker worker) throws IOException {
         synchronized (Repositories.LOCK) {
@@ -33,8 +33,8 @@ public class ShiftService {
             Driver driver = (Driver) Repositories.workers().findById(worker.getEmployeeID())
                     .orElseThrow(() -> new ApiException(404, "Worker not found"));
 
-            if (driver.getActiveShiftId() != null
-                    || Repositories.shifts().findActiveByDriverId(driver.getEmployeeID()).isPresent()) {
+            // The shift table is authoritative, including after upgrading older partial local saves.
+            if (Repositories.shifts().findActiveByDriverId(driver.getEmployeeID()).isPresent()) {
                 throw new ApiException(409, "You already have a shift running");
             }
             String shuttleId = driver.getAssignedShuttleId();
@@ -75,12 +75,30 @@ public class ShiftService {
     }
 
     public static ShiftRecord end(Worker worker, double distanceKm, int stops, String route) throws IOException {
+        return end(worker, distanceKm, stops, route, "", 0);
+    }
+
+    public static ShiftRecord end(Worker worker, double distanceKm, int stops, String route,
+                                  String shiftId, long recordedEnd) throws IOException {
         synchronized (Repositories.LOCK) {
+            if (shiftId != null && !shiftId.isEmpty()) {
+                // Replaying an offline end must never close a newer shift for the same driver.
+                ShiftRecord requested = get(shiftId);
+                if (!worker.getEmployeeID().equals(requested.getDriverId())) {
+                    throw new ApiException(403, "That shift belongs to another driver");
+                }
+                if (requested.getEndTime() > 0) return requested;
+            }
             ShiftRecord active = Repositories.shifts().findActiveByDriverId(worker.getEmployeeID())
                     .orElseThrow(() -> new ApiException(409, "You have no shift running"));
-            String safeRoute = route == null ? "" : route.length() > MAX_ROUTE_CHARS ? "" : route;
+            if (shiftId != null && !shiftId.isEmpty() && !shiftId.equals(active.getShiftId())) {
+                throw new ApiException(409, "That shift is no longer active");
+            }
+            if (route != null && route.length() > MAX_ROUTE_CHARS) {
+                throw new ApiException(413, "Recorded route exceeds the trip size limit");
+            }
             ShiftRecord done = close(active, ShiftRepository.STATUS_COMPLETED,
-                    Math.max(0, distanceKm), Math.max(0, stops), safeRoute);
+                    Math.max(0, distanceKm), Math.max(0, stops), route == null ? "" : route, recordedEnd);
             Log.info("Driver " + worker.getEmployeeID() + " ended " + done.getShiftId());
             return done;
         }
@@ -90,14 +108,15 @@ public class ShiftService {
         synchronized (Repositories.LOCK) {
             Optional<ShiftRecord> active = Repositories.shifts().findActiveByDriverId(driverId);
             if (active.isPresent()) {
-                close(active.get(), finalStatus, 0, 0, null);
+                close(active.get(), finalStatus, 0, 0, null, 0);
             }
         }
     }
 
     private static ShiftRecord close(ShiftRecord active, String finalStatus,
-                                     double distanceKm, int stops, String route) throws IOException {
-        long end = Math.max(System.currentTimeMillis(), active.getStartTime());
+                                     double distanceKm, int stops, String route, long recordedEnd) throws IOException {
+        long now = System.currentTimeMillis();
+        long end = Math.max(active.getStartTime(), recordedEnd > 0 ? Math.min(now, recordedEnd) : now);
         ShiftRecord closed = Repositories.shifts()
                 .closeShift(active.getShiftId(), end, finalStatus, distanceKm, stops, route)
                 .orElseThrow(() -> new ApiException(409, "That shift is already closed"));
@@ -113,6 +132,7 @@ public class ShiftService {
         if (shuttle.isPresent() && ShuttleRepository.STATUS_IN_SERVICE.equals(shuttle.get().getCurrentStatus())) {
             Repositories.shuttles().updateStatus(closed.getShuttleId(), ShuttleRepository.STATUS_AVAILABLE);
         }
+        TrackingService.finishShift(active.getShuttleId(), active.getShiftId());
         return closed;
     }
 

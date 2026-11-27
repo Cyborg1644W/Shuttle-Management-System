@@ -1,0 +1,2 @@
+shiftId,driverId,shuttleId,startTime,endTime,status,distanceKm,stops,terminal,route
+SHF-000001,EMP-0001,SH-001,1735689600000,1735722000000,COMPLETED,18.5,6,Main Terminal,Campus Loop

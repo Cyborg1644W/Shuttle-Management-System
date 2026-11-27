@@ -14,9 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static com.shuttle.server.Csv.filled;
-import static com.shuttle.server.Csv.lng;
-import static com.shuttle.server.Csv.num;
 import static com.shuttle.server.Csv.str;
 
 public class ShuttleLocationHandler extends BaseHandler {
@@ -29,6 +26,7 @@ public class ShuttleLocationHandler extends BaseHandler {
     }
 
     private Response processScoped(Request r) throws Exception {
+        if (!"shuttles".equals(r.seg(0)) || r.seg(3) != null) throw new ApiException(404, "Endpoint Not Found");
         String id = r.seg(1);
         String action = r.seg(2);
         if (id != null) {
@@ -63,17 +61,14 @@ public class ShuttleLocationHandler extends BaseHandler {
                 TerminalService.detachShuttle(r.worker(), id);
                 return ok(Csv.obj("removed", true));
             }
-        } else if (action.equals("location") && r.is("POST")) {
+        } else if (action.equals("location")) {
+            if (!r.is("POST")) throw new ApiException(405, "Method Not Allowed");
             Worker me = r.worker();
             if (me instanceof Driver && !id.equalsIgnoreCase(nz(((Driver) me).getAssignedShuttleId()))) {
                 throw new ApiException(403, "You can only report the position of your own vehicle");
             }
-            if (!filled(r.body, "latitude") || !filled(r.body, "longitude")) {
-                throw new ApiException(400, "latitude and longitude are required");
-            }
-            TrackingService.updateLocation(id, num(r.body, "latitude"), num(r.body, "longitude"),
-                    num(r.body, "speed"), lng(r.body, "timestamp"));
-            return ok(Csv.obj("status", "Location updated"));
+            boolean accepted = TrackingService.report(id, r.body);
+            return ok(Csv.obj("status", accepted ? "Location updated" : "Location already superseded"));
         } else if (action.equals("status") && r.is("PUT")) {
             r.requireOperator();
             return ok(FleetService.toRow(FleetService.setStatus(id, str(r.body, "status"))));

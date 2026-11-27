@@ -96,6 +96,7 @@ public class ReportService {
 
     public static List<Map<String, Object>> schedule(Worker actor) {
         synchronized (Repositories.LOCK) {
+            boolean managesTerminal = actor.getRole() == Role.OPERATOR && !TerminalService.terminalId(actor).isEmpty();
             List<Map<String, Object>> out = new ArrayList<>();
             for (ScheduleRepository.Entry e : Repositories.schedule().getAll()) {
                 if (!TerminalService.canAccessWorker(actor, e.employeeId)
@@ -109,7 +110,9 @@ public class ReportService {
                 Worker w = found.get();
                 String place = String.valueOf(TerminalService.getState(w).get("terminalName"));
                 out.add(Csv.obj("employeeId", w.getEmployeeID(), "name", w.getFullName(),
-                        "role", w.getRole().name(), "place", place, "shift", e.shift, "days", e.days));
+                        "role", w.getRole().name(), "place", place, "shift", e.shift, "days", e.days,
+                        "shuttleId", w instanceof com.shuttle.common.Driver driver ? nz(driver.getAssignedShuttleId()) : "",
+                        "canRemove", managesTerminal && Repositories.shifts().findActiveByDriverId(e.employeeId).isEmpty()));
             }
             return out;
         }
@@ -122,8 +125,10 @@ public class ReportService {
             }
             TerminalService.requireJoined(actor);
             List<ScheduleRepository.Entry> fresh = new ArrayList<>();
+            List<ScheduleRepository.Entry> previous = Repositories.schedule().getAll();
+            var dated = Repositories.datedShifts().all();
             // PUT replaces this terminal's schedule only. Other terminals retain theirs.
-            for (ScheduleRepository.Entry entry : Repositories.schedule().getAll()) {
+            for (ScheduleRepository.Entry entry : previous) {
                 if (!TerminalService.canAccessWorker(actor, entry.employeeId)) {
                     fresh.add(entry);
                 }
@@ -134,11 +139,30 @@ public class ReportService {
                 if (!Repositories.workers().existsById(id)) {
                     throw new ApiException(400, "Unknown employee: " + id);
                 }
-                fresh.add(new ScheduleRepository.Entry(id, (int) Csv.lng(m, "shift"), str(m, "days")));
+                ScheduleRepository.Entry rule = new ScheduleRepository.Entry(id, (int) Csv.lng(m, "shift"), str(m, "days"));
+                boolean unchanged = previous.stream().anyMatch(e ->
+                        e.employeeId.equals(rule.employeeId) && e.shift == rule.shift && e.days.equals(rule.days));
+                if (!unchanged) DatedShiftService.rejectDatedConflict(rule, dated);
+                fresh.add(rule);
             }
             Repositories.schedule().replaceAll(fresh);
             return schedule(actor);
         }
+    }
+
+    public static Map<String, Object> removeSchedule(Worker actor, String employeeId, int shift,
+                                                     String days, String date) throws IOException {
+        TerminalService.requireOperator(actor);
+        TerminalService.requireJoined(actor);
+        TerminalService.requireWorker(actor, employeeId);
+        List<ScheduleRepository.Entry> entries = Repositories.schedule().getAll();
+        ScheduleRepository.Entry target = entries.stream()
+                .filter(entry -> entry.employeeId.equals(employeeId) && entry.shift == shift && entry.days.equals(days))
+                .findFirst().orElseThrow(() -> new ApiException(404, "This weekly schedule changed. Refresh the calendar."));
+        DatedShiftService.requireUpcomingWeekly(target, date);
+        entries.remove(target);
+        Repositories.schedule().replaceAll(entries);
+        return Csv.obj("removed", true);
     }
 
     private static String nz(String v) {

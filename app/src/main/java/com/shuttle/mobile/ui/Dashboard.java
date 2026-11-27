@@ -6,70 +6,52 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.shuttle.mobile.R;
-import com.shuttle.mobile.client.ApiClient;
+import java.text.DateFormat;
+import java.util.Date;
 
-import org.json.JSONObject;
+final class Dashboard {
+    private Dashboard() { }
 
-public final class Dashboard {
-
-    private Dashboard() {
-    }
-
-    public static View create(Context context, ViewGroup parent) {
-        View root = LayoutInflater.from(context)
-                .inflate(R.layout.activity_operator_dashboard, parent, false);
-
-        // Show zeros right away, then fill in the real numbers from the server.
-        show(root, 0, 0, 0, 0);
-
-        final Context appContext = context.getApplicationContext();
-        ApiClient.getInstance().getDashboard(new ApiClient.Callback<JSONObject>() {
-            @Override
-            public void onSuccess(JSONObject data) {
-                show(root,
-                        data.optInt("totalShifts"),
-                        data.optInt("activeUnits"),
-                        data.optInt("inactiveUnits"),
-                        data.optInt("maintenanceUnits"));
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(appContext,
-                        "Could not load dashboard: " + message, Toast.LENGTH_SHORT).show();
-            }
-        });
-
+    static View create(Context context, ViewGroup parent) {
+        View root = LayoutInflater.from(context).inflate(R.layout.activity_operator_dashboard, parent, false);
+        String name = Session.getName();
+        TextView greeting = root.findViewById(R.id.tvDashboardGreeting);
+        if (name != null && !name.trim().isEmpty()) {
+            greeting.setText(context.getString(R.string.welcome_name, name.trim().split("\\s+")[0]));
+        }
         return root;
     }
 
-    private static void show(View root, int totalShifts, int active, int inactive, int maintenance) {
-        int totalUnits = active + inactive + maintenance;
-
-        ((TextView) root.findViewById(R.id.tvTotalShifts)).setText(String.valueOf(totalShifts));
-        ((TextView) root.findViewById(R.id.tvTotalUnits)).setText(String.valueOf(totalUnits));
-
-        setStatus(root, R.id.tvActiveCount, R.id.tvActivePct, active, totalUnits);
-        setStatus(root, R.id.tvInactiveCount, R.id.tvInactivePct, inactive, totalUnits);
-        setStatus(root, R.id.tvMaintCount, R.id.tvMaintPct, maintenance, totalUnits);
-
-        setBarWeight(root.findViewById(R.id.barActive), active);
-        setBarWeight(root.findViewById(R.id.barInactive), inactive);
-        setBarWeight(root.findViewById(R.id.barMaint), maintenance);
+    static void render(View root, FleetStatusMapUiState state) {
+        String shifts = state.loaded ? String.valueOf(state.units.size()) : "—";
+        text(root, R.id.tvDashboardActiveShifts, shifts);
+        FleetStatusMapUiState.Totals counts = state.totals;
+        text(root, R.id.tvDashboardDriversOnDuty, counts == null ? "—" : String.valueOf(counts.onDuty));
+        text(root, R.id.tvDashboardTotalUnits, counts == null ? "—" :
+                root.getResources().getQuantityString(R.plurals.dashboard_units_total, counts.units, counts.units));
+        text(root, R.id.tvDashboardInService, counts == null ? "—" : String.valueOf(counts.operating));
+        text(root, R.id.tvDashboardAvailable, counts == null ? "—" : String.valueOf(counts.available));
+        weight(root, R.id.barDashboardInService, counts == null ? 0 : counts.operating);
+        weight(root, R.id.barDashboardAvailable, counts == null ? 0 : counts.available);
+        weight(root, R.id.barDashboardOther, counts == null ? 0 : counts.units - counts.operating - counts.available);
+        if (state.connection == FleetStatusMapUiState.Connection.ONLINE) {
+            text(root, R.id.tvDashboardDate, DateFormat.getDateInstance(DateFormat.FULL).format(new Date()));
+        }
     }
 
-    private static void setStatus(View root, int countId, int pctId, int count, int total) {
-        int pct = total > 0 ? Math.round(100f * count / total) : 0;
-        ((TextView) root.findViewById(countId)).setText(String.valueOf(count));
-        ((TextView) root.findViewById(pctId)).setText(pct + "%");
+    private static void text(View root, int id, String value) {
+        TextView label = root.findViewById(id);
+        if (!value.contentEquals(label.getText())) label.setText(value);
     }
 
-    private static void setBarWeight(View bar, int weight) {
-        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) bar.getLayoutParams();
-        lp.weight = weight;
-        bar.setLayoutParams(lp);
+    private static void weight(View root, int id, int value) {
+        View bar = root.findViewById(id);
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) bar.getLayoutParams();
+        if (params.weight != value) {
+            params.weight = value;
+            bar.setLayoutParams(params);
+        }
     }
 }

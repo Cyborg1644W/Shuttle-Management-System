@@ -7,15 +7,18 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.Context;
 import android.location.Location;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.lifecycle.Observer;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -33,16 +36,24 @@ import java.util.concurrent.Executors;
 public class GpsTrackerService extends Service {
 
     public static final String EXTRA_SHUTTLE_ID = "shuttle_id";
-    public static final String EXTRA_SIMULATE = "simulate";
+    public static final String EXTRA_OWNER = "route_owner";
+    public static final String EXTRA_SHIFT = "route_shift";
 
     private static final String TAG = "GpsTrackerService";
     private static final String CHANNEL_ID = "gps_tracker_channel";
     private static final int NOTIFICATION_ID = 1001;
     private static final long INTERVAL_MS = 5000;
 
-    private String shuttleId = "shuttle-1";
+    private String shuttleId, shiftId, owner;
+    private RouteRepository routes;
     private FusedLocationProviderClient fusedLocationClient;
     private LocationCallback locationCallback;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final Runnable retryGps = this::startRealGps;
+    private final Observer<LiveMapUiState> shiftObserver = state -> {
+        if (!state.active() || !state.shiftId.equals(shiftId)) stopSelf();
+        else if (locationCallback == null) startRealGps();
+    };
     private OfflineQueueManager queue;
     private ApiClient api;
 
@@ -62,41 +73,40 @@ public class GpsTrackerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null) {
-            String id = intent.getStringExtra(EXTRA_SHUTTLE_ID);
-            if (id != null) shuttleId = id;
+        if (intent == null || !hasPermission(this) || intent.getStringExtra(EXTRA_OWNER) == null
+                || intent.getStringExtra(EXTRA_SHIFT) == null || intent.getStringExtra(EXTRA_SHUTTLE_ID) == null) {
+            stopSelf();
+            return START_NOT_STICKY;
         }
+        String nextOwner = intent.getStringExtra(EXTRA_OWNER);
+        String nextShift = intent.getStringExtra(EXTRA_SHIFT);
+        shuttleId = intent.getStringExtra(EXTRA_SHUTTLE_ID);
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification());
+        } catch (IllegalStateException | SecurityException denied) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        if (!nextOwner.equals(owner) || !nextShift.equals(shiftId)) {
+            detach();
+            owner = nextOwner;
+            shiftId = nextShift;
+            routes = RouteRepository.open(this, owner);
+            routes.updates().observeForever(shiftObserver);
+        }
+        return START_REDELIVER_INTENT;
+    }
 
-        startForeground(NOTIFICATION_ID, buildNotification());
-
-        // The simulated GPS source was removed (SimulatedGpsSource was missing),
-        // so EXTRA_SIMULATE is ignored and real GPS is always used.
-        startRealGps();
-        return START_STICKY;
+    public static boolean hasPermission(Context context) {
+        return ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                || ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
     private void startRealGps() {
-        boolean fineLocationGranted =
-                ActivityCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED;
-
-        boolean coarseLocationGranted =
-                ActivityCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED;
-
-        if (!fineLocationGranted && !coarseLocationGranted) {
-            Log.e(TAG, "Location permission has not been granted.");
+        if (locationCallback != null) return;
+        if (!hasPermission(this)) {
             stopSelf();
             return;
-        }
-
-        // Don't stack up duplicate callbacks if the service is started twice
-        if (locationCallback != null) {
-            fusedLocationClient.removeLocationUpdates(locationCallback);
         }
 
         LocationRequest locationRequest =
@@ -104,60 +114,51 @@ public class GpsTrackerService extends Service {
                         Priority.PRIORITY_HIGH_ACCURACY,
                         INTERVAL_MS
                 )
+                        .setMaxUpdateAgeMillis(0)
                         .setMinUpdateIntervalMillis(2000)
                         .build();
 
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult result) {
-                if (result == null) {
+                if (result == null || this != locationCallback) {
                     return;
                 }
 
                 for (Location location : result.getLocations()) {
-                    handleNewPosition(
-                            location.getLatitude(),
-                            location.getLongitude(),
-                            location.getSpeed(),
-                            location.getTime()
-                    );
+                    double lat = location.getLatitude(), lon = location.getLongitude();
+                    long time = location.getTime();
+                    float speed = location.hasSpeed() ? location.getSpeed() : 0f;
+                    String unit = shuttleId;
+                    String shift = shiftId;
+                    float bearing = location.hasBearing() ? location.getBearing() : Float.NaN;
+                    routes.record(shift, lat, lon, time, speed, bearing,
+                            () -> upload(ApiClient.buildLocationJson(unit, lat, lon, speed, time, shift, bearing)));
                 }
             }
         };
 
-        fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                Looper.getMainLooper()
-        );
+        LocationCallback requested = locationCallback;
+        try {
+            fusedLocationClient.requestLocationUpdates(
+                    locationRequest,
+                    locationCallback,
+                    Looper.getMainLooper()
+            ).addOnFailureListener(error -> {
+                if (locationCallback != requested) return;
+                Log.w(TAG, "Could not subscribe to location", error);
+                locationCallback = null;
+                main.postDelayed(retryGps, 15_000);
+            });
+        } catch (SecurityException denied) {
+            stopSelf();
+        }
     }
 
     // --- send / queue logic ---
 
-    private void handleNewPosition(
-            double lat,
-            double lng,
-            float speed,
-            long timestamp
-    ) {
-        Intent intent = new Intent("com.shuttle.mobile.LOCATION_UPDATE");
-
-        intent.setPackage(getPackageName());
-        intent.putExtra("latitude", lat);
-        intent.putExtra("longitude", lng);
-        intent.putExtra("speed", speed);
-
-        sendBroadcast(intent);
-
-        final String json =
-                ApiClient.buildLocationJson(
-                        shuttleId,
-                        lat,
-                        lng,
-                        speed,
-                        timestamp
-                );
-
+    private synchronized void upload(String json) {
+        if (worker.isShutdown()) return;
         worker.execute(() -> {
             if (!queue.isEmpty()) {
                 int sent = queue.flush(api::postLocationBlocking);
@@ -176,12 +177,18 @@ public class GpsTrackerService extends Service {
 
     // --- lifecycle ---
 
-    @Override
-    public void onDestroy() {
-        if (fusedLocationClient != null && locationCallback != null) {
+    private void detach() {
+        main.removeCallbacks(retryGps);
+        if (routes != null) routes.updates().removeObserver(shiftObserver);
+        if (locationCallback != null) {
             fusedLocationClient.removeLocationUpdates(locationCallback);
+            locationCallback = null;
         }
+    }
 
+    @Override
+    public synchronized void onDestroy() {
+        detach();
         worker.shutdown();
         super.onDestroy();
     }

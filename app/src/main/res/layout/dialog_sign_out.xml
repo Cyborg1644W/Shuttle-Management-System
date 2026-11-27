@@ -1,0 +1,26 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="vertical" android:gravity="center_horizontal" android:padding="24dp">
+    <ImageView android:layout_width="56dp" android:layout_height="56dp" android:padding="15dp"
+        android:src="@drawable/ic_sign_out" android:background="@drawable/sign_out_icon_bg"
+        android:contentDescription="@null" />
+    <TextView style="@style/Fleet.Title" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="16dp" android:gravity="center" android:textSize="18sp"
+        android:text="Sign out of FleetFlow?" />
+    <TextView style="@style/Fleet.Body" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" android:gravity="center" android:textSize="14sp"
+        android:text="You will need to sign in again to access your account." />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="20dp" android:orientation="horizontal">
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnSignOutCancel"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:minHeight="48dp" android:text="Cancel" android:textAllCaps="false"
+            app:cornerRadius="12dp" app:strokeColor="@color/border" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnSignOutConfirm"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:minHeight="48dp" android:layout_marginStart="8dp" android:text="Sign out"
+            android:textAllCaps="false" android:textColor="@color/white" app:backgroundTint="@color/danger" />
+    </LinearLayout>
+</LinearLayout>

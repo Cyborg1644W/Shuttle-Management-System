@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="notification_unread_surface">#EDF8FA</color>
+    <color name="notification_unread_border">#CCE7ED</color>
+
+    <string name="notifications_back">Back</string>
+    <string name="notifications_unread_count">%d unread</string>
+    <string name="notifications_all_tab">All</string>
+    <string name="notifications_unread_tab">Unread</string>
+    <string name="notifications_read_all">Mark as all read</string>
+    <string name="notifications_today">Today</string>
+    <string name="notifications_yesterday">Yesterday</string>
+    <string name="notifications_unknown_date">Unknown date</string>
+    <string name="notifications_dated_time">%1$s · %2$s</string>
+    <string name="notifications_none_unread">No unread notifications</string>
+    <string name="notifications_none_unread_detail">New notifications will appear here.</string>
+    <string name="notifications_loading">Loading notifications…</string>
+    <string name="notifications_load_failed">Could not load notifications</string>
+    <string name="notifications_retry_detail">%1$s Tap to retry.</string>
+    <string name="notifications_update_failed">Could not confirm the notification was marked as read.</string>
+
+    <style name="Fleet.NotificationTab" parent="Fleet.Caption">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:background">@drawable/notification_filter_outline</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>

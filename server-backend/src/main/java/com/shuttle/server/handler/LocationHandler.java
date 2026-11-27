@@ -8,9 +8,6 @@ import com.shuttle.server.service.TerminalService;
 import com.shuttle.server.Csv;
 import com.shuttle.server.service.TrackingService;
 
-import static com.shuttle.server.Csv.filled;
-import static com.shuttle.server.Csv.lng;
-import static com.shuttle.server.Csv.num;
 import static com.shuttle.server.Csv.str;
 
 public class LocationHandler extends BaseHandler {
@@ -23,6 +20,7 @@ public class LocationHandler extends BaseHandler {
     }
 
     private Response processScoped(Request r) throws Exception {
+        if (!"location".equals(r.seg(0)) || r.seg(1) != null) throw new ApiException(404, "Endpoint Not Found");
         if (!r.is("POST")) {
             throw new ApiException(405, "Method Not Allowed");
         }
@@ -39,11 +37,7 @@ public class LocationHandler extends BaseHandler {
         }
 
         TerminalService.requireShuttle(me, shuttleId);
-        if (!filled(r.body, "latitude") || !filled(r.body, "longitude")) {
-            throw new ApiException(400, "latitude and longitude are required");
-        }
-        TrackingService.updateLocation(shuttleId, num(r.body, "latitude"), num(r.body, "longitude"),
-                num(r.body, "speed"), lng(r.body, "timestamp"));
-        return ok(Csv.obj("status", "Location updated"));
+        boolean accepted = TrackingService.report(shuttleId, r.body);
+        return ok(Csv.obj("status", accepted ? "Location updated" : "Location already superseded"));
     }
 }

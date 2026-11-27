@@ -27,7 +27,7 @@ import java.util.concurrent.Executors;
 
 public class ApiClient {
 
-    public static final String BASE_URL = "http://10.0.2.2:8080/api";
+    public static final String BASE_URL = ServerConnection.DEFAULT_URL;
 
     public static void initialize(Context context) {
         ServerConnection.initialize(context);
@@ -63,6 +63,11 @@ public class ApiClient {
 
     public static String buildLocationJson(String shuttleId, double lat, double lng,
                                            float speed, long timestamp) {
+        return buildLocationJson(shuttleId, lat, lng, speed, timestamp, null, Float.NaN);
+    }
+
+    public static String buildLocationJson(String shuttleId, double lat, double lng,
+                                           float speed, long timestamp, String shiftId, float bearing) {
         try {
             JSONObject o = new JSONObject();
             o.put("shuttleId", shuttleId);
@@ -70,6 +75,8 @@ public class ApiClient {
             o.put("longitude", lng);
             o.put("speed", speed);
             o.put("timestamp", timestamp);
+            if (shiftId != null) o.put("shiftId", shiftId);
+            if (Float.isFinite(bearing)) o.put("bearing", bearing);
             return o.toString();
         } catch (JSONException e) {
             return "{}";

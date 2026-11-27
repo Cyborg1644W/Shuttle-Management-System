@@ -1,0 +1,6 @@
+<merge xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.appcompat.widget.AppCompatButton android:id="@+id/fleetFitAll" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:minHeight="48dp" android:minWidth="64dp" android:paddingHorizontal="8dp" android:layout_gravity="top|end"
+        android:layout_margin="8dp" android:background="@drawable/bg_ff_chip" app:backgroundTint="@color/brand_600" android:textColor="@android:color/white"
+        android:textAllCaps="false" android:text="@string/fleet_fit_all" android:textSize="13sp" />
+</merge>

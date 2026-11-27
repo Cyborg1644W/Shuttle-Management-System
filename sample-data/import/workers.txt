@@ -1,0 +1,3 @@
+employeeID,fullName,email,passwordHash,role,employmentStatus,shiftStatus,phone,licenseNumber,licenseExpirationDate,assignedShuttleId,assignedTerminal,activeShiftId,terminalZone,shiftTime,permissionsMask,managedShuttleIds
+EMP-0001,Alex Reyes,alex.reyes@example.test,/cCko+S8V0CIO9WR+B3zmQqqJGvQFZZut8Qwmml6Ojc=,DRIVER,ACTIVE,OFF_SHIFT,09170000001,D1234567,2028-12-31,SH-001,Main Terminal,,,,0,
+EMP-0002,Taylor Santos,taylor.santos@example.test,/cCko+S8V0CIO9WR+B3zmQqqJGvQFZZut8Qwmml6Ojc=,OPERATOR,ACTIVE,OFF_SHIFT,09170000002,,,,,,North Terminal,08:00-17:00,3,SH-001

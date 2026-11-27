@@ -32,6 +32,11 @@ public final class ValidationUtil {
         return latitude >= -90.0 && latitude <= 90.0;
     }
 
+    /** FleetFlow uses the pair (0, 0) to denote a missing location. Either axis alone is valid. */
+    public static boolean isTrackingFix(double latitude, double longitude) {
+        return isValidLatitude(latitude) && isValidLongitude(longitude) && (latitude != 0 || longitude != 0);
+    }
+
     public static boolean isValidLongitude(double longitude) {
         return longitude >= -180.0 && longitude <= 180.0;
     }

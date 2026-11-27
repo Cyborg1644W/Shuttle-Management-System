@@ -1,6 +1,7 @@
 package com.shuttle.server.repository;
 
 import com.shuttle.common.Driver;
+import com.shuttle.common.Driver.VehicleNotice;
 import com.shuttle.common.Operator;
 import com.shuttle.common.Role;
 import com.shuttle.common.ValidationUtil;
@@ -9,11 +10,13 @@ import com.shuttle.server.io.CsvTable;
 
 import java.io.IOException;
 import com.shuttle.server.storage.CsvStorage;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -28,7 +31,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class WorkerRepository {
 
-    public static final String FILE_NAME = "workers.csv";
+    public static final String FILE_NAME = "workers.txt";
 
     public static final List<String> HEADER = List.of(
             "employeeID", "fullName", "email", "passwordHash", "role",
@@ -36,7 +39,8 @@ public class WorkerRepository {
             // Driver-only
             "licenseNumber", "licenseExpirationDate", "assignedShuttleId", "assignedTerminal", "activeShiftId",
             // Operator-only
-            "terminalZone", "shiftTime", "permissionsMask", "managedShuttleIds");
+            "terminalZone", "shiftTime", "permissionsMask", "managedShuttleIds", "vehicleNotices");
+    public static final List<String> REQUIRED_HEADER = HEADER.subList(0, HEADER.size() - 1);
 
     // Allowed values
 
@@ -283,6 +287,7 @@ public class WorkerRepository {
             d.setAssignedShuttleId(emptyToNull(row.get("assignedShuttleId")));
             d.setAssignedTerminal(emptyToNull(row.get("assignedTerminal")));
             d.setActiveShiftId(emptyToNull(row.get("activeShiftId")));
+            d.setVehicleNotices(decodeVehicleNotices(row.getOptional("vehicleNotices", "")));
             worker = d;
         } else {
             Operator o = new Operator();
@@ -334,6 +339,7 @@ public class WorkerRepository {
             c[col("assignedShuttleId")] = nullToEmpty(d.getAssignedShuttleId());
             c[col("assignedTerminal")] = nullToEmpty(d.getAssignedTerminal());
             c[col("activeShiftId")] = nullToEmpty(d.getActiveShiftId());
+            c[col("vehicleNotices")] = encodeVehicleNotices(d.getVehicleNotices());
         } else {
             Operator o = (Operator) w;
             c[col("terminalZone")] = nullToEmpty(o.getTerminalZone());
@@ -345,6 +351,27 @@ public class WorkerRepository {
         return c;
     }
 
+    private static List<VehicleNotice> decodeVehicleNotices(String value) {
+        List<VehicleNotice> notices = new ArrayList<>();
+        if (value.isEmpty()) return notices;
+        for (String encoded : value.split(";")) {
+            String[] fields = encoded.split(":", 4);
+            if (fields.length != 4) throw new IllegalArgumentException("Invalid vehicle notice");
+            String shuttle = new String(Base64.getDecoder().decode(fields[3]), StandardCharsets.UTF_8);
+            notices.add(new VehicleNotice(fields[0], shuttle, Long.parseLong(fields[1]), Boolean.parseBoolean(fields[2])));
+        }
+        return notices;
+    }
+
+    private static String encodeVehicleNotices(List<VehicleNotice> notices) {
+        List<String> values = new ArrayList<>();
+        for (VehicleNotice notice : notices) {
+            String shuttle = Base64.getEncoder().encodeToString(notice.shuttleId().getBytes(StandardCharsets.UTF_8));
+            values.add(notice.id() + ":" + notice.createdAt() + ":" + notice.read() + ":" + shuttle);
+        }
+        return String.join(";", values);
+    }
+
     private static int col(String name) {
         return HEADER.indexOf(name);
     }
@@ -354,7 +381,7 @@ public class WorkerRepository {
             new CsvTable(HEADER).save(file);
             return new LinkedHashMap<>();
         }
-        CsvTable table = CsvTable.load(file, HEADER);
+        CsvTable table = CsvTable.load(file, REQUIRED_HEADER);
         Map<String, Worker> map = new LinkedHashMap<>();
         for (CsvTable.Row row : table.getRows()) {
             Worker w;

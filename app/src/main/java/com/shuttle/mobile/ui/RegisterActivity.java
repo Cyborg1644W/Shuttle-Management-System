@@ -1,13 +1,10 @@
 package com.shuttle.mobile.ui;
 
 import android.os.Bundle;
-import android.util.Patterns;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -17,127 +14,83 @@ import com.shuttle.common.Role;
 import com.shuttle.mobile.R;
 import com.shuttle.mobile.client.ApiClient;
 
-public class RegisterActivity extends AppCompatActivity {
+import java.util.Locale;
+import java.util.function.ToIntFunction;
 
-    private static final String EMPTY_MESSAGE = "Please fill in all the fields.";
+public class RegisterActivity extends AppCompatActivity {
+    private static final int MIN_PASSWORD_LENGTH = 6;
+
+    private record RegistrationField(EditText input, View outline, TextView error,
+                                     ToIntFunction<String> validate) {
+        String value() {
+            return input.getText().toString();
+        }
+
+        boolean showError(CharSequence message) {
+            return FieldUi.showInlineError(outline, error, message);
+        }
+    }
 
     private View layoutChooseRole;
     private View layoutForm;
-    private View cardDriver;
-    private View cardOperator;
-    private View layoutPhoneBox;
-    private View layoutCountry;
-    private TextView tvCountryCode;
-    private TextView tvGoLoginChoose;
     private TextView tvRoleLabel;
-    private TextView tvChangeRole;
-    private EditText etFullName;
-    private EditText etPhone;
-    private EditText etEmail;
-    private EditText etPassword;
-    private EditText etConfirmPassword;
     private ImageView ivPhoneCheck;
-    private ImageView ivBack;
     private TextView tvError;
-    private TextView tvGoLogin;
     private Button btnRegister;
 
-    private Role selectedRole = null;
-    private String firstMessage;
-    private boolean registering = false;
+    private RegistrationField firstName, lastName, phone, email, password, confirmPassword;
+    private RegistrationField[] fields;
+    private Role selectedRole;
+    private boolean validationStarted;
+    private boolean registering;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         ApiClient.initialize(this);
         setContentView(R.layout.activity_register);
-        findViewById(R.id.btnServerConnection).setOnClickListener(v -> {
-            if (!registering) ServerConnectionUi.show(this);
-        });
-
         layoutChooseRole = findViewById(R.id.layoutChooseRole);
         layoutForm = findViewById(R.id.layoutForm);
-        cardDriver = findViewById(R.id.cardDriver);
-        cardOperator = findViewById(R.id.cardOperator);
-        layoutPhoneBox = findViewById(R.id.layoutPhoneBox);
-        layoutCountry = findViewById(R.id.layoutCountry);
-        tvCountryCode = findViewById(R.id.tvCountryCode);
-        tvGoLoginChoose = findViewById(R.id.tvGoLoginChoose);
         tvRoleLabel = findViewById(R.id.tvRoleLabel);
-        tvChangeRole = findViewById(R.id.tvChangeRole);
-        etFullName = findViewById(R.id.etFullName);
-        etPhone = findViewById(R.id.etPhone);
-        etEmail = findViewById(R.id.etEmail);
-        etPassword = findViewById(R.id.etPassword);
-        etConfirmPassword = findViewById(R.id.etConfirmPassword);
         ivPhoneCheck = findViewById(R.id.ivPhoneCheck);
-        ivBack = findViewById(R.id.ivBack);
         tvError = findViewById(R.id.tvError);
-        tvGoLogin = findViewById(R.id.tvGoLogin);
         btnRegister = findViewById(R.id.btnRegister);
 
-        cardDriver.setOnClickListener(v -> showForm(Role.DRIVER));
-        cardOperator.setOnClickListener(v -> showForm(Role.OPERATOR));
-        tvChangeRole.setOnClickListener(v -> showChooser());
-        layoutCountry.setOnClickListener(v -> showCountryMenu());
+        firstName = field(R.id.etFirstName, R.id.tvRegistrationFirstNameError,
+                value -> FieldUi.isBlank(value) ? R.string.profile_first_name_required : 0);
+        lastName = field(R.id.etLastName, R.id.tvRegistrationLastNameError,
+                value -> FieldUi.isBlank(value) ? R.string.profile_last_name_required : 0);
+        phone = new RegistrationField(findViewById(R.id.etPhone), findViewById(R.id.layoutPhoneBox),
+                findViewById(R.id.tvRegistrationPhoneError), RegisterActivity::phoneError);
+        email = field(R.id.etEmail, R.id.tvRegistrationEmailError,
+                value -> FieldUi.isGmailAddress(value.trim()) ? 0 : R.string.profile_email_invalid);
+        password = field(R.id.etPassword, R.id.tvRegistrationPasswordError, RegisterActivity::passwordError);
+        confirmPassword = field(R.id.etConfirmPassword, R.id.tvRegistrationConfirmError,
+                value -> !value.isEmpty() && value.equals(password.value()) ? 0 : R.string.registration_password_mismatch);
+        fields = new RegistrationField[]{firstName, lastName, phone, email, password, confirmPassword};
 
-        FieldUi.onChange(etFullName, () -> {
-            hideError();
-            applyName(false);
-        });
-        FieldUi.onChange(etPhone, () -> {
-            hideError();
-            applyPhone(false);
-        });
-        FieldUi.onChange(etEmail, () -> {
-            hideError();
-            applyEmail(false);
-        });
-        FieldUi.onChange(etPassword, () -> {
-            hideError();
-            applyPassword(false);
-            applyConfirm(false);
-        });
-        FieldUi.onChange(etConfirmPassword, () -> {
-            hideError();
-            applyConfirm(false);
-        });
+        FieldUi.bindPasswordToggle(password.input(), findViewById(R.id.btnPasswordVisibility));
+        FieldUi.bindPasswordToggle(confirmPassword.input(), findViewById(R.id.btnConfirmPasswordVisibility));
+        for (RegistrationField field : fields) {
+            FieldUi.onChange(field.input(), () -> onInputChanged(field));
+        }
 
-        etFullName.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) {
-                applyName(true);
-            }
-        });
-        etPhone.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) {
-                applyPhone(true);
-            }
-        });
-        etEmail.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) {
-                applyEmail(true);
-            }
-        });
-        etPassword.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) {
-                applyPassword(true);
-            }
-        });
-        etConfirmPassword.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) {
-                applyConfirm(true);
-            }
-        });
-
+        findViewById(R.id.cardDriver).setOnClickListener(v -> showForm(Role.DRIVER));
+        findViewById(R.id.cardOperator).setOnClickListener(v -> showForm(Role.OPERATOR));
+        findViewById(R.id.tvChangeRole).setOnClickListener(v -> showChooser());
+        findViewById(R.id.tvGoLogin).setOnClickListener(v -> finish());
+        findViewById(R.id.tvGoLoginChoose).setOnClickListener(v -> finish());
         btnRegister.setOnClickListener(v -> attemptRegister());
-        ivBack.setOnClickListener(v -> goBack());
-        tvGoLogin.setOnClickListener(v -> finish());
-        tvGoLoginChoose.setOnClickListener(v -> finish());
-
         showChooser();
     }
 
+    private RegistrationField field(int inputId, int messageId, ToIntFunction<String> validate) {
+        EditText input = findViewById(inputId);
+        return new RegistrationField(input, input, findViewById(messageId), validate);
+    }
+
     private void showChooser() {
+        if (registering) return;
         selectedRole = null;
         layoutForm.setVisibility(View.GONE);
         layoutChooseRole.setVisibility(View.VISIBLE);
@@ -145,25 +98,15 @@ public class RegisterActivity extends AppCompatActivity {
 
     private void showForm(Role role) {
         selectedRole = role;
+        validationStarted = false;
         hideError();
-
-        if (role == Role.DRIVER) {
-            tvRoleLabel.setText("Registering as Driver");
-        } else {
-            tvRoleLabel.setText("Registering as Operator");
+        for (RegistrationField field : fields) {
+            field.showError(null);
         }
-
+        updatePhoneCheck();
+        tvRoleLabel.setText(role == Role.DRIVER ? "Registering as Driver" : "Registering as Operator");
         layoutChooseRole.setVisibility(View.GONE);
         layoutForm.setVisibility(View.VISIBLE);
-        refreshAll();
-    }
-
-    private void goBack() {
-        if (selectedRole != null) {
-            showChooser();
-        } else {
-            finish();
-        }
     }
 
     @Override
@@ -175,188 +118,78 @@ public class RegisterActivity extends AppCompatActivity {
         }
     }
 
-    private int stateName(boolean strict) {
-        String s = etFullName.getText().toString().trim();
-        if (s.length() >= 2) {
-            return FieldUi.VALID;
+    private void onInputChanged(RegistrationField field) {
+        hideError();
+        if (field == phone) {
+            String digits = cleanPhone(field.value());
+            if (isValidPhone(digits) && !digits.equals(field.value())) {
+                field.input().setText(digits);
+                field.input().setSelection(digits.length());
+                return;
+            }
         }
-        return (strict && !s.isEmpty()) ? FieldUi.ERROR : FieldUi.NORMAL;
-    }
-
-    private int statePhone(boolean strict) {
-        String p = getCleanPhone();
-        if (p.length() == getRequiredDigits()) {
-            return FieldUi.VALID;
+        if (validationStarted) {
+            validate(field);
+            if (field == password) validate(confirmPassword);
         }
-        return (strict && !p.isEmpty()) ? FieldUi.ERROR : FieldUi.NORMAL;
+        if (field == phone) updatePhoneCheck();
     }
 
-    private int stateEmail(boolean strict) {
-        String s = etEmail.getText().toString().trim();
-        if (s.isEmpty()) {
-            return FieldUi.NORMAL;
-        }
-        if (Patterns.EMAIL_ADDRESS.matcher(s).matches()) {
-            return FieldUi.VALID;
-        }
-        return strict ? FieldUi.ERROR : FieldUi.NORMAL;
-    }
-
-    private int statePassword(boolean strict) {
-        String s = etPassword.getText().toString();
-        if (s.length() >= 6) {
-            return FieldUi.VALID;
-        }
-        return (strict && !s.isEmpty()) ? FieldUi.ERROR : FieldUi.NORMAL;
-    }
-
-    private int stateConfirm(boolean strict) {
-        String c = etConfirmPassword.getText().toString();
-        String p = etPassword.getText().toString();
-        if (c.isEmpty()) {
-            return FieldUi.NORMAL;
-        }
-        if (c.equals(p) && p.length() >= 6) {
-            return FieldUi.VALID;
-        }
-        return strict ? FieldUi.ERROR : FieldUi.NORMAL;
-    }
-
-    private void applyName(boolean strict) {
-        FieldUi.set(etFullName, stateName(strict));
-    }
-
-    private void applyPhone(boolean strict) {
-        FieldUi.set(layoutPhoneBox, statePhone(strict));
-        updateCheck();
-    }
-
-    private void applyEmail(boolean strict) {
-        FieldUi.set(etEmail, stateEmail(strict));
-    }
-
-    private void applyPassword(boolean strict) {
-        FieldUi.set(etPassword, statePassword(strict));
-    }
-
-    private void applyConfirm(boolean strict) {
-        FieldUi.set(etConfirmPassword, stateConfirm(strict));
-    }
-
-    private void refreshAll() {
-        applyName(false);
-        FieldUi.set(layoutPhoneBox, statePhone(false));
-        updateCheck();
-        applyEmail(false);
-        applyPassword(false);
-        applyConfirm(false);
-    }
-
-    private void showCountryMenu() {
-        PopupMenu menu = new PopupMenu(this, layoutCountry);
-        menu.getMenu().add("+63 Philippines");
-        menu.getMenu().add("+1 United States");
-        menu.getMenu().add("+81 Japan");
-        menu.getMenu().add("+65 Singapore");
-
-        menu.setOnMenuItemClickListener((MenuItem item) -> {
-            String code = item.getTitle().toString().split(" ")[0];
-            tvCountryCode.setText(code);
-            applyPhone(false);
-            return true;
-        });
-
-        menu.show();
-    }
-
-    private String getCleanPhone() {
-        String digits = etPhone.getText().toString().replaceAll("[^0-9]", "");
-        String code = tvCountryCode.getText().toString();
-
-        if ((code.equals("+63") || code.equals("+81")) && digits.startsWith("0")) {
-            digits = digits.substring(1);
-        }
+    private static String cleanPhone(String value) {
+        String digits = value.replaceAll("[\\s().-]", "");
+        if (digits.matches("\\+?639[0-9]{9}")) return digits.substring(digits.length() - 10);
+        if (digits.matches("09[0-9]{9}")) return digits.substring(1);
         return digits;
     }
 
-    private int getRequiredDigits() {
-        if (tvCountryCode.getText().toString().equals("+65")) {
-            return 8;
-        }
-        return 10;
+    private static boolean isValidPhone(String digits) {
+        return digits.matches("9[0-9]{9}");
     }
 
-    private void updateCheck() {
-        if (getCleanPhone().length() == getRequiredDigits()) {
-            ivPhoneCheck.setVisibility(View.VISIBLE);
-        } else {
-            ivPhoneCheck.setVisibility(View.INVISIBLE);
-        }
+    private static int phoneError(String value) {
+        String digits = cleanPhone(value);
+        if (FieldUi.isBlank(digits)) return R.string.registration_phone_required;
+        return isValidPhone(digits) ? 0 : R.string.registration_phone_invalid;
     }
 
-    private void fail(View field, String message) {
-        FieldUi.set(field, FieldUi.ERROR);
-        if (firstMessage == null) {
-            firstMessage = message;
-        }
+    private static int passwordError(String value) {
+        if (value.isEmpty()) return R.string.registration_password_required;
+        return value.length() < MIN_PASSWORD_LENGTH ? R.string.registration_password_short : 0;
+    }
+
+    private boolean validate(RegistrationField field) {
+        int error = field.validate().applyAsInt(field.value());
+        if (error == 0) return field.showError(null);
+        String message = error == R.string.registration_password_short
+                ? getString(error, MIN_PASSWORD_LENGTH) : getString(error);
+        return field.showError(message);
+    }
+
+    private void updatePhoneCheck() {
+        boolean valid = isValidPhone(cleanPhone(phone.value())) && phone.error().getVisibility() != View.VISIBLE;
+        ivPhoneCheck.setVisibility(valid ? View.VISIBLE : View.INVISIBLE);
     }
 
     private void attemptRegister() {
-        if (registering) {
-            return;
-        }
-        firstMessage = null;
-
-        String fullName = etFullName.getText().toString().trim();
-        String phone = getCleanPhone();
-        String email = etEmail.getText().toString().trim();
-        String password = etPassword.getText().toString();
-        String confirm = etConfirmPassword.getText().toString();
-        String fullPhone = tvCountryCode.getText().toString() + phone;
-
-        boolean anyEmpty = fullName.isEmpty() || phone.isEmpty()
-                || email.isEmpty() || password.isEmpty() || confirm.isEmpty();
-
-        if (fullName.length() < 2) {
-            fail(etFullName, "Please enter your full name.");
-        }
-
-        if (phone.length() != getRequiredDigits()) {
-            fail(layoutPhoneBox, "Please enter a complete mobile number.");
-        }
-
-        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            fail(etEmail, "Please enter a valid email address.");
-        }
-
-        if (password.length() < 6) {
-            fail(etPassword, "Password must be at least 6 characters.");
-        }
-
-        if (confirm.isEmpty() || !password.equals(confirm)) {
-            fail(etConfirmPassword, "Passwords do not match.");
-        }
-
-        if (firstMessage != null) {
-            showError(anyEmpty ? EMPTY_MESSAGE : firstMessage);
-            return;
-        }
-
-        if (selectedRole == null) {
-            showChooser();
-            return;
-        }
-
+        if (registering || selectedRole == null) return;
         hideError();
+        validationStarted = true;
+        boolean valid = true;
+        for (RegistrationField field : fields) {
+            if (!validate(field)) valid = false;
+        }
+        updatePhoneCheck();
+        if (!valid) return;
+
+        String fullName = firstName.value().trim() + " " + lastName.value().trim();
+        String fullPhone = "+63" + cleanPhone(phone.value());
         setRegistering(true);
 
-        AuthApi.register(selectedRole, fullName, email, fullPhone, password,
+        AuthApi.register(selectedRole, fullName, email.value().trim(), fullPhone, password.value(),
                 new AuthApi.RegisterCallback() {
                     @Override
                     public void onSuccess(Role role) {
-                        if (isFinishing()) {
-                            return;
-                        }
+                        if (isFinishing() || isDestroyed()) return;
                         Toast.makeText(RegisterActivity.this,
                                 "Account created! You can log in now.", Toast.LENGTH_LONG).show();
                         finish();
@@ -364,9 +197,7 @@ public class RegisterActivity extends AppCompatActivity {
 
                     @Override
                     public void onError(int status, String message) {
-                        if (isFinishing()) {
-                            return;
-                        }
+                        if (isFinishing() || isDestroyed()) return;
                         setRegistering(false);
                         showServerError(status, message);
                     }
@@ -374,33 +205,36 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void showServerError(int status, String message) {
-        String lower = message.toLowerCase();
-
-        if (lower.contains("email")) {
-            FieldUi.set(etEmail, FieldUi.ERROR);
-        } else if (lower.contains("mobile")) {
-            FieldUi.set(layoutPhoneBox, FieldUi.ERROR);
-        } else if (lower.contains("password")) {
-            FieldUi.set(etPassword, FieldUi.ERROR);
-        } else if (lower.contains("name")) {
-            FieldUi.set(etFullName, FieldUi.ERROR);
+        String lower = message.toLowerCase(Locale.ROOT);
+        if (status == 400 || status == 409) {
+            if (lower.contains("email")) {
+                email.showError(message);
+                return;
+            }
+            if (lower.contains("mobile")) {
+                phone.showError(message);
+                updatePhoneCheck();
+                return;
+            }
+            if (lower.contains("password")) {
+                password.showError(message);
+                return;
+            }
         }
-        showError(message);
+        tvError.setText(message);
+        tvError.setVisibility(View.VISIBLE);
     }
 
     private void setRegistering(boolean busy) {
         registering = busy;
         btnRegister.setEnabled(!busy);
-        findViewById(R.id.btnServerConnection).setEnabled(!busy);
-        btnRegister.setText(busy ? "Creating account..." : "Create Account");
+        for (RegistrationField field : fields) {
+            field.input().setEnabled(!busy);
+        }
+        btnRegister.setText(busy ? R.string.registration_creating : R.string.create_account);
     }
 
     private void hideError() {
         tvError.setVisibility(View.GONE);
-    }
-
-    private void showError(String message) {
-        tvError.setText(message);
-        tvError.setVisibility(View.VISIBLE);
     }
 }

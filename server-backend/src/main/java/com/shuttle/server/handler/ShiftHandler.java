@@ -12,6 +12,7 @@ import com.shuttle.server.service.TerminalService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.shuttle.server.Csv.num;
@@ -33,7 +34,8 @@ public class ShiftHandler extends BaseHandler {
             if (r.is("POST") && "end".equals(action)) {
                 requireDriver(me);
                 ShiftRecord done = ShiftService.end(me, num(r.body, "distanceKm"),
-                        (int) Csv.lng(r.body, "stops"), str(r.body, "route"));
+                        (int) Csv.lng(r.body, "stops"), str(r.body, "route"),
+                        str(r.body, "shiftId"), Csv.lng(r.body, "endTime"));
                 return ok(ShiftService.toRow(done));
             }
 
@@ -58,7 +60,9 @@ public class ShiftHandler extends BaseHandler {
                         visible.add(shift);
                     }
                 }
-                return ok(ShiftService.toRow(visible));
+                List<Map<String, Object>> rows = ShiftService.toRow(visible);
+                if ("true".equals(r.query.get("summary"))) rows.forEach(row -> row.remove("route"));
+                return ok(rows);
             }
 
             if (r.is("GET") && action != null) {

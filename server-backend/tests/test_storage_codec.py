@@ -40,7 +40,7 @@ public final class StorageCodecRegression {
     private static Map<String, String> tables(String workers) {
         Map<String, String> result = new LinkedHashMap<>();
         for (String table : CsvStorage.TABLES) result.put(table, "");
-        result.put("workers.csv", workers);
+        result.put("workers.txt", workers);
         return result;
     }
 
@@ -49,7 +49,7 @@ public final class StorageCodecRegression {
         try (ZipOutputStream zip = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
             for (String table : CsvStorage.TABLES) {
                 zip.putNextEntry(new ZipEntry(table));
-                if (table.equals("workers.csv")) zip.write(workers);
+                if (table.equals("workers.txt")) zip.write(workers);
                 zip.closeEntry();
             }
             zip.putNextEntry(new ZipEntry("commit.txt"));
@@ -64,11 +64,11 @@ public final class StorageCodecRegression {
             case "create_fixture": {
                 java.nio.file.Path dir = java.nio.file.Path.of(args[1]);
                 java.nio.file.Files.createDirectories(dir);
-                new com.shuttle.server.repository.WorkerRepository(dir.resolve("workers.csv"));
-                new com.shuttle.server.repository.ShuttleRepository(dir.resolve("shuttles.csv"));
-                new com.shuttle.server.repository.ShiftRepository(dir.resolve("shifts.csv"));
-                new com.shuttle.server.repository.ScheduleRepository(dir.resolve("schedule.csv"));
-                new com.shuttle.server.repository.TerminalRepository(dir.resolve("terminals.csv"));
+                new com.shuttle.server.repository.WorkerRepository(dir.resolve("workers.txt"));
+                new com.shuttle.server.repository.ShuttleRepository(dir.resolve("shuttles.txt"));
+                new com.shuttle.server.repository.ShiftRepository(dir.resolve("shifts.txt"));
+                new com.shuttle.server.repository.ScheduleRepository(dir.resolve("schedule.txt"));
+                new com.shuttle.server.repository.TerminalRepository(dir.resolve("terminals.txt"));
                 break;
             }
             case "at_limit": {
@@ -97,9 +97,24 @@ public final class StorageCodecRegression {
             }
             case "unicode_roundtrip": {
                 Map<String, String> original = tables("employeeID,fullName\nEMP-1,José 李\n");
-                original.put("terminals.csv", "terminalId,name\nEMP-2,Terminal 🚐\n");
+                original.put("terminals.txt", "terminalId,name\nEMP-2,Terminal 🚐\n");
                 if (!original.equals(CsvStorage.decode(CsvStorage.encode(original)))) {
                     throw new AssertionError("UTF-8 snapshot roundtrip failed");
+                }
+                break;
+            }
+            case "legacy_table_names": {
+                Map<String, String> original = tables("employeeID,fullName\nEMP-1,\"Last, First\"\n");
+                original.put("dated-shifts.txt", "shiftDate,startTime\n2030-01-01,09:00\n");
+                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+                    for (var entry : original.entrySet()) {
+                        zip.putNextEntry(new ZipEntry(entry.getKey().replace(".txt", ".csv")));
+                        zip.write(entry.getValue().getBytes(StandardCharsets.UTF_8));
+                    }
+                }
+                if (!original.equals(CsvStorage.decode(bytes.toByteArray()))) {
+                    throw new AssertionError("Legacy table names must resolve to the original contents");
                 }
                 break;
             }
@@ -163,6 +178,9 @@ class StorageCodecTests(unittest.TestCase):
     def test_unicode_tables_roundtrip_without_replacement(self):
         self.run_case("unicode_roundtrip")
 
+    def test_old_archive_including_dated_shifts_keeps_all_table_contents(self):
+        self.run_case("legacy_table_names")
+
     def admin_fixture(self):
         directory = self.root / self._testMethodName
         result = subprocess.run(
@@ -170,7 +188,7 @@ class StorageCodecTests(unittest.TestCase):
             cwd=self.root, capture_output=True, text=True, timeout=10,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(list(directory.glob("*.csv"))), 5)
+        self.assertEqual(len(list(directory.glob("*.txt"))), 5)
         return directory
 
     def run_admin(self, directory):
@@ -190,12 +208,12 @@ class StorageCodecTests(unittest.TestCase):
         before = self.directory_contents(directory)
         result = self.run_admin(directory)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Validated five CSV tables", result.stdout)
+        self.assertIn("Validated 5 CSV tables", result.stdout)
         self.assertEqual(self.directory_contents(directory), before)
 
     def test_admin_validate_rejects_missing_table_without_creating_it(self):
         directory = self.admin_fixture()
-        (directory / "terminals.csv").unlink()
+        (directory / "terminals.txt").unlink()
         before = self.directory_contents(directory)
         result = self.run_admin(directory)
         self.assertNotEqual(result.returncode, 0)
@@ -203,7 +221,7 @@ class StorageCodecTests(unittest.TestCase):
 
     def test_admin_validate_rejects_invalid_schema_without_changing_files(self):
         directory = self.admin_fixture()
-        (directory / "workers.csv").write_text("not_a_worker_header\n", encoding="utf-8")
+        (directory / "workers.txt").write_text("not_a_worker_header\n", encoding="utf-8")
         before = self.directory_contents(directory)
         result = self.run_admin(directory)
         self.assertNotEqual(result.returncode, 0)

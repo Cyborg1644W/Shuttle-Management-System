@@ -77,6 +77,7 @@ public class WorkerHandler extends BaseHandler {
         } else if (action.equals("assign") && r.is("PUT")) {
             r.requireOperator();
             TerminalService.requireWorker(r.worker(), id);
+            if (r.rows.size() != 1) throw new ApiException(400, "Send one vehicle assignment row");
             String shuttle = has(r.body, "shuttleId") ? str(r.body, "shuttleId") : str(r.body, "value1");
             if (!shuttle.trim().isEmpty() && !shuttle.equalsIgnoreCase("Unassigned")) {
                 TerminalService.requireShuttle(r.worker(), shuttle.trim());

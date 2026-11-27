@@ -5,6 +5,7 @@ import com.shuttle.common.Role;
 import com.shuttle.common.Worker;
 import com.shuttle.server.ServerConfig;
 import com.shuttle.server.repository.ScheduleRepository;
+import com.shuttle.server.repository.DatedShiftRepository;
 import com.shuttle.server.repository.ShiftRepository;
 import com.shuttle.server.repository.ShuttleRepository;
 import com.shuttle.server.repository.TerminalRepository;
@@ -24,12 +25,12 @@ public final class StorageAdmin {
     public static void main(String[] args) {
         try {
             if (args.length != 2 || (!args[0].equals("validate") && !args[0].equals("import"))) {
-                throw new IllegalArgumentException("Usage: StorageAdmin validate|import <directory-with-five-csv-files>");
+                throw new IllegalArgumentException("Usage: StorageAdmin validate|import <csv-directory>");
             }
             Path dir = Path.of(args[1]).toAbsolutePath().normalize();
             Map<String, String> tables = validate(dir);
             if (args[0].equals("validate")) {
-                System.out.println("Validated five CSV tables; no files changed.");
+                System.out.println("Validated " + tables.size() + " CSV tables; no files changed.");
                 return;
             }
             if (!ServerConfig.isR2()) throw new IllegalArgumentException("Import requires STORAGE_MODE=r2 and secure R2 environment settings");
@@ -59,11 +60,19 @@ public final class StorageAdmin {
             if (Files.size(file) > 32 * 1024 * 1024) throw new IOException("CSV exceeds prototype limit");
             tables.put(name, Files.readString(file, StandardCharsets.UTF_8));
         }
-        WorkerRepository workers = new WorkerRepository(dir.resolve("workers.csv"));
-        ShuttleRepository shuttles = new ShuttleRepository(dir.resolve("shuttles.csv"));
-        ShiftRepository shifts = new ShiftRepository(dir.resolve("shifts.csv"));
-        ScheduleRepository schedule = new ScheduleRepository(dir.resolve("schedule.csv"));
-        TerminalRepository terminals = new TerminalRepository(dir.resolve("terminals.csv"));
+        WorkerRepository workers = new WorkerRepository(dir.resolve("workers.txt"));
+        ShuttleRepository shuttles = new ShuttleRepository(dir.resolve("shuttles.txt"));
+        ShiftRepository shifts = new ShiftRepository(dir.resolve("shifts.txt"));
+        ScheduleRepository schedule = new ScheduleRepository(dir.resolve("schedule.txt"));
+        TerminalRepository terminals = new TerminalRepository(dir.resolve("terminals.txt"));
+        Path datedPath = dir.resolve(DatedShiftRepository.FILE_NAME);
+        if (Files.exists(datedPath)) {
+            if (!Files.isRegularFile(datedPath) || Files.size(datedPath) > 32 * 1024 * 1024) {
+                throw new IOException("Invalid dated shift file");
+            }
+            new DatedShiftRepository(datedPath);
+            tables.put(DatedShiftRepository.FILE_NAME, Files.readString(datedPath, StandardCharsets.UTF_8));
+        }
         Map<String, TerminalRepository.Entry> owners = new LinkedHashMap<>();
         for (TerminalRepository.Entry e : terminals.all()) {
             if (e.type.equals("TERMINAL")) {

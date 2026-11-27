@@ -1,0 +1,30 @@
+<resources>
+    <style name="RouteBadge" parent="Fleet.Caption">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/bg_ff_chip</item>
+        <item name="android:paddingLeft">10dp</item>
+        <item name="android:paddingRight">10dp</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+    <string name="route_map">Shuttle street map</string>
+    <string name="route_recenter">Recenter</string>
+    <string name="route_attribution">© OpenStreetMap contributors</string>
+    <string name="route_offline">Offline · Cached streets only</string>
+    <string name="route_waiting">Waiting for GPS…</string>
+    <string name="route_last_updated">Last updated: %1$s</string>
+    <string name="route_permission">Enable location to record this shift</string>
+    <string name="route_enable_location">Turn on device location</string>
+    <string name="route_status_action">%1$s · %2$s</string>
+    <string name="route_empty_summary">No GPS points recorded</string>
+    <string name="route_live_title">Live Route</string>
+    <string name="route_duration">Duration</string>
+    <string name="route_speed">Speed</string>
+    <string name="route_avg_speed">Avg speed</string>
+    <string name="route_stops">Stops</string>
+    <string name="route_summary_title">Completed Route</string>
+    <string name="route_sync_pending">Trip saved on this phone · Sync pending</string>
+</resources>

@@ -179,6 +179,7 @@ public final class AuthApi {
             byte[] data = buildCsv(row).getBytes(StandardCharsets.UTF_8);
 
             conn = (HttpURLConnection) new URL(baseUrl + path).openConnection();
+            conn.setInstanceFollowRedirects(false);
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(TIMEOUT_MS);
             conn.setReadTimeout(TIMEOUT_MS);
@@ -243,6 +244,8 @@ public final class AuthApi {
             values.append(csvEscape(entry.getValue()));
             first = false;
         }
+        // A single empty field is a real row (e.g. clear shuttleId). A blank line is skipped.
+        if (row.size() == 1 && values.length() == 0) values.append("\"\"");
         return header + "\n" + values + "\n";
     }
 

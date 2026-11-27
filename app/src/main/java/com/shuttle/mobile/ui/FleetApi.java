@@ -43,8 +43,32 @@ public final class FleetApi {
     private FleetApi() {
     }
 
+    static final class Call {
+        private boolean cancelled;
+        private HttpURLConnection connection;
+
+        synchronized boolean attach(HttpURLConnection next) {
+            if (cancelled) return false;
+            connection = next;
+            return true;
+        }
+        synchronized boolean cancelled() { return cancelled; }
+        synchronized void detach() { connection = null; }
+        synchronized void cancel() {
+            cancelled = true;
+            HttpURLConnection open = connection;
+            if (open != null) executor.execute(open::disconnect);
+        }
+    }
+
     public static void get(String path, Callback callback) {
         run("GET", path, null, callback);
+    }
+
+    static Call poll(String path, Callback callback) {
+        Call call = new Call();
+        run("GET", path, null, null, callback, call);
+        return call;
     }
 
     public static void post(String path, JSONObject body, Callback callback) {
@@ -59,18 +83,41 @@ public final class FleetApi {
         run("DELETE", path, null, callback);
     }
 
+    /** Sends a multi-row CSV table to an existing table endpoint. */
+    public static void putTable(String path, List<Map<String, String>> rows, Callback callback) {
+        StringBuilder csv = new StringBuilder();
+        for (Map<String, String> row : rows) {
+            String encoded = AuthApi.buildCsv(row);
+            if (csv.length() == 0) csv.append(encoded);
+            else csv.append(encoded.substring(encoded.indexOf('\n') + 1));
+        }
+        run("PUT", path, null, csv.toString(), callback);
+    }
+
     private static void run(String method, String path, JSONObject body, Callback callback) {
+        run(method, path, body, null, callback);
+    }
+
+    private static void run(String method, String path, JSONObject body, String table, Callback callback) {
+        run(method, path, body, table, callback, null);
+    }
+
+    private static void run(String method, String path, JSONObject body, String table, Callback callback, Call poll) {
         final String token = Session.getToken();
         final String baseUrl = ApiClient.getBaseUrl();
 
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
-                ServerReadiness.ensureReady(baseUrl);
+                // A monitor poll has its own retry loop and may be cancelled when Home is hidden.
+                if (poll == null) ServerReadiness.ensureReady(baseUrl);
+                else if (poll.cancelled()) return;
                 if (!baseUrl.equals(ApiClient.getBaseUrl())) {
                     throw new IOException("The server address changed. Please try again.");
                 }
                 conn = (HttpURLConnection) new URL(baseUrl + path).openConnection();
+                if (poll != null && !poll.attach(conn)) return;
+                conn.setUseCaches(false);
                 conn.setRequestMethod(method);
                 conn.setConnectTimeout(TIMEOUT_MS);
                 conn.setReadTimeout(TIMEOUT_MS);
@@ -80,7 +127,7 @@ public final class FleetApi {
                 }
 
                 if (method.equals("POST") || method.equals("PUT")) {
-                    byte[] data = csvBody(body).getBytes(StandardCharsets.UTF_8);
+                    byte[] data = (table == null ? csvBody(body) : table).getBytes(StandardCharsets.UTF_8);
                     conn.setDoOutput(true);
                     conn.setRequestProperty("Content-Type", "text/csv; charset=utf-8");
                     conn.setFixedLengthStreamingMode(data.length);
@@ -96,7 +143,7 @@ public final class FleetApi {
                 if (good) {
                     final JSONObject json = response(path, method, text);
                     mainHandler.post(() -> {
-                        if (callback != null) {
+                        if (callback != null && (poll == null || !poll.cancelled())) {
                             callback.onSuccess(json);
                         }
                     });
@@ -104,7 +151,7 @@ public final class FleetApi {
                     final int failCode = code;
                     final String message = errorMessage(text, code);
                     mainHandler.post(() -> {
-                        if (callback != null) {
+                        if (callback != null && (poll == null || !poll.cancelled())) {
                             callback.onError(failCode, message);
                         }
                     });
@@ -113,17 +160,18 @@ public final class FleetApi {
                 final String message = e.getMessage() == null
                         ? "Cannot reach the server. Check your connection and server address." : e.getMessage();
                 mainHandler.post(() -> {
-                    if (callback != null) {
+                    if (callback != null && (poll == null || !poll.cancelled())) {
                         callback.onError(0, message);
                     }
                 });
-            } catch (JSONException e) {
+            } catch (JSONException | IllegalArgumentException e) {
                 mainHandler.post(() -> {
-                    if (callback != null) {
-                        callback.onError(0, "The server sent an unexpected reply.");
+                    if (callback != null && (poll == null || !poll.cancelled())) {
+                        callback.onError(poll == null ? 0 : -1, "The server sent an unexpected reply.");
                     }
                 });
             } finally {
+                if (poll != null) poll.detach();
                 if (conn != null) {
                     conn.disconnect();
                 }
@@ -223,7 +271,10 @@ public final class FleetApi {
                 case "/shuttles": listKey = "shuttles"; break;
                 case "/shift": listKey = "shifts"; break;
                 case "/schedule": listKey = "schedule"; break;
+                case "/scheduled-shifts": listKey = "assignments"; break;
+                case "/notifications": listKey = "notifications"; break;
                 case "/live": listKey = "shuttles"; break;
+                case "/live/fleet": listKey = "fleet"; break;
                 default: break;
             }
         }

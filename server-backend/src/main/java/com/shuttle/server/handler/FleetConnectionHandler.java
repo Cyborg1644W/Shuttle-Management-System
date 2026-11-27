@@ -11,7 +11,17 @@ public final class FleetConnectionHandler extends BaseHandler {
         if (r.seg(2) != null) throw new ApiException(404, "Endpoint Not Found");
         if (action == null && r.is("GET")) return ok(TerminalService.getState(r.worker()));
         if (action == null && r.is("POST")) {
-            return created(TerminalService.create(r.worker(), Csv.str(r.body, "terminalName")));
+            return created(TerminalService.create(r.worker(), Csv.str(r.body, "terminalName"),
+                    Csv.str(r.body, "terminalLatitude"), Csv.str(r.body, "terminalLongitude")));
+        }
+        if ("invites".equals(action) && r.is("GET")) return ok(TerminalService.invitationState(r.worker()));
+        if ("invites".equals(action) && r.is("PUT")) {
+            String enabled = Csv.str(r.body, "enabled");
+            if (!"true".equalsIgnoreCase(enabled) && !"false".equalsIgnoreCase(enabled)) {
+                throw new ApiException(400, "Specify whether the invitation is enabled");
+            }
+            return ok(TerminalService.setInviteEnabled(r.worker(), Csv.str(r.body, "inviteCode"),
+                    Boolean.parseBoolean(enabled)));
         }
         if (r.is("POST")) {
             if ("invites".equals(action)) return created(TerminalService.invite(r.worker()));

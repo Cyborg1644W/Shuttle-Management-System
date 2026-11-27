@@ -10,7 +10,7 @@ The project is divided into three Gradle modules (Groovy build scripts, no Kotli
 
 1. **`:common`**: Shared domain models (Workers, Shifts, GPS Coordinates) used by both the server and the app.
 2. **`:server-backend`**: A JDK 17 HTTP server built on `com.sun.net.httpserver`. Data is stored in local CSV files using thread-safe atomic file swapping.
-3. **`:app`**: A native Android client (Java/XML) with background GPS tracking, programmatic canvas map rendering, and an offline-first queue for cellular dead zones.
+3. **`:app`**: A native Android client (Java/XML) with background GPS tracking, an interactive OpenStreetMap driver map, and an offline-first queue for cellular dead zones.
 
 ```text
 Driver Phone (Android) -------\
@@ -23,8 +23,17 @@ Dispatcher Phone (Android) ---/              (Java, files)  --writes--> export/ 
 ### Mobile Client (Android)
 * **Offline-First Resilience (`OfflineQueueManager`):** Caches GPS coordinates locally during cellular dead spots and flushes them to the server when connectivity returns.
 * **Background Tracking:** Uses an Android Foreground Service to keep collecting hardware GPS coordinates while the app is in the background. (Aggressive manufacturer battery optimization can still stop it; see Known Limitations.)
-* **Custom Map Rendering:** Avoids paid third-party map APIs by plotting live fleet telemetry onto a pure Java `Canvas`.
+* **Driver Live Route** follows the shuttle on OpenStreetMap, records the path locally during a shift, and fits the completed trip to the card.
+* **Operator Fleet Status** shows active shifts on Home. Select a unit in the map or list to follow it, use two fingers to pan or zoom, or tap **Fit All** to return to the overview. **Completed trips** opens a saved shift's route.
 * **Role-Based Routing:** Separate interfaces for Drivers, Dispatchers, and Administrators using standard Android XML layouts and plain Java activities.
+
+#### Fleet monitoring
+
+`FleetMonitorViewModel` polls the operator-scoped `GET /api/live/fleet` feed five seconds after each response while Home is visible. Each shift sends only fixes newer than the operator's last timestamp. The feed includes shifts awaiting a first fix. It retains live trails in server memory until shift end. The driver's saved trip supplies the completed geometry.
+
+`FleetStatusMapUiState` retains positions, selection and camera mode across connectivity changes and rotation. A fix becomes stale after 30 seconds. Speed below 3 km/h indicates idle, and an idle unit within 50 metres of its configured terminal is shown as **At terminal**. Both roles share osmdroid street tiles, the tile cache, shuttle icon, segmented polylines and camera fitting through `StreetMapCard`.
+
+Each operator manages one terminal. Its optional `terminalLatitude` and `terminalLongitude` fields can be supplied together on terminal creation. Older records still load. The map uses a Philippines overview when both terminal and shuttle positions are unavailable.
 
 ### Server Backend (Pure JDK)
 * **Thread-Safe CSV Persistence:** No external database. Data lives in structured CSV files, written through atomic file swapping and file locking (`AtomicFileWriter.java`) to prevent race conditions.
@@ -101,7 +110,7 @@ shuttle-management-system/
 |       |       |-- DriverActivity.java
 |       |       |-- DispatcherActivity.java
 |       |       |-- AdminActivity.java
-|       |       |-- PureJavaMapCanvas.java    # Custom Canvas rendering
+|       |       |-- LiveRouteMap.java         # Driver street map and trip geometry
 |       |       `-- ShiftSummaryActivity.java
 |       |
 |       `-- res/
@@ -109,8 +118,8 @@ shuttle-management-system/
 |           `-- values/          # Strings, colors, styles
 |
 |-- sample-data/import/          # Seed data for testing
-|   |-- workers.csv
-|   `-- shuttles.csv
+|   |-- workers.txt
+|   `-- shuttles.txt
 `-- docs/                        # API and schema documentation
     |-- FILE_FORMATS.md
     `-- API.md
@@ -123,7 +132,7 @@ shuttle-management-system/
 
 ## ⚡ Quick Start
 
-You need **JDK 17+**, the **Android SDK** (with `ANDROID_HOME` set or `sdk.dir` in `local.properties`), and **Git**.
+You need **JDK 17–21**, the **Android SDK** (with `ANDROID_HOME` set or `sdk.dir` in `local.properties`), and **Git**. Ensure `JAVA_HOME` points to that JDK before running Gradle. Android Studio should use the same Gradle JDK to avoid separate incompatible daemons.
 
 **0. Clone the repository**
 
@@ -145,10 +154,12 @@ Copy the files in `sample-data/import/` into the server's `import/` directory so
 **3. Start the server**
 
 ```bash
-bash ./gradlew :server-backend:run
+./run-server.sh
 ```
 
-The server binds to `0.0.0.0:8080` and serves HTTP. It requires no database or external credentials. Its CSV data lives relative to the process working directory; the generated `server-backend/build/install/server-backend/bin/server-backend` launcher can be run from a separate data directory to keep runtime files outside the checkout. For access over the internet, use an HTTPS endpoint that forwards to this backend.
+On Windows, use `run-server.bat`. The launcher builds an up-to-date installable backend distribution, then starts Java directly rather than leaving a Gradle `run` task attached to Android Studio. The server binds to `0.0.0.0:8080` by default; check `http://127.0.0.1:8080/health`. `./gradlew :server-backend:run` is also valid, but it intentionally remains active while the HTTP server is running.
+
+By default the server stores comma-separated tables in local `.txt` files. On upgrade, stop the old server before starting this version. Startup renames existing local `.csv` tables byte for byte. If both extensions exist for one table, resolve the duplicate before startup. The Render + R2 deployment below uses private cloud storage.
 
 **4. Install the Android app**
 
@@ -158,7 +169,9 @@ Connect an Android device (or start an emulator) and run:
 bash ./gradlew :app:installDebug
 ```
 
-The app must be able to reach the server. Use **Server connection** on the sign-in or registration screen to set its address on each phone. A physical phone on the same Wi-Fi can use the computer's LAN address, such as `http://192.168.1.10:8080`; an emulator reaches its host at `http://10.0.2.2:8080`. Phones in different locations need the same reachable HTTPS backend address. The current manifest permits cleartext HTTP for local development.
+Fresh installations and upgrades from 1.0 start in **Automatic**. The sign-in screen shows the active address. The release app uses `https://shuttle-server-wh1z.onrender.com/api`. Sign in directly. An upgrade preserves a previously entered address in **Server connection → Custom server**. Select **Custom server** and **Save** to use that address again, or choose **Automatic → Save** to return to the default.
+
+Debug builds can override the automatic address with the `shuttleApiBaseUrl` Gradle property, `SHUTTLE_API_BASE_URL` environment variable, or `shuttleApiBaseUrl` in `local.properties`, in that order. A custom server explicitly selected on the phone takes precedence on subsequent launches. For local HTTP development, a phone on the same Wi-Fi can use an address such as `http://192.168.1.10:8080`. The emulator can use `http://10.0.2.2:8080`. Use HTTPS for custom servers in release builds.
 
 **5. First login workflow**
 
@@ -168,9 +181,9 @@ The app must be able to reach the server. Use **Server connection** on the sign-
 4. On the driver's phone, tap **Join terminal**, enter the code, check the terminal and operator, then confirm.
 5. The driver appears in that operator's staff list. Vehicle assignments use the terminal's own shuttles, and shifts require terminal membership and an assigned vehicle.
 
-Each invitation admits one driver and expires after 48 hours. Codes and memberships survive backend restarts; sign in again after restarting because sessions are kept in memory. A driver belongs to one terminal at a time. Accepting another terminal's invitation requires explicit confirmation and finishing any active shift; it clears the old vehicle assignment and schedule while retaining the account and personal trip history. Removing a driver from the staff list disconnects the terminal membership without deleting the driver's account.
+Each terminal has one current, single-use invitation. Operators can disable or re-enable an unused code. There is no time limit. Codes and memberships survive backend restarts; sign in again after restarting because sessions are kept in memory. A driver belongs to one terminal at a time. Accepting another terminal's invitation requires explicit confirmation and finishing any active shift; it clears the old vehicle assignment and schedule while retaining the account and personal trip history. Removing a driver from the staff list disconnects the terminal membership without deleting the driver's account.
 
-Terminal membership, vehicle ownership and invitations are persisted together in `terminals.csv`, next to `workers.csv`. Workers, vehicles, schedules, shift reports and locations are filtered by terminal. Existing CSV records without terminal ownership are not automatically assigned to a newly created terminal; existing drivers should accept invitations, and vehicle ownership needs an explicit data migration. Deleted shuttle IDs remain reserved to their original terminal so historical tracking cannot be exposed through ID reuse.
+Terminal membership, vehicle ownership and invitations are persisted together in `terminals.txt`, next to `workers.txt`. Workers, vehicles, schedules, shift reports and locations are filtered by terminal. Existing CSV records without terminal ownership are not automatically assigned to a newly created terminal; existing drivers should accept invitations, and vehicle ownership needs an explicit data migration. Deleted shuttle IDs remain reserved to their original terminal so historical tracking cannot be exposed through ID reuse.
 
 The invitation feature uses no paid messaging or QR service. It does not provide hosting: both phones still require internet access to the shared backend for joining and live updates.
 
@@ -178,7 +191,7 @@ The invitation feature uses no paid messaging or QR service. It does not provide
 
 See [the deployment guide](docs/DEPLOY_RENDER_R2.md) for the private bucket, server settings, Docker deployment, and two-phone restart checks. The included `render.yaml` selects one Free Docker service and R2 storage; it does not provision services or contain credentials.
 
-Set `STORAGE_MODE=r2` and the documented R2 environment settings on the hosted server. All five CSV tables, including persistent fleet invitations in `terminals.csv`, commit together in a private ZIP object. Conditional writes detect conflicting versions. A failed upload rolls back the request's repository/session changes, and an uncertain upload is checked against the exact saved snapshot before reporting success. Local development still defaults to file storage.
+Set `STORAGE_MODE=r2` and the documented R2 environment settings on the hosted server. All five CSV tables, including persistent fleet invitations in `terminals.txt`, commit together in a private ZIP object. Conditional writes detect conflicting versions. A failed upload rolls back the request's repository/session changes, and an uncertain upload is checked against the exact saved snapshot before reporting success. Local development still defaults to file storage.
 
 The sign-in, registration and fleet clients check readiness before submitting an action, allowing up to 90 seconds for a sleeping host. Only the health GET is retried; account creation, joining and shift actions are never automatically repeated.
 
@@ -212,7 +225,7 @@ Before real drivers use this system in production:
 
 * **Session volatility:** Sessions live in RAM, so a server restart forces every mobile client to log in again.
 * **Storage scale:** The CSV backend handles dozens of drivers and thousands of shifts well. For thousands of concurrent active drivers, back the `Repository` interfaces with JDBC.
-* **Map detail:** `PureJavaMapCanvas` plots coordinates accurately but renders no street-level tiles. It works as a radar-style telemetry display.
+* **Offline map coverage** includes tiles previously viewed on this phone at the cached zoom levels. The GPS trail continues across areas without cached streets.
 * **Background tracking on Android:** Some manufacturers' battery optimizers kill foreground services anyway. Drivers may need to exempt the app from battery optimization.
 
 ---

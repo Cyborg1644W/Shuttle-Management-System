@@ -1,158 +1,565 @@
 package com.shuttle.mobile.ui;
 
+import android.app.Activity;
 import android.content.Context;
+import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
+import android.widget.GridLayout;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.snackbar.Snackbar;
+import com.shuttle.common.Role;
+import com.shuttle.common.ShiftTime;
 import com.shuttle.mobile.R;
 
-import java.text.SimpleDateFormat;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
-//TEMPORARY
-/**
- * Fills the Schedule tab (page_schedule.xml): a week strip, and the staff scheduled
- * for the selected day grouped into Morning / Afternoon / Night shifts.
- *
- * Uses SAMPLE data until the backend is connected - replace DATA with real schedules later.
- *
- * Usage:  SchedulePage.bind(this, findViewById(R.id.pageSchedule));
- */
+import java.util.Map;
+import java.util.Objects;
+
+/** Shows dated assignments and existing weekly shifts on the same calendar. */
 public final class SchedulePage {
+    private static final String[] WEEKLY_START = {"06:00", "14:00", "22:00"};
+    private static final String[] WEEKLY_END = {"14:00", "22:00", "06:00"};
+    private static final String[] TIMES = {shiftRange(0), shiftRange(1), shiftRange(2)};
 
-    private static final String[] DAY_NAMES = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
-    private static final String[] SHIFT_TITLES = {"Morning", "Afternoon", "Night"};
-    private static final String[] SHIFT_TIMES = {"06:00 - 14:00", "14:00 - 22:00", "22:00 - 06:00"};
-
-    private static class Entry {
-        final String name;
-        final String role;
-        final String place;
-        final int shift;
-        final String days;
-
-        Entry(String name, String role, String place, int shift, String days) {
-            this.name = name;
-            this.role = role;
-            this.place = place;
-            this.shift = shift;
-            this.days = days;
-        }
+    private static String shiftRange(int shift) {
+        return ShiftTime.display(WEEKLY_START[shift]) + " – " + ShiftTime.display(WEEKLY_END[shift]);
     }
-
-    private static final Entry[] DATA = {
-            new Entry("Yuri Esplana", "Terminal Operator", "PITX Central Bay", 0, "1111100"),
-            new Entry("Marco Santos", "Driver", "Terminal 1 Bay C", 0, "1010110"),
-            new Entry("Lea Ramos", "Terminal Operator", "Ayala Bay B", 1, "1111110"),
-            new Entry("Paolo Reyes", "Driver", "Terminal 2 Bay A", 1, "0110011"),
-            new Entry("Carla Mendoza", "Terminal Operator", "One Ayala Hub", 2, "1000111"),
-            new Entry("Jun Villanueva", "Driver", "Terminal 1 Bay C", 2, "0111101"),
-    };
-
     private final Context context;
-    private final LinearLayout layoutDays;
-    private final LinearLayout layoutSchedule;
-    private final TextView tvDate;
-    private final TextView tvSummary;
-    private final TextView tvEmpty;
-    private final View[] chips = new View[7];
-    private final Calendar[] dates = new Calendar[7];
-    private int selected;
+    private final View root;
+    private final LinearLayout layoutDays, layoutSchedule;
+    private final TextView date, summary, emptyTitle, emptyDescription, loadError;
+    private final View empty;
+    private final Calendar selected = ScheduleDates.today();
+    private final List<JSONObject> entries = new ArrayList<>();
+    private final List<JSONObject> assignments = new ArrayList<>();
+    private boolean loading, loaded, saving, editing, monthMode, loadingDated;
+    private String failure, datedFailure, datedRange;
+    private int datedRequest;
 
     private SchedulePage(Context context, View root) {
         this.context = context;
+        this.root = root;
         layoutDays = root.findViewById(R.id.layoutDays);
         layoutSchedule = root.findViewById(R.id.layoutSchedule);
-        tvDate = root.findViewById(R.id.tvSchDate);
-        tvSummary = root.findViewById(R.id.tvSchSummary);
-        tvEmpty = root.findViewById(R.id.tvSchEmpty);
+        date = root.findViewById(R.id.tvSchDate);
+        summary = root.findViewById(R.id.tvSchSummary);
+        empty = root.findViewById(R.id.scheduleEmptyState);
+        emptyTitle = empty.findViewById(R.id.tvEmptyTitle);
+        emptyDescription = empty.findViewById(R.id.tvEmptyDescription);
+        loadError = root.findViewById(R.id.tvScheduleLoadError);
+        loadError.setOnClickListener(v -> load());
+        ((android.widget.ImageView) empty.findViewById(R.id.ivEmptyState)).setImageResource(R.drawable.ic_nav_schedule);
     }
 
-    public static void bind(Context context, View pageRoot) {
-        new SchedulePage(context, pageRoot).init();
+    public static void bind(Context context, View root) {
+        SchedulePage page = new SchedulePage(context, root);
+        root.setTag(page);
+        View add = root.findViewById(R.id.btnScheduleAdd);
+        add.setVisibility(Session.getRole() == Role.OPERATOR ? View.VISIBLE : View.GONE);
+        add.setOnClickListener(v -> page.add());
+        root.findViewById(R.id.btnScheduleWeek).setOnClickListener(v -> page.mode(false));
+        root.findViewById(R.id.btnScheduleMonth).setOnClickListener(v -> page.mode(true));
+        root.findViewById(R.id.btnSchedulePrevious).setOnClickListener(v -> page.move(-7));
+        root.findViewById(R.id.btnScheduleNext).setOnClickListener(v -> page.move(7));
+        page.load();
     }
 
-    private void init() {
-        // Monday of the current week
-        Calendar monday = Calendar.getInstance();
-        int todayIndex = (monday.get(Calendar.DAY_OF_WEEK) + 5) % 7; // Mon=0 ... Sun=6
-        monday.add(Calendar.DATE, -todayIndex);
+    public static void refresh(View root) {
+        if (root != null && root.getTag() instanceof SchedulePage page) page.load();
+    }
 
-        layoutDays.removeAllViews();
-        for (int i = 0; i < 7; i++) {
-            Calendar day = (Calendar) monday.clone();
-            day.add(Calendar.DATE, i);
-            dates[i] = day;
+    private void add() {
+        if (Session.getRole() != Role.OPERATOR) return;
+        AddShiftForm.show(context, selected, saved -> {
+            selected.setTimeInMillis(saved.getTimeInMillis());
+            loadDated(true);
+            Snackbar confirmation = Snackbar.make(root,
+                    "Shift added successfully.\nThe shift has been scheduled.", Snackbar.LENGTH_LONG);
+            confirmation.setTextMaxLines(2);
+            confirmation.setBackgroundTint(ContextCompat.getColor(context, R.color.badge_on_bg));
+            confirmation.setTextColor(ContextCompat.getColor(context, R.color.text_primary));
+            confirmation.setActionTextColor(ContextCompat.getColor(context, R.color.primary));
+            View scheduleTab = root.getRootView().findViewById(R.id.navSchedule);
+            if (scheduleTab != null) confirmation.setAnchorView(scheduleTab);
+            confirmation.setAction("Dismiss", v -> confirmation.dismiss());
+            confirmation.show();
+        });
+    }
 
-            View chip = LayoutInflater.from(context).inflate(R.layout.item_schedule_day, layoutDays, false);
-            ((TextView) chip.findViewById(R.id.tvDayName)).setText(DAY_NAMES[i]);
-            ((TextView) chip.findViewById(R.id.tvDayNum)).setText(
-                    String.valueOf(day.get(Calendar.DAY_OF_MONTH)));
-            final int index = i;
-            chip.setOnClickListener(v -> select(index));
-            chips[i] = chip;
-            layoutDays.addView(chip);
+    private boolean active() {
+        return Session.isSignedIn() && (!(context instanceof Activity activity)
+                || (!activity.isFinishing() && !activity.isDestroyed()));
+    }
+
+    private void load() {
+        loadDated(true);
+        if (loading || saving || editing) return;
+        loading = true;
+        failure = null;
+        draw();
+        String token = Session.getToken();
+        FleetApi.get("/schedule", new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject result) {
+                if (!active() || !Objects.equals(token, Session.getToken())) return;
+                loading = false;
+                JSONArray rows = result.optJSONArray("schedule");
+                if (rows == null) failure = "Could not read weekly shifts.";
+                else {
+                    replace(entries, rows);
+                    loaded = true;
+                }
+                draw();
+            }
+
+            @Override public void onError(int status, String message) {
+                if (!active() || !Objects.equals(token, Session.getToken())) return;
+                loading = false;
+                failure = message;
+                draw();
+            }
+        });
+    }
+
+    private void loadDated(boolean force) {
+        Calendar first = (Calendar) selected.clone();
+        if (monthMode) first.set(Calendar.DAY_OF_MONTH, 1);
+        else first = ScheduleDates.offset(first, -ScheduleDates.weekday(first));
+        Calendar last = ScheduleDates.offset(first,
+                monthMode ? first.getActualMaximum(Calendar.DAY_OF_MONTH) - 1 : 6);
+        String range = "?from=" + ScheduleDates.iso(first) + "&to=" + ScheduleDates.iso(last);
+        if (range.equals(datedRange) && !force) { draw(); return; }
+        if (!range.equals(datedRange)) assignments.clear();
+        datedRange = range;
+        int request = ++datedRequest;
+        String token = Session.getToken();
+        loadingDated = true;
+        datedFailure = null;
+        draw();
+        FleetApi.get("/scheduled-shifts" + range, new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject result) {
+                if (stale(request, token)) return;
+                loadingDated = false;
+                JSONArray rows = result.optJSONArray("assignments");
+                if (rows == null) datedFailure = "Could not read dated shifts.";
+                else replace(assignments, rows);
+                draw();
+            }
+
+            @Override public void onError(int status, String message) {
+                if (stale(request, token)) return;
+                loadingDated = false;
+                datedFailure = status == 404
+                        ? "Update and restart your Java server to load dated shifts." : message;
+                draw();
+            }
+        });
+    }
+
+    private boolean stale(int request, String token) {
+        return request != datedRequest || !active() || !Objects.equals(token, Session.getToken());
+    }
+
+    private static void replace(List<JSONObject> target, JSONArray source) {
+        target.clear();
+        for (int i = 0; i < source.length(); i++) {
+            JSONObject row = source.optJSONObject(i);
+            if (row != null) target.add(row);
         }
-        select(todayIndex);
     }
 
-    private void select(int index) {
-        selected = index;
+    private void mode(boolean month) {
+        monthMode = month;
+        loadDated(false);
+    }
 
-        for (int i = 0; i < 7; i++) {
-            boolean on = i == selected;
-            chips[i].setBackgroundResource(on ? R.drawable.day_chip_on : R.drawable.day_chip_off);
-            ((TextView) chips[i].findViewById(R.id.tvDayName)).setTextColor(ContextCompat.getColor(
-                    context, on ? R.color.white : R.color.text_secondary));
-            ((TextView) chips[i].findViewById(R.id.tvDayNum)).setTextColor(ContextCompat.getColor(
-                    context, on ? R.color.white : R.color.text_primary));
+    private void move(int days) {
+        if (monthMode) {
+            int day = selected.get(Calendar.DAY_OF_MONTH);
+            selected.set(Calendar.DAY_OF_MONTH, 1);
+            selected.add(Calendar.MONTH, days < 0 ? -1 : 1);
+            selected.set(Calendar.DAY_OF_MONTH, Math.min(day, selected.getActualMaximum(Calendar.DAY_OF_MONTH)));
+        } else selected.add(Calendar.DATE, days);
+        loadDated(false);
+    }
+
+    private void pick(Calendar day) {
+        selected.setTimeInMillis(day.getTimeInMillis());
+        loadDated(false);
+    }
+
+    private void draw() {
+        GridLayout monthGrid = root.findViewById(R.id.calendarScheduleMonth);
+        monthGrid.setVisibility(monthMode ? View.VISIBLE : View.GONE);
+        root.findViewById(R.id.layoutScheduleWeek).setVisibility(monthMode ? View.GONE : View.VISIBLE);
+        for (int id : new int[]{R.id.btnScheduleWeek, R.id.btnScheduleMonth}) {
+            TextView tab = root.findViewById(id);
+            boolean on = (id == R.id.btnScheduleMonth) == monthMode;
+            tab.setSelected(on);
+            tab.setBackgroundResource(on ? R.drawable.tab_selected : R.drawable.tab_unselected);
+            tab.setTextColor(ContextCompat.getColor(context, on ? R.color.white : R.color.text_secondary));
         }
-
-        SimpleDateFormat fmt = new SimpleDateFormat("EEEE, MMMM d", Locale.getDefault());
-        tvDate.setText(fmt.format(new Date(dates[selected].getTimeInMillis())));
+        TextView period = root.findViewById(R.id.tvSchedulePeriod);
+        if (monthMode) {
+            period.setText(ScheduleDates.label(selected, "MMMM yyyy"));
+            ScheduleDates.monthGrid(monthGrid, selected, selected, null, this::hasShift, this::pick);
+        } else {
+            Calendar monday = ScheduleDates.offset(selected, -ScheduleDates.weekday(selected));
+            period.setText(ScheduleDates.label(monday, "MMM d") + " – "
+                    + ScheduleDates.label(ScheduleDates.offset(monday, 6), "MMM d, yyyy"));
+            layoutDays.removeAllViews();
+            for (int i = 0; i < 7; i++) {
+                Calendar day = ScheduleDates.offset(monday, i);
+                LinearLayout chip = (LinearLayout) LayoutInflater.from(context)
+                        .inflate(R.layout.item_schedule_day, layoutDays, false);
+                TextView label = chip.findViewById(R.id.tvDayName);
+                TextView number = chip.findViewById(R.id.tvDayNum);
+                label.setText(ScheduleDates.DAYS[i]);
+                number.setText(String.valueOf(day.get(Calendar.DAY_OF_MONTH)));
+                boolean on = i == ScheduleDates.weekday(selected);
+                boolean marked = hasShift(day);
+                chip.setSelected(on);
+                chip.setBackgroundResource(on ? R.drawable.day_chip_on : R.drawable.day_chip_off);
+                label.setTextColor(ContextCompat.getColor(context, on ? R.color.white : R.color.text_secondary));
+                number.setTextColor(ContextCompat.getColor(context, on ? R.color.white : R.color.text_primary));
+                chip.addView(ScheduleDates.marker(context, on, marked), new LinearLayout.LayoutParams(dp(4), dp(4)));
+                chip.setContentDescription(ScheduleDates.label(day, "EEEE, MMMM d, yyyy")
+                        + (marked ? ", scheduled" : ""));
+                chip.setOnClickListener(v -> pick(day));
+                layoutDays.addView(chip);
+            }
+        }
         render();
     }
 
+    private boolean hasShift(Calendar day) {
+        String iso = ScheduleDates.iso(day);
+        for (JSONObject row : assignments) if (iso.equals(row.optString("shiftDate"))) return true;
+        for (JSONObject row : entries) if (hasWeeklyShift(row, day)) return true;
+        return false;
+    }
+
+    private static boolean hasWeeklyShift(JSONObject row, Calendar day) {
+        String days = row.optString("days");
+        return days.length() == 7 && days.charAt(ScheduleDates.weekday(day)) == '1';
+    }
+
     private void render() {
+        Calendar day = (Calendar) selected.clone();
+        date.setText(ScheduleDates.label(day, "EEEE, MMMM d"));
         layoutSchedule.removeAllViews();
-        int total = 0;
-        int shifts = 0;
-
-        for (int s = 0; s < 3; s++) {
-            int count = 0;
-            for (Entry e : DATA) {
-                if (e.shift == s && e.days.charAt(selected) == '1') count++;
+        String iso = ScheduleDates.iso(selected);
+        for (JSONObject row : assignments) {
+            if (!iso.equals(row.optString("shiftDate"))) continue;
+            View card = scheduleCard(row,
+                    "Shuttle " + row.optString("shuttleId") + " · " + row.optString("employeeId"),
+                    ShiftTime.display(row.optString("startTime")) + " – " + ShiftTime.display(row.optString("endTime")),
+                    row.optString("status", "Scheduled"));
+            String notes = shiftNotes(row);
+            if (!notes.isEmpty()) {
+                ((TextView) card.findViewById(R.id.tvSchNotes)).setText(notes);
+                card.findViewById(R.id.layoutShiftNotes).setVisibility(View.VISIBLE);
             }
-            if (count == 0) continue;
-            shifts++;
-            total += count;
-
-            View header = LayoutInflater.from(context)
-                    .inflate(R.layout.item_schedule_header, layoutSchedule, false);
-            ((TextView) header.findViewById(R.id.tvShiftTitle)).setText(SHIFT_TITLES[s]);
-            ((TextView) header.findViewById(R.id.tvShiftTime)).setText(SHIFT_TIMES[s]);
-            ((TextView) header.findViewById(R.id.tvShiftCount)).setText(count + " on duty");
-            layoutSchedule.addView(header);
-
-            for (Entry e : DATA) {
-                if (e.shift != s || e.days.charAt(selected) != '1') continue;
-                View row = LayoutInflater.from(context)
-                        .inflate(R.layout.item_schedule_row, layoutSchedule, false);
-                ((TextView) row.findViewById(R.id.tvSchAvatar)).setText(WorkerDialogs.initials(e.name));
-                ((TextView) row.findViewById(R.id.tvSchName)).setText(e.name);
-                ((TextView) row.findViewById(R.id.tvSchSub)).setText(e.role + " • " + e.place);
-                ((TextView) row.findViewById(R.id.tvSchTime)).setText(SHIFT_TIMES[s].replace(" ", ""));
-                layoutSchedule.addView(row);
-            }
+            bindDetails(card, row, day, false);
+            layoutSchedule.addView(card);
+        }
+        for (JSONObject row : entries) {
+            int shift = row.optInt("shift", -1);
+            if (shift < 0 || shift >= TIMES.length || !hasWeeklyShift(row, selected)) continue;
+            View card = scheduleCard(row, row.optString("role") + " · " + row.optString("place"),
+                    TIMES[shift], "Weekly shift");
+            bindDetails(card, row, day, true);
+            layoutSchedule.addView(card);
         }
 
-        tvSummary.setText(total + (total == 1 ? " person" : " people") + " scheduled • "
-                + shifts + (shifts == 1 ? " shift" : " shifts"));
-        tvEmpty.setVisibility(total == 0 ? View.VISIBLE : View.GONE);
+        int total = layoutSchedule.getChildCount();
+        summary.setText(total == 1 ? "1 shift" : total + " shifts");
+        summary.setVisibility(total > 0 ? View.VISIBLE : View.GONE);
+        String message = datedFailure != null ? datedFailure : failure;
+        loadError.setText(message == null ? "" : message + " · Tap to retry");
+        loadError.setVisibility(message == null ? View.GONE : View.VISIBLE);
+        empty.setVisibility(total == 0 && message == null ? View.VISIBLE : View.GONE);
+        boolean waiting = loading || loadingDated;
+        emptyTitle.setText(waiting ? "Loading schedule…" : "No shifts scheduled");
+        emptyDescription.setText(waiting ? "" : "There are no assignments for this day.");
+        emptyDescription.setVisibility(waiting ? View.GONE : View.VISIBLE);
     }
+
+    private View scheduleCard(JSONObject row, String subtitle, String time, String status) {
+        View card = LayoutInflater.from(context).inflate(R.layout.item_schedule_row, layoutSchedule, false);
+        String name = FleetApi.text(row, "name");
+        ((TextView) card.findViewById(R.id.tvSchName)).setText(name.isEmpty() ? row.optString("employeeId") : name);
+        ((TextView) card.findViewById(R.id.tvSchSub)).setText(subtitle);
+        ((TextView) card.findViewById(R.id.tvSchTime)).setText(time);
+        ((TextView) card.findViewById(R.id.tvSchStatus)).setText(status);
+        return card;
+    }
+
+    private void bindDetails(View card, JSONObject row, Calendar day, boolean weekly) {
+        card.findViewById(R.id.btnScheduleDetails).setOnClickListener(v -> showDetails(row, day, weekly));
+        card.setOnClickListener(v -> showDetails(row, day, weekly));
+    }
+
+    private void showDetails(JSONObject row, Calendar day, boolean weekly) {
+        LinearLayout content = WorkerDialogs.detailContent(context);
+        LinearLayout information = WorkerDialogs.detailSection(context, content, "Shift Assignment");
+        String worker = FleetApi.text(row, "name");
+        if (worker.isEmpty()) worker = row.optString("employeeId");
+        String shuttle = FleetApi.text(row, "shuttleId");
+        int shift = row.optInt("shift", -1);
+        String start = weekly ? WEEKLY_START[shift] : row.optString("startTime");
+        String end = weekly ? WEEKLY_END[shift] : row.optString("endTime");
+        boolean overnight = end.compareTo(start) < 0;
+        Calendar shiftStart = (Calendar) day.clone();
+        boolean startKnown = !"Unavailable".equals(ShiftTime.display(start));
+        if (startKnown) {
+            shiftStart.set(Calendar.HOUR_OF_DAY, Integer.parseInt(start.substring(0, 2)));
+            shiftStart.set(Calendar.MINUTE, Integer.parseInt(start.substring(3)));
+        }
+        boolean upcoming = startKnown && shiftStart.getTimeInMillis() > System.currentTimeMillis();
+        WorkerDialogs.informationRow(context, information, "Assigned Worker", worker);
+        WorkerDialogs.informationRow(context, information, "Assigned Shuttle", shuttle.isEmpty() ? "Unassigned" : "Shuttle " + shuttle);
+        WorkerDialogs.informationRow(context, information, "Shift Date", ScheduleDates.label(day, "EEE, MMM d, yyyy"));
+        WorkerDialogs.informationRow(context, information, "Start Time", ShiftTime.display(start));
+        WorkerDialogs.informationRow(context, information, "End Time", ShiftTime.display(end) + (overnight ? " (next day)" : ""));
+        WorkerDialogs.informationRow(context, information, "Status", weekly
+                ? (upcoming ? "Weekly shift" : "Weekly occurrence") : row.optString("status", "Scheduled"));
+        String notes = shiftNotes(row);
+        if (!notes.isEmpty()) {
+            LinearLayout section = WorkerDialogs.detailSection(context, content, "Worker Notes");
+            section.addView(WorkerDialogs.detailText(context, notes, 14, false));
+        }
+        android.app.Dialog page = WorkerDialogs.showDetailPage(context, "Schedule Details", content);
+        if (Session.getRole() != Role.OPERATOR) return;
+        if (weekly) {
+            com.google.android.material.button.MaterialButton edit = new com.google.android.material.button.MaterialButton(context);
+            edit.setText("Edit Weekly Shift");
+            edit.setAllCaps(false);
+            content.addView(edit);
+            edit.setOnClickListener(v -> { page.dismiss(); editWeekly(row); });
+        }
+        boolean mayRemove = row.optBoolean("canRemove", false) && (!weekly || upcoming);
+        if (!mayRemove) return;
+        com.google.android.material.button.MaterialButton remove = new com.google.android.material.button.MaterialButton(context);
+        remove.setText("Remove Schedule");
+        remove.setAllCaps(false);
+        remove.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                ContextCompat.getColor(context, R.color.error)));
+        LinearLayout.LayoutParams removeLayout = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        removeLayout.topMargin = dp(16);
+        content.addView(remove, removeLayout);
+        remove.setOnClickListener(v -> confirmRemove(row, day, weekly, page));
+    }
+
+    private void confirmRemove(JSONObject row, Calendar day, boolean weekly, android.app.Dialog page) {
+        if (!(context instanceof Activity activity) || Session.getRole() != Role.OPERATOR) return;
+        FleetConfirmation confirmation = new FleetConfirmation(activity, "Remove Schedule?",
+                "Are you sure you want to remove this schedule? This action cannot be undone.",
+                "Remove Schedule", true);
+        if (weekly) confirmation.addDetail("Applies to", "Entire weekly schedule");
+        confirmation.show(() -> {
+            confirmation.setBusy(true, "Removing…");
+            String path = weekly
+                    ? "/schedule/" + FleetApi.encode(row.optString("employeeId"))
+                        + "?shift=" + row.optInt("shift") + "&days=" + FleetApi.encode(row.optString("days"))
+                        + "&date=" + ScheduleDates.iso(day)
+                    : "/scheduled-shifts/" + FleetApi.encode(row.optString("id"));
+            String token = Session.getToken();
+            FleetApi.delete(path, new FleetApi.Callback() {
+                @Override public void onSuccess(JSONObject result) {
+                    if (!active() || !Objects.equals(token, Session.getToken())) return;
+                    if (!result.optBoolean("removed", false)) {
+                        confirmation.showError("The server did not confirm removal. Refresh the schedule before retrying.");
+                        return;
+                    }
+                    confirmation.dismiss();
+                    page.dismiss();
+                    if (weekly) {
+                        entries.removeIf(entry -> entry.optString("employeeId").equals(row.optString("employeeId"))
+                                && entry.optInt("shift") == row.optInt("shift")
+                                && entry.optString("days").equals(row.optString("days")));
+                    } else {
+                        assignments.removeIf(entry -> entry.optString("id").equals(row.optString("id")));
+                    }
+                    load();
+                    Snackbar.make(root, "Schedule removed", Snackbar.LENGTH_SHORT).show();
+                }
+
+                @Override public void onError(int status, String message) {
+                    if (active() && Objects.equals(token, Session.getToken())) confirmation.showError(message);
+                }
+            });
+        });
+    }
+
+    private static String shiftNotes(JSONObject row) {
+        String notes = FleetApi.text(row, "notesBase64");
+        if (notes.isEmpty()) return "";
+        try {
+            return new String(Base64.decode(notes, Base64.DEFAULT), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException invalid) {
+            return "Notes could not be read.";
+        }
+    }
+
+    private void editWeekly(JSONObject existing) {
+        if (!loaded || loading || saving || editing || Session.getRole() != Role.OPERATOR) return;
+        editing = true;
+        String token = Session.getToken();
+        FleetApi.get("/workers", new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject result) {
+                if (!active() || !java.util.Objects.equals(token, Session.getToken())) return;
+                JSONArray rows = result.optJSONArray("workers");
+                if (rows == null || rows.length() == 0) {
+                    editing = false;
+                    Toast.makeText(context, "Invite workers to your terminal first.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                form(existing, rows);
+            }
+            @Override public void onError(int status, String message) {
+                editing = false;
+                if (active()) Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void form(JSONObject existing, JSONArray workers) {
+        List<JSONObject> people = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        int selectedWorker = -1;
+        for (int i = 0; i < workers.length(); i++) {
+            JSONObject worker = workers.optJSONObject(i);
+            if (worker == null) continue;
+            if (existing != null && existing.optString("employeeId").equals(worker.optString("employeeId"))) selectedWorker = people.size();
+            people.add(worker);
+            names.add(worker.optString("fullName") + " · " + worker.optString("employeeId"));
+        }
+        if (people.isEmpty()) { editing = false; return; }
+        if (existing != null && selectedWorker < 0) {
+            editing = false;
+            Toast.makeText(context, "This worker is no longer available. Refresh the schedule.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        LinearLayout box = new LinearLayout(context);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.addView(WorkerDialogs.detailText(context, "Edit this existing weekly shift.", 12, false));
+        label(box, "Worker");
+        Spinner worker = spinner(box, names.toArray(new String[0]));
+        worker.setSelection(Math.max(0, selectedWorker));
+        label(box, "Shift");
+        Spinner shift = spinner(box, new String[] {"Morning · " + TIMES[0], "Afternoon · " + TIMES[1], "Night · " + TIMES[2]});
+        shift.setSelection(Math.max(0, Math.min(2, existing.optInt("shift"))));
+        label(box, "Repeats every week on");
+        LinearLayout daysRow = new LinearLayout(context);
+        daysRow.setOrientation(LinearLayout.VERTICAL);
+        CheckBox[] checks = new CheckBox[7];
+        for (int i = 0; i < 7; i++) {
+            CheckBox check = new CheckBox(context);
+            check.setText(ScheduleDates.DAYS[i]);
+            check.setContentDescription(ScheduleDates.DAYS[i]);
+            check.setTextSize(14);
+            check.setButtonTintList(android.content.res.ColorStateList.valueOf(
+                    ContextCompat.getColor(context, R.color.primary)));
+            check.setPadding(0, 0, 0, 0);
+            check.setChecked(existing.optString("days").length() == 7 && existing.optString("days").charAt(i) == '1');
+            checks[i] = check;
+            daysRow.addView(check, new LinearLayout.LayoutParams(-1, dp(48)));
+        }
+        box.addView(daysRow);
+        TextView error = new TextView(context);
+        error.setTextColor(ContextCompat.getColor(context, R.color.error));
+        box.addView(error);
+        com.google.android.material.button.MaterialButton save = new com.google.android.material.button.MaterialButton(context);
+        save.setText("Save Changes");
+        box.addView(save, new LinearLayout.LayoutParams(-1, dp(48)));
+        TextView cancel = WorkerDialogs.detailText(context, "Cancel", 13, false);
+        cancel.setGravity(android.view.Gravity.CENTER);
+        box.addView(cancel, new LinearLayout.LayoutParams(-1, dp(48)));
+        android.app.Dialog dialog = WorkerDialogs.showDetailPage(context,
+                "Edit Weekly Shift", box);
+        dialog.setOnDismissListener(d -> editing = false);
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        save.setOnClickListener(button -> {
+            StringBuilder bits = new StringBuilder();
+            for (CheckBox check : checks) bits.append(check.isChecked() ? '1' : '0');
+            if (bits.indexOf("1") < 0) { error.setText("Select at least one day."); return; }
+            List<Map<String, String>> updated = new ArrayList<>();
+            for (JSONObject entry : entries) {
+                if (entry != existing) updated.add(csvRow(entry.optString("employeeId"), entry.optInt("shift"), entry.optString("days")));
+            }
+            updated.add(csvRow(people.get(worker.getSelectedItemPosition()).optString("employeeId"),
+                    shift.getSelectedItemPosition(), bits.toString()));
+            saving = true;
+            dialog.setCancelable(false);
+            save.setEnabled(false);
+            dialog.findViewById(R.id.btnDetailBack).setEnabled(false);
+            cancel.setEnabled(false);
+            render();
+            String token = Session.getToken();
+            FleetApi.putTable("/schedule", updated, new FleetApi.Callback() {
+                @Override public void onSuccess(JSONObject result) {
+                    if (!active() || !java.util.Objects.equals(token, Session.getToken())) return;
+                    saving = false;
+                    dialog.dismiss();
+                    Toast.makeText(context, "Schedule updated", Toast.LENGTH_SHORT).show();
+                    load();
+                }
+                @Override public void onError(int status, String message) {
+                    if (!active() || !java.util.Objects.equals(token, Session.getToken())) return;
+                    saving = false;
+                    dialog.setCancelable(true);
+                    save.setEnabled(true);
+                    dialog.findViewById(R.id.btnDetailBack).setEnabled(true);
+                    cancel.setEnabled(true);
+                    error.setText(message);
+                    render();
+                }
+            });
+        });
+    }
+
+    private static Map<String, String> csvRow(String id, int shift, String days) {
+        Map<String, String> row = new LinkedHashMap<>();
+        row.put("employeeId", id);
+        row.put("shift", String.valueOf(shift));
+        row.put("days", days);
+        return row;
+    }
+    private void label(LinearLayout box, String title) {
+        TextView label = new TextView(context);
+        label.setText(title.toUpperCase(Locale.ROOT));
+        label.setTextSize(10);
+        label.setPadding(0, dp(12), 0, dp(4));
+        label.setTextColor(ContextCompat.getColor(context, R.color.text_primary));
+        box.addView(label);
+    }
+    private Spinner spinner(LinearLayout box, String[] options) {
+        Spinner spinner = new Spinner(context);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, options);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        spinner.setBackgroundResource(R.drawable.input_bg);
+        spinner.setPadding(dp(12), 0, dp(12), 0);
+        box.addView(spinner, new LinearLayout.LayoutParams(-1, dp(48)));
+        return spinner;
+    }
+    private int dp(int value) { return Math.round(value * context.getResources().getDisplayMetrics().density); }
 }

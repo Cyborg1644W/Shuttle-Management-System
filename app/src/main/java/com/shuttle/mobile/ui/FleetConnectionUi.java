@@ -4,25 +4,30 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.content.Intent;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.widget.EditText;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.shuttle.mobile.R;
 
 import androidx.appcompat.app.AlertDialog;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.shuttle.mobile.client.ApiClient;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.text.DateFormat;
-import java.util.Date;
 
 /** Account connections are explicit: registration alone never joins a terminal. */
 public final class FleetConnectionUi {
+    private static final String INVALID_INVITE =
+            "This invite code is invalid, disabled, or already used. Ask the operator for a new one.";
+
     private FleetConnectionUi() { }
 
     public static final class Membership {
@@ -40,91 +45,151 @@ public final class FleetConnectionUi {
     }
 
     public static void showDriver(Activity activity, Membership current, Runnable changed) {
-        if (current != null && current.joined) {
-            new MaterialAlertDialogBuilder(activity)
-                    .setTitle(current.terminalName)
-                    .setMessage("Managed by " + current.operatorName
-                            + ".\n\nYou belong to one terminal at a time. Joining another terminal replaces this connection. End your shift before switching.")
-                    .setPositiveButton("Join another terminal", (d, w) -> enterCode(activity, current, changed))
-                    .setNegativeButton("Close", null).show();
-        } else {
+        if (current == null || !current.joined) {
             enterCode(activity, current, changed);
+            return;
         }
+        android.widget.LinearLayout content = WorkerDialogs.detailContent(activity);
+        android.widget.LinearLayout card = WorkerDialogs.detailSection(activity, content, "Current Terminal");
+        WorkerDialogs.informationRow(activity, card, "Terminal", current.terminalName);
+        WorkerDialogs.informationRow(activity, card, "Operator", current.operatorName);
+        android.widget.TextView duty = WorkerDialogs.informationRow(activity, card, "Duty status", "Loading…");
+        android.widget.TextView vehicle = WorkerDialogs.informationRow(activity, card, "Vehicle assignment", "Loading…");
+        com.google.android.material.button.MaterialButton switchTerminal =
+                new com.google.android.material.button.MaterialButton(activity);
+        switchTerminal.setText("Join another terminal");
+        content.addView(switchTerminal, new android.widget.LinearLayout.LayoutParams(-1, -2));
+        switchTerminal.setOnClickListener(v -> enterCode(activity, current, changed));
+        com.google.android.material.button.MaterialButton leave =
+                new com.google.android.material.button.MaterialButton(activity);
+        leave.setText("Leave Terminal");
+        leave.setEnabled(false);
+        content.addView(leave, new android.widget.LinearLayout.LayoutParams(-1, -2));
+        content.addView(WorkerDialogs.detailText(activity,
+                "Ask your operator to remove your terminal connection.", 12, false));
+        android.app.Dialog page = WorkerDialogs.showDetailPage(activity, "Terminal Details", content);
+        FleetApi.get("/workers/" + FleetApi.encode(Session.getEmployeeId()), new FleetApi.Callback() {
+            @Override public void onSuccess(JSONObject reply) {
+                if (!alive(activity) || !page.isShowing()) return;
+                JSONObject worker = reply.optJSONObject("worker");
+                if (worker == null) worker = reply;
+                String status = FleetApi.text(worker, "shiftStatus");
+                boolean active = "ON_SHIFT".equals(status);
+                duty.setText(active ? "On Duty" : "Off Duty");
+                String assigned = FleetApi.text(worker, "shuttleId");
+                vehicle.setText(assigned.isEmpty() ? "Unassigned" : assigned);
+                switchTerminal.setEnabled(!active);
+            }
+            @Override public void onError(int status, String message) {
+                if (!alive(activity) || !page.isShowing()) return;
+                duty.setText("Unavailable");
+                vehicle.setText("Unavailable");
+            }
+        });
     }
 
     private static void enterCode(Activity activity, Membership current, Runnable changed) {
-        EditText input = field(activity, "Invitation code");
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
-        input.setFilters(new InputFilter[]{new InputFilter.LengthFilter(64)});
-        AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
-                .setTitle("Join a terminal")
-                .setMessage("Ask your terminal operator to share a fleet invitation code. Enter it here to see which terminal you will join.")
-                .setView(input)
-                .setPositiveButton("Check invitation", null)
-                .setNegativeButton("Later", null).create();
-        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+        enterCode(activity, current, changed, "", "");
+    }
+
+    private static void enterCode(Activity activity, Membership current, Runnable changed,
+                                  String previousCode, String previousError) {
+        android.view.View view = android.view.LayoutInflater.from(activity).inflate(com.shuttle.mobile.R.layout.sheet_invitation, null);
+        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(activity);
+        sheet.setContentView(view);
+        ((android.widget.TextView) view.findViewById(com.shuttle.mobile.R.id.tvInviteSheetTitle)).setText("Join a terminal");
+        ((android.widget.TextView) view.findViewById(com.shuttle.mobile.R.id.tvInviteSheetDescription))
+                .setText("Enter the invitation code from your operator.");
+        EditText input = view.findViewById(com.shuttle.mobile.R.id.etInviteSheetCode);
+        input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(64)});
+        view.findViewById(com.shuttle.mobile.R.id.btnInviteSheetReveal).setVisibility(android.view.View.GONE);
+        view.findViewById(com.shuttle.mobile.R.id.btnInviteSheetCopy).setVisibility(android.view.View.GONE);
+        android.widget.TextView error = view.findViewById(com.shuttle.mobile.R.id.tvInviteSheetError);
+        com.google.android.material.button.MaterialButton action = view.findViewById(com.shuttle.mobile.R.id.btnInviteSheetAction);
+        View codeField = view.findViewById(R.id.inviteCodeField);
+        input.setText(previousCode);
+        action.setEnabled(!previousCode.isEmpty());
+        if (!previousError.isEmpty()) showCodeError(codeField, error, previousError, true);
+        final boolean[] busy = {false};
+        FieldUi.onChange(input, () -> {
+            FieldUi.set(codeField, FieldUi.NORMAL);
+            error.setVisibility(android.view.View.GONE);
+            action.setEnabled(!busy[0] && !input.getText().toString().trim().isEmpty());
+        });
+        view.findViewById(com.shuttle.mobile.R.id.btnInviteSheetClose).setOnClickListener(v -> sheet.dismiss());
+        action.setOnClickListener(v -> {
             String code = input.getText().toString().trim();
-            if (code.isEmpty()) {
-                input.setError("Enter the code your operator shared");
-                return;
-            }
-            setBusy(dialog, input, true, "Checking…", "Check invitation");
+            if (code.isEmpty() || busy[0]) return;
+            busy[0] = true;
+            action.setEnabled(false);
+            action.setText("Checking…");
+            input.setEnabled(false);
+            view.findViewById(com.shuttle.mobile.R.id.btnInviteSheetClose).setEnabled(false);
+            sheet.setCancelable(false);
             FleetApi.post("/fleet/preview", row("inviteCode", code), new FleetApi.Callback() {
                 @Override public void onSuccess(JSONObject reply) {
                     if (!alive(activity)) return;
-                    dialog.dismiss();
+                    sheet.dismiss();
                     confirmJoin(activity, current, new Membership(reply), code, changed);
                 }
                 @Override public void onError(int status, String message) {
                     if (!alive(activity)) return;
-                    setBusy(dialog, input, false, "Checking…", "Check invitation");
-                    input.setError(message);
+                    busy[0] = false;
+                    input.setEnabled(true);
+                    action.setEnabled(true);
+                    action.setText("Join");
+                    view.findViewById(com.shuttle.mobile.R.id.btnInviteSheetClose).setEnabled(true);
+                    sheet.setCancelable(true);
+                    showCodeError(codeField, error, status == 403 ? INVALID_INVITE : message, status == 403);
                 }
             });
-        }));
-        dialog.show();
+        });
+        sheet.show();
+        if (sheet.getWindow() != null) sheet.getWindow().setSoftInputMode(
+                android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+    }
+
+    private static void showCodeError(View field, TextView error, String message, boolean invalid) {
+        FieldUi.set(field, invalid ? FieldUi.ERROR : FieldUi.NORMAL);
+        error.setText(message);
+        error.setVisibility(View.VISIBLE);
     }
 
     private static void confirmJoin(Activity activity, Membership current, Membership target,
                                     String code, Runnable changed) {
         boolean switching = current != null && current.joined && !current.terminalId.equals(target.terminalId);
-        String message = "Terminal: " + target.terminalName + "\nOperator: " + target.operatorName;
-        message += switching
-                ? "\n\nThis replaces your connection to " + current.terminalName
+        String message = switching
+                ? "This replaces your connection to " + current.terminalName
                     + ". Your old vehicle assignment will be cleared. You must be off shift."
-                : "\n\nYour operator will see your account in this terminal's driver list.";
-        AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
-                .setTitle(switching ? "Switch terminal?" : "Join this terminal?")
-                .setMessage(message)
-                .setPositiveButton(switching ? "Switch terminal" : "Join terminal", null)
-                .setNegativeButton("Cancel", null).create();
-        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
-            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);
-            dialog.setCancelable(false);
+                : "Your operator will see your account in this terminal's driver list.";
+        FleetConfirmation confirmation = new FleetConfirmation(activity,
+                switching ? "Switch terminal?" : "Join this terminal?", message,
+                switching ? "Switch Terminal" : "Join Terminal", false);
+        confirmation.addDetail("Terminal", target.terminalName);
+        confirmation.addDetail("Operator", target.operatorName);
+        confirmation.show(() -> {
+            confirmation.setBusy(true, "Joining…");
             JSONObject body = row("inviteCode", code);
             try { body.put("switchConfirmed", switching); } catch (JSONException impossible) { throw new AssertionError(impossible); }
             FleetApi.post("/fleet/join", body, new FleetApi.Callback() {
                 @Override public void onSuccess(JSONObject reply) {
                     if (!alive(activity)) return;
-                    dialog.dismiss();
+                    confirmation.dismiss();
                     Toast.makeText(activity, "Joined " + FleetApi.text(reply, "terminalName"), Toast.LENGTH_LONG).show();
                     changed.run();
                 }
                 @Override public void onError(int status, String error) {
                     if (!alive(activity)) return;
-                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
-                    dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(true);
-                    dialog.setCancelable(true);
-                    dialog.setMessage(messageForError(target, error));
+                    if (status == 403 && INVALID_INVITE.equals(error)) {
+                        confirmation.dismiss();
+                        enterCode(activity, current, changed, code, INVALID_INVITE);
+                    } else {
+                        confirmation.showError(error);
+                    }
                 }
             });
-        }));
-        dialog.show();
-    }
-
-    private static String messageForError(Membership target, String error) {
-        return "Terminal: " + target.terminalName + "\nOperator: " + target.operatorName + "\n\n" + error;
+        });
     }
 
     public static void showOperator(Activity activity, Membership current, Runnable changed) {
@@ -132,11 +197,7 @@ public final class FleetConnectionUi {
             createTerminal(activity, changed);
             return;
         }
-        new MaterialAlertDialogBuilder(activity)
-                .setTitle(current.terminalName)
-                .setMessage("Share an invitation with a driver who already has an account. They can join from their own phone using Join terminal.\n\nEach code works once and expires after 48 hours.")
-                .setPositiveButton("Invite a driver", (d, w) -> generateInvite(activity))
-                .setNegativeButton("Close", null).show();
+        generateInvite(activity);
     }
 
     private static void createTerminal(Activity activity, Runnable changed) {
@@ -194,36 +255,78 @@ public final class FleetConnectionUi {
 
     private static void showInvitation(Activity activity, JSONObject reply) {
         String code = FleetApi.text(reply, "inviteCode");
-        String name = FleetApi.text(reply, "terminalName");
-        long expiresAt = reply.optLong("expiresAt", 0L);
-        String expiration = expiresAt > 0
-                ? DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(new Date(expiresAt))
-                : "48 hours after creation";
-        String share = "Join " + name + " on FleetFlow.\n\nInvitation code: " + code
-                + "\nServer address: " + ApiClient.getBaseUrl()
-                + "\nUse this address in Server connection on the sign-in screen."
-                + "\n\nSign in as a driver, tap Join terminal, and enter this code."
-                + "\nValid for one driver. Expires: " + expiration + ".";
-        AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
-                .setTitle("Invite a driver")
-                .setMessage(name + "\n\n" + code + "\n\nValid once. Expires: " + expiration
-                        + ".\n\nBoth phones must use the same fleet server.")
-                .setNeutralButton("Copy code", null)
-                .setPositiveButton("Share", null)
-                .setNegativeButton("Done", null).create();
-        dialog.setOnShowListener(ignored -> {
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-                ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
-                if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText("Fleet invitation", code));
-                Toast.makeText(activity, "Invitation code copied", Toast.LENGTH_SHORT).show();
-            });
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-                Intent intent = new Intent(Intent.ACTION_SEND).setType("text/plain")
-                        .putExtra(Intent.EXTRA_TEXT, share);
-                activity.startActivity(Intent.createChooser(intent, "Send fleet invitation"));
+        android.view.View view = android.view.LayoutInflater.from(activity).inflate(com.shuttle.mobile.R.layout.sheet_invitation, null);
+        com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+                new com.google.android.material.bottomsheet.BottomSheetDialog(activity);
+        sheet.setContentView(view);
+        ((android.widget.TextView) view.findViewById(com.shuttle.mobile.R.id.tvInviteSheetTitle)).setText("Invite Worker");
+        ((android.widget.TextView) view.findViewById(com.shuttle.mobile.R.id.tvInviteSheetDescription))
+                .setVisibility(View.GONE);
+        view.findViewById(R.id.inviteSettings).setVisibility(View.VISIBLE);
+        EditText input = view.findViewById(com.shuttle.mobile.R.id.etInviteSheetCode);
+        input.setText(code);
+        input.setFocusable(false);
+        input.setCursorVisible(false);
+        input.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+        FieldUi.bindPasswordToggle(input, view.findViewById(com.shuttle.mobile.R.id.btnInviteSheetReveal),
+                "Show invitation code", "Hide invitation code");
+        view.findViewById(com.shuttle.mobile.R.id.btnInviteSheetCopy).setOnClickListener(v -> {
+            ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText("Fleet invitation", code));
+            Toast.makeText(activity, "Invitation code copied", Toast.LENGTH_SHORT).show();
+        });
+        view.findViewById(com.shuttle.mobile.R.id.btnInviteSheetAction).setVisibility(android.view.View.GONE);
+        view.findViewById(com.shuttle.mobile.R.id.btnInviteSheetClose).setOnClickListener(v -> sheet.dismiss());
+        bindInviteToggle(activity, view, sheet, reply);
+        sheet.show();
+    }
+
+    private static void bindInviteToggle(Activity activity, View view, BottomSheetDialog sheet, JSONObject state) {
+        SwitchMaterial toggle = view.findViewById(R.id.switchInviteEnabled);
+        TextView error = view.findViewById(R.id.tvInviteSheetError);
+        String code = FleetApi.text(state, "inviteCode");
+        boolean used = state.optBoolean("used", false);
+        toggle.setOnCheckedChangeListener(null);
+        toggle.setChecked(state.optBoolean("enabled", false));
+        toggle.setEnabled(!used && !code.isEmpty());
+        view.findViewById(R.id.btnInviteSheetCopy).setEnabled(!used && !code.isEmpty());
+        if (used) {
+            error.setText("This code has been used. Reopen Invite Worker for a new code.");
+            error.setVisibility(View.VISIBLE);
+        }
+        toggle.setOnCheckedChangeListener((button, enabled) -> {
+            toggle.setEnabled(false);
+            error.setVisibility(View.GONE);
+            JSONObject body = row("inviteCode", code);
+            try { body.put("enabled", enabled); } catch (JSONException impossible) { throw new AssertionError(impossible); }
+            FleetApi.put("/fleet/invites", body, new FleetApi.Callback() {
+                @Override public void onSuccess(JSONObject reply) {
+                    if (alive(activity) && sheet.isShowing()) bindInviteToggle(activity, view, sheet, reply);
+                }
+                @Override public void onError(int status, String message) {
+                    if (!alive(activity) || !sheet.isShowing()) return;
+                    error.setText(message);
+                    error.setVisibility(View.VISIBLE);
+                    FleetApi.get("/fleet/invites", new FleetApi.Callback() {
+                        @Override public void onSuccess(JSONObject reply) {
+                            if (!alive(activity) || !sheet.isShowing()) return;
+                            if (!code.equals(FleetApi.text(reply, "inviteCode"))) {
+                                sheet.dismiss();
+                                showInvitation(activity, reply);
+                                return;
+                            }
+                            bindInviteToggle(activity, view, sheet, reply);
+                        }
+                        @Override public void onError(int status, String message) {
+                            if (!alive(activity) || !sheet.isShowing()) return;
+                            toggle.setOnCheckedChangeListener(null);
+                            toggle.setChecked(state.optBoolean("enabled", false));
+                            error.setText("Could not check the current code. Reopen Invite Worker to refresh.");
+                        }
+                    });
+                }
             });
         });
-        dialog.show();
     }
 
     private static EditText field(Activity activity, String hint) {

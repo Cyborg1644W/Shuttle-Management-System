@@ -1,0 +1,2 @@
+shuttleId,plateNumber,capacity,currentStatus
+SH-001,ABC-1234,20,AVAILABLE
